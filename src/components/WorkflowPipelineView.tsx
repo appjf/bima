@@ -231,8 +231,17 @@ export const WorkflowPipelineView: React.FC<WorkflowPipelineViewProps> = ({
                     >
                       {/* Register & Applicant */}
                       <td className="py-3 px-4 font-mono">
-                        <div className="font-bold text-indigo-600 dark:text-indigo-400 text-xs">
-                          {app.registerNumber}
+                        <div className="font-bold text-indigo-600 dark:text-indigo-400 text-xs flex items-center gap-1.5">
+                          <span>{app.registerNumber}</span>
+                          {app.permitType && (
+                            <span className={`text-[9px] px-1 py-0.2 font-mono font-bold ${
+                              app.permitType.startsWith('SLF') 
+                                ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700' 
+                                : 'bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
+                            }`}>
+                              {app.permitType.startsWith('SLF') ? 'SLF' : 'PBG'}
+                            </span>
+                          )}
                         </div>
                         <div className="font-sans font-semibold text-slate-900 dark:text-white mt-0.5">
                           {app.applicant.name}
@@ -346,9 +355,20 @@ export const WorkflowPipelineView: React.FC<WorkflowPipelineViewProps> = ({
                   {/* Card Header: Register & Status */}
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400">
-                        {app.registerNumber}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                          {app.registerNumber}
+                        </span>
+                        {app.permitType && (
+                          <span className={`text-[9px] px-1 py-0.2 font-mono font-bold ${
+                            app.permitType.startsWith('SLF') 
+                              ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700' 
+                              : 'bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
+                          }`}>
+                            {app.permitType.startsWith('SLF') ? 'SLF' : 'PBG'}
+                          </span>
+                        )}
+                      </div>
                       <h4 className="font-bold text-sm text-slate-900 dark:text-white leading-tight mt-0.5">
                         {app.building.name}
                       </h4>

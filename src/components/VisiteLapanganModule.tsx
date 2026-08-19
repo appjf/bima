@@ -116,6 +116,86 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // Interactive Signature Pad State & Handlers
+  const sigCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.strokeStyle = '#1e3a8a'; // Royal blue ink
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const rect = canvas.getBoundingClientRect();
+    let clientX = 0;
+    let clientY = 0;
+
+    if ('touches' in e) {
+      if (e.touches.length === 0) return;
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(clientX - rect.left, clientY - rect.top);
+    setIsDrawing(true);
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    let clientX = 0;
+    let clientY = 0;
+
+    if ('touches' in e) {
+      if (e.touches.length === 0) return;
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    ctx.lineTo(clientX - rect.left, clientY - rect.top);
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => {
+    if (isDrawing) {
+      setIsDrawing(false);
+      saveSignature();
+    }
+  };
+
+  const clearSignature = () => {
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    updateBaField('perwakilanTtdUrl', '');
+  };
+
+  const saveSignature = () => {
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL('image/png');
+    updateBaField('perwakilanTtdUrl', dataUrl);
+  };
+
   // Start Camera
   const startCamera = async () => {
     setCameraError(null);
@@ -233,6 +313,7 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
     if (!selectedApp) return;
     const regClean = selectedApp.registerNumber.replace(/[^a-zA-Z0-9]/g, '').slice(-6);
     const draftBa: BeritaAcaraLapangan = {
+      ...selectedApp.baLapangan,
       baLapanganNumber: selectedApp.baLapangan?.baLapanganNumber || `BA-VISITE/${regClean}/DPUPR-GRT/2026`,
       visitDate,
       visitTime,
@@ -264,11 +345,36 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
     onUpdateApplication(updatedApp);
   };
 
+  const updateBaField = (field: string, value: any) => {
+    if (!selectedApp) return;
+    const currentBa = selectedApp.baLapangan || generateBeritaAcaraLapanganDraft(selectedApp);
+    
+    let updatedBa = { ...currentBa };
+    if (field.includes('.')) {
+      const [parent, child] = field.split('.');
+      const parentObj = (updatedBa as any)[parent] || {};
+      (updatedBa as any)[parent] = {
+        ...parentObj,
+        [child]: value
+      };
+    } else {
+      (updatedBa as any)[field] = value;
+    }
+
+    const updatedApp: Application = {
+      ...selectedApp,
+      baLapangan: updatedBa,
+      lastUpdated: new Date().toISOString()
+    };
+    onUpdateApplication(updatedApp);
+  };
+
   // Finalize BA Lapangan & Advance to Consultation Stage
   const handleFinalizeAndProceed = () => {
     if (!selectedApp) return;
     const regClean = selectedApp.registerNumber.replace(/[^a-zA-Z0-9]/g, '').slice(-6);
     const finalizedBa: BeritaAcaraLapangan = {
+      ...selectedApp.baLapangan,
       baLapanganNumber: selectedApp.baLapangan?.baLapanganNumber || `BA-VISITE/${regClean}/DPUPR-GRT/2026`,
       visitDate,
       visitTime,
@@ -591,8 +697,10 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
               )}
 
               {/* Sub-Tab 2: Input Laporan & Checklist */}
-              {activeSubTab === 'FORM' && (
-                <div className="p-6 space-y-6 font-mono text-xs">
+              {activeSubTab === 'FORM' && (() => {
+                const ba = selectedApp?.baLapangan || {};
+                return (
+                  <div className="p-6 space-y-6 font-mono text-xs">
                   
                   {/* Waktu & Tim Pemeriksa */}
                   <div className="border border-slate-200 dark:border-slate-800 p-4 space-y-3 bg-slate-50/50 dark:bg-slate-800/20">
@@ -701,6 +809,464 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
                     </div>
                   </div>
 
+                  {/* BAGIAN I: DATA FISIK LAPANGAN RESMI (BERDASARKAN LAMPIRAN PDF) */}
+                  <div className="border border-slate-200 dark:border-slate-800 p-4 sm:p-5 space-y-5 bg-slate-50/30 dark:bg-slate-800/10">
+                    <div className="border-b border-slate-200 dark:border-slate-800 pb-2">
+                      <h4 className="font-bold text-slate-900 dark:text-white uppercase flex items-center gap-1.5 text-xs">
+                        <FileText className="w-4 h-4 text-amber-600" />
+                        <span>Formulir Berita Acara Pemeriksaan Fisik Resmi</span>
+                      </h4>
+                      <p className="text-[10px] text-slate-400 font-mono">Berdasarkan Dokumen BA Dinas Pekerjaan Umum dan Penataan Ruang Kabupaten Garut</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* A. Kondisi Lapangan */}
+                      <div className="border border-slate-200 dark:border-slate-800 p-3 bg-white dark:bg-slate-900 space-y-2">
+                        <span className="text-[10.5px] font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide block border-b pb-1">A. Kondisi Lapangan</span>
+                        <div className="space-y-1.5 pt-1">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={!!ba.kondisiLapangan?.tanahKosong} 
+                              onChange={(e) => updateBaField('kondisiLapangan.tanahKosong', e.target.checked)} 
+                              className="rounded-none border-slate-300 dark:border-slate-700 focus:ring-0 text-indigo-600"
+                            />
+                            <span>1. Tanah kosong</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={!!ba.kondisiLapangan?.adaBangunanLama} 
+                              onChange={(e) => updateBaField('kondisiLapangan.adaBangunanLama', e.target.checked)} 
+                              className="rounded-none border-slate-300 dark:border-slate-700 focus:ring-0 text-indigo-600"
+                            />
+                            <span>2. Ada bangunan lama</span>
+                          </label>
+                          {ba.kondisiLapangan?.adaBangunanLama && (
+                            <div className="pl-6 space-y-1 border-l-2 border-slate-200 dark:border-slate-800 py-1">
+                              <label className="flex items-center gap-2 cursor-pointer text-[11px] text-slate-500">
+                                <input 
+                                  type="checkbox" 
+                                  checked={!!ba.kondisiLapangan?.bongkarKeseluruhan} 
+                                  onChange={(e) => updateBaField('kondisiLapangan.bongkarKeseluruhan', e.target.checked)} 
+                                  className="rounded-none border-slate-300 dark:border-slate-700 text-indigo-600"
+                                />
+                                <span>- Bangunan lama akan dibongkar keseluruhan</span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer text-[11px] text-slate-500">
+                                <input 
+                                  type="checkbox" 
+                                  checked={!!ba.kondisiLapangan?.bongkarSebagian} 
+                                  onChange={(e) => updateBaField('kondisiLapangan.bongkarSebagian', e.target.checked)} 
+                                  className="rounded-none border-slate-300 dark:border-slate-700 text-indigo-600"
+                                />
+                                <span>- Bangunan lama akan dibongkar sebagian</span>
+                              </label>
+                            </div>
+                          )}
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={!!ba.kondisiLapangan?.bangunanSudahJadi} 
+                              onChange={(e) => updateBaField('kondisiLapangan.bangunanSudahJadi', e.target.checked)} 
+                              className="rounded-none border-slate-300 dark:border-slate-700 focus:ring-0 text-indigo-600"
+                            />
+                            <span>3. Bangunan sudah jadi</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* B. Kondisi Kegiatan */}
+                      <div className="border border-slate-200 dark:border-slate-800 p-3 bg-white dark:bg-slate-900 space-y-2">
+                        <span className="text-[10.5px] font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide block border-b pb-1">B. Kondisi Kegiatan</span>
+                        <div className="space-y-1.5 pt-1">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={!!ba.kondisiKegiatan?.belumAdaKegiatan} 
+                              onChange={(e) => updateBaField('kondisiKegiatan.belumAdaKegiatan', e.target.checked)} 
+                              className="rounded-none border-slate-300 dark:border-slate-700 focus:ring-0 text-indigo-600"
+                            />
+                            <span>1. Belum ada kegiatan pembangunan</span>
+                          </label>
+                          <div className="space-y-1">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input 
+                                type="checkbox" 
+                                checked={!!ba.kondisiKegiatan?.sedangAdaKegiatan} 
+                                onChange={(e) => updateBaField('kondisiKegiatan.sedangAdaKegiatan', e.target.checked)} 
+                                className="rounded-none border-slate-300 dark:border-slate-700 focus:ring-0 text-indigo-600"
+                              />
+                              <span>2. Sedang ada kegiatan pembangunan</span>
+                            </label>
+                            {ba.kondisiKegiatan?.sedangAdaKegiatan && (
+                              <div className="pl-6 flex items-center gap-1.5 py-0.5">
+                                <span className="text-[10.5px] text-slate-400">Perkiraan progress:</span>
+                                <input 
+                                  type="text" 
+                                  value={ba.kondisiKegiatan?.sedangAdaKegiatanPersen || ''} 
+                                  onChange={(e) => updateBaField('kondisiKegiatan.sedangAdaKegiatanPersen', e.target.value)} 
+                                  className="w-16 px-1.5 py-0.5 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white bg-transparent text-center font-bold text-[10.5px] focus:outline-none focus:border-indigo-600"
+                                  placeholder="e.g. 65"
+                                />
+                                <span className="text-[10.5px] font-bold text-slate-800 dark:text-slate-200">%</span>
+                              </div>
+                            )}
+                          </div>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={!!ba.kondisiKegiatan?.selesaiDikerjakan} 
+                              onChange={(e) => updateBaField('kondisiKegiatan.selesaiDikerjakan', e.target.checked)} 
+                              className="rounded-none border-slate-300 dark:border-slate-700 focus:ring-0 text-indigo-600"
+                            />
+                            <span>3. Bangunan sudah selesai dikerjakan</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* C. Fungsi Bangunan */}
+                      <div className="border border-slate-200 dark:border-slate-800 p-3 bg-white dark:bg-slate-900 space-y-2">
+                        <span className="text-[10.5px] font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide block border-b pb-1">C. Fungsi Bangunan</span>
+                        <div className="grid grid-cols-2 gap-2 pt-1">
+                          {(['HUNIAN', 'KEAGAMAAN', 'USAHA', 'SOSIAL_BUDAYA', 'KHUSUS', 'CAMPURAN'] as const).map((func) => (
+                            <label key={func} className="flex items-center gap-1.5 cursor-pointer text-[11px]">
+                              <input 
+                                type="radio" 
+                                name="fungsiBangunanTerpilih"
+                                checked={ba.fungsiBangunanTerpilih === func} 
+                                onChange={() => updateBaField('fungsiBangunanTerpilih', func)} 
+                                className="border-slate-300 dark:border-slate-700 text-indigo-600"
+                              />
+                              <span className="capitalize">{func.replace('_', ' ').toLowerCase()}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* D. Keterangan Lain */}
+                      <div className="border border-slate-200 dark:border-slate-800 p-3 bg-white dark:bg-slate-900 space-y-1.5">
+                        <span className="text-[10.5px] font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide block border-b pb-1">D. Keterangan Lain</span>
+                        <textarea
+                          rows={3}
+                          value={ba.keteranganLain || ''}
+                          onChange={(e) => updateBaField('keteranganLain', e.target.value)}
+                          className="w-full p-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 font-mono text-[11px] focus:outline-none focus:border-indigo-600 text-slate-700 dark:text-slate-200"
+                          placeholder="Tulis keterangan lainnya atau temuan khusus disini..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* TABLE PARAMETERS FORM (PAGE 2 & 3 OF PDF) */}
+                    <div className="space-y-3">
+                      <span className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-wider block font-mono border-b pb-1">
+                        E. Matriks Parameter Kesesuaian Aturan Tata Ruang & Fisik Bangunan
+                      </span>
+
+                      <div className="overflow-x-auto border border-slate-200 dark:border-slate-800">
+                        <table className="w-full text-left text-[11px] font-mono border-collapse">
+                          <thead className="bg-slate-100 dark:bg-slate-800/80 uppercase font-bold text-[10px] text-slate-500 border-b border-slate-200 dark:border-slate-800">
+                            <tr>
+                              <th className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">No</th>
+                              <th className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">Uraian Parameter</th>
+                              <th className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">Informasi Kondisi Lapangan</th>
+                              <th className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">Aturan Rencana (KRK)</th>
+                              <th className="px-3 py-2">Keterangan Verifikasi</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                            
+                            {/* A. Sertifikat */}
+                            <tr className="bg-slate-50/50 dark:bg-slate-950/20 font-bold">
+                              <td className="px-3 py-1.5 border-r border-slate-200 dark:border-slate-800">A</td>
+                              <td className="px-3 py-1.5 border-r border-slate-200 dark:border-slate-800" colSpan={4}>Sertifikat Tanah</td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800"></td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">Luas Tanah (m²)</td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">
+                                <input 
+                                  type="text" 
+                                  value={ba.paramSertifikatLuas || ''} 
+                                  onChange={(e) => updateBaField('paramSertifikatLuas', e.target.value)} 
+                                  className="w-full bg-transparent border-b border-slate-200 dark:border-slate-700 py-0.5 focus:outline-none text-slate-900 dark:text-white"
+                                />
+                              </td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800" colSpan={2}>Sesuai dokumen kepemilikan tanah</td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800"></td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">Nomor Sertifikat</td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">
+                                <input 
+                                  type="text" 
+                                  value={ba.paramSertifikatNomor || ''} 
+                                  onChange={(e) => updateBaField('paramSertifikatNomor', e.target.value)} 
+                                  className="w-full bg-transparent border-b border-slate-200 dark:border-slate-700 py-0.5 focus:outline-none text-slate-900 dark:text-white"
+                                />
+                              </td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800" colSpan={2}>Terverifikasi valid oleh BPN Garut</td>
+                            </tr>
+
+                            {/* B. KRK */}
+                            <tr className="bg-slate-50/50 dark:bg-slate-950/20 font-bold">
+                              <td className="px-3 py-1.5 border-r border-slate-200 dark:border-slate-800">B</td>
+                              <td className="px-3 py-1.5 border-r border-slate-200 dark:border-slate-800" colSpan={4}>Keterangan Rencana Kabupaten (KRK) / Tata Ruang</td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800"></td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">Jenis Bangunan</td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">
+                                <input 
+                                  type="text" 
+                                  value={ba.paramKrkJenisBangunan || ''} 
+                                  onChange={(e) => updateBaField('paramKrkJenisBangunan', e.target.value)} 
+                                  className="w-full bg-transparent border-b border-slate-200 dark:border-slate-700 py-0.5 focus:outline-none text-slate-900 dark:text-white"
+                                />
+                              </td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800" colSpan={2}>Disetujui untuk peruntukan ruang</td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800"></td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">Jumlah Lantai</td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">
+                                <input 
+                                  type="text" 
+                                  value={ba.paramKrkJumlahLantai || ''} 
+                                  onChange={(e) => updateBaField('paramKrkJumlahLantai', e.target.value)} 
+                                  className="w-full bg-transparent border-b border-slate-200 dark:border-slate-700 py-0.5 focus:outline-none text-slate-900 dark:text-white"
+                                />
+                              </td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">Rencana Tata Bangunan</td>
+                              <td className="px-3 py-2">
+                                <select 
+                                  value={ba.paramKrkJumlahLantaiKet || 'OK'} 
+                                  onChange={(e) => updateBaField('paramKrkJumlahLantaiKet', e.target.value)}
+                                  className="bg-transparent border border-slate-200 dark:border-slate-700 text-[10px] font-bold"
+                                >
+                                  <option value="OK">OK</option>
+                                  <option value="LEBIH">LEBIH</option>
+                                </select>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800"></td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">KDB (%)</td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">
+                                <input 
+                                  type="text" 
+                                  value={ba.paramKrkKdb || ''} 
+                                  onChange={(e) => updateBaField('paramKrkKdb', e.target.value)} 
+                                  className="w-full bg-transparent border-b border-slate-200 dark:border-slate-700 py-0.5 focus:outline-none"
+                                />
+                              </td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">Maksimal Koefisien Dasar</td>
+                              <td className="px-3 py-2">
+                                <select 
+                                  value={ba.paramKrkKdbKet || 'OK'} 
+                                  onChange={(e) => updateBaField('paramKrkKdbKet', e.target.value)}
+                                  className="bg-transparent border border-slate-200 dark:border-slate-700 text-[10px] font-bold"
+                                >
+                                  <option value="OK">OK</option>
+                                  <option value="LEBIH">LEBIH</option>
+                                </select>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800"></td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">KLB</td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">
+                                <input 
+                                  type="text" 
+                                  value={ba.paramKrkKlb || ''} 
+                                  onChange={(e) => updateBaField('paramKrkKlb', e.target.value)} 
+                                  className="w-full bg-transparent border-b border-slate-200 dark:border-slate-700 py-0.5 focus:outline-none"
+                                />
+                              </td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">Maksimal Koefisien Lantai</td>
+                              <td className="px-3 py-2">
+                                <select 
+                                  value={ba.paramKrkKlbKet || 'OK'} 
+                                  onChange={(e) => updateBaField('paramKrkKlbKet', e.target.value)}
+                                  className="bg-transparent border border-slate-200 dark:border-slate-700 text-[10px] font-bold"
+                                >
+                                  <option value="OK">OK</option>
+                                  <option value="LEBIH">LEBIH</option>
+                                </select>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800"></td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">KDH (%)</td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">
+                                <input 
+                                  type="text" 
+                                  value={ba.paramKrkKdh || ''} 
+                                  onChange={(e) => updateBaField('paramKrkKdh', e.target.value)} 
+                                  className="w-full bg-transparent border-b border-slate-200 dark:border-slate-700 py-0.5 focus:outline-none"
+                                />
+                              </td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">Minimal Koefisien Hijau</td>
+                              <td className="px-3 py-2">
+                                <select 
+                                  value={ba.paramKrkKdhKet || 'OK'} 
+                                  onChange={(e) => updateBaField('paramKrkKdhKet', e.target.value)}
+                                  className="bg-transparent border border-slate-200 dark:border-slate-700 text-[10px] font-bold"
+                                >
+                                  <option value="OK">OK</option>
+                                  <option value="KURANG">KURANG</option>
+                                </select>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800"></td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">GSJ (Garis Sempadan Jalan)</td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">
+                                <input 
+                                  type="text" 
+                                  value={ba.paramKrkGsj || ''} 
+                                  onChange={(e) => updateBaField('paramKrkGsj', e.target.value)} 
+                                  className="w-full bg-transparent border-b border-slate-200 dark:border-slate-700 py-0.5 focus:outline-none"
+                                />
+                              </td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800" colSpan={2}>Batas bahu jalan terluar</td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800"></td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">GSB (Garis Sempadan Bangunan)</td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800" colSpan={3}>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10.5px]">
+                                  <div className="flex items-center gap-1">
+                                    <span>Depan:</span>
+                                    <input type="text" value={ba.paramKrkGsbDepan || ''} onChange={(e) => updateBaField('paramKrkGsbDepan', e.target.value)} className="w-10 bg-transparent border-b focus:outline-none text-center" />
+                                    <span>m</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <span>Belakang:</span>
+                                    <input type="text" value={ba.paramKrkGsbBelakang || ''} onChange={(e) => updateBaField('paramKrkGsbBelakang', e.target.value)} className="w-10 bg-transparent border-b focus:outline-none text-center" />
+                                    <span>m</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <span>Kanan:</span>
+                                    <input type="text" value={ba.paramKrkGsbKanan || ''} onChange={(e) => updateBaField('paramKrkGsbKanan', e.target.value)} className="w-10 bg-transparent border-b focus:outline-none text-center" />
+                                    <span>m</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <span>Kiri:</span>
+                                    <input type="text" value={ba.paramKrkGsbKiri || ''} onChange={(e) => updateBaField('paramKrkGsbKiri', e.target.value)} className="w-10 bg-transparent border-b focus:outline-none text-center" />
+                                    <span>m</span>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+
+                            {/* C. KLASIFIKASI */}
+                            <tr className="bg-slate-50/50 dark:bg-slate-950/20 font-bold">
+                              <td className="px-3 py-1.5 border-r border-slate-200 dark:border-slate-800">C</td>
+                              <td className="px-3 py-1.5 border-r border-slate-200 dark:border-slate-800" colSpan={4}>Klasifikasi & Karakteristik Bangunan Gedung</td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800"></td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">Kompleksitas Bangunan</td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800" colSpan={3}>
+                                <select 
+                                  value={ba.paramKlasifikasiKompleksitas || 'SEDERHANA'} 
+                                  onChange={(e) => updateBaField('paramKlasifikasiKompleksitas', e.target.value)}
+                                  className="bg-transparent border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold"
+                                >
+                                  <option value="SEDERHANA">Sederhana</option>
+                                  <option value="TIDAK_SEDERHANA">Tidak Sederhana</option>
+                                  <option value="KHUSUS">Khusus</option>
+                                </select>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800"></td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">Permanensi Bangunan</td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800" colSpan={3}>
+                                <select 
+                                  value={ba.paramKlasifikasiPermanensi || 'DIATAS_5_TAHUN'} 
+                                  onChange={(e) => updateBaField('paramKlasifikasiPermanensi', e.target.value)}
+                                  className="bg-transparent border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold"
+                                >
+                                  <option value="DIATAS_5_TAHUN">Permanen (Diatas 5 tahun)</option>
+                                  <option value="DIBAWAH_5_TAHUN">Semi Permanen / Sementara (Dibawah 5 tahun)</option>
+                                </select>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800"></td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">Tingkat Kepadatan Lokasi</td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800" colSpan={3}>
+                                <select 
+                                  value={ba.paramKlasifikasiKepadatan || 'SEDANG'} 
+                                  onChange={(e) => updateBaField('paramKlasifikasiKepadatan', e.target.value)}
+                                  className="bg-transparent border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold"
+                                >
+                                  <option value="TINGGI">Tinggi</option>
+                                  <option value="SEDANG">Sedang</option>
+                                  <option value="RENDAH">Rendah</option>
+                                </select>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800"></td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">Ketinggian Bangunan</td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800" colSpan={3}>
+                                <select 
+                                  value={ba.paramKlasifikasiKetinggian || 'RENDAH_1_4_LT'} 
+                                  onChange={(e) => updateBaField('paramKlasifikasiKetinggian', e.target.value)}
+                                  className="bg-transparent border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold"
+                                >
+                                  <option value="RENDAH_1_4_LT">Rendah (1-4 lantai)</option>
+                                  <option value="SEDANG_5_8_LT">Sedang (5-8 lantai)</option>
+                                  <option value="TINGGI_GT_8_LT">Tinggi (&gt; 8 lantai)</option>
+                                </select>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800"></td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">Kepemilikan Bangunan</td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800" colSpan={3}>
+                                <select 
+                                  value={ba.paramKlasifikasiKepemilikan || 'PERORANGAN'} 
+                                  onChange={(e) => updateBaField('paramKlasifikasiKepemilikan', e.target.value)}
+                                  className="bg-transparent border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold"
+                                >
+                                  <option value="PERORANGAN">Perorangan</option>
+                                  <option value="BADAN">Badan Usaha / Korporasi</option>
+                                  <option value="PEMERINTAH">Pemerintah Daerah / Negara</option>
+                                </select>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800"></td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800">Fungsi Kelas Jalan Utama</td>
+                              <td className="px-3 py-2 border-r border-slate-200 dark:border-slate-800" colSpan={3}>
+                                <select 
+                                  value={ba.paramKlasifikasiFungsiJalan || 'LOKAL'} 
+                                  onChange={(e) => updateBaField('paramKlasifikasiFungsiJalan', e.target.value)}
+                                  className="bg-transparent border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold"
+                                >
+                                  <option value="JALAN_KOLEKTOR">Jalan Kolektor</option>
+                                  <option value="LOKAL">Jalan Lokal</option>
+                                  <option value="ARTERI">Jalan Arteri</option>
+                                  <option value="LINGKUNGAN">Jalan Lingkungan</option>
+                                  <option value="PERUMAHAN">Jalan Kompleks Perumahan</option>
+                                </select>
+                              </td>
+                            </tr>
+
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                  </div>
+                  {/* END OF BAGIAN I */}
+
                   {/* Catatan Lokasi & Rekomendasi */}
                   <div className="space-y-3">
                     <div>
@@ -734,6 +1300,113 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
                     </div>
                   </div>
 
+                  {/* F. Tanda Tangan Pemohon / Perwakilan Resmi */}
+                  <div className="border border-slate-200 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-800/10 space-y-4">
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-wider block font-mono border-b pb-1">
+                        F. Verifikasi Kehadiran & Tanda Tangan Pemohon / Perwakilan Resmi
+                      </span>
+                      <p className="text-[10px] text-slate-400 font-mono mt-0.5">Penandatanganan berita acara pemeriksaan oleh pemohon atau pihak yang diberikan kuasa resmi di lapangan</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Nama Pemohon/Perwakilan</label>
+                        <input
+                          type="text"
+                          value={ba.attendeesOwner?.name || ''}
+                          onChange={(e) => updateBaField('attendeesOwner.name', e.target.value)}
+                          placeholder="Nama lengkap..."
+                          className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono font-bold focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-500 uppercase font-bold block mb-1">NIK Perwakilan</label>
+                        <input
+                          type="text"
+                          value={ba.attendeesOwner?.nik || ''}
+                          onChange={(e) => updateBaField('attendeesOwner.nik', e.target.value)}
+                          placeholder="No NIK KTP..."
+                          className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono font-bold focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Kapasitas / Hubungan</label>
+                        <select
+                          value={ba.attendeesOwner?.role || 'Pemilik / Kuasa Bangunan Gedung'}
+                          onChange={(e) => updateBaField('attendeesOwner.role', e.target.value)}
+                          className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono font-bold focus:outline-none text-slate-800 dark:text-slate-200"
+                        >
+                          <option value="Pemilik / Kuasa Bangunan Gedung">Pemilik Langsung</option>
+                          <option value="Kuasa / Ahli Waris">Kuasa / Ahli Waris Resmi</option>
+                          <option value="Penanggung Jawab Teknis">Konsultan / Pengkaji Teknis</option>
+                          <option value="Perwakilan / Kontraktor">Perwakilan Kontraktor / Dev</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Signature Canvas Drawing Area */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] text-slate-500 uppercase font-bold block">Goreskan Tanda Tangan Digital Pemohon / Perwakilan:</label>
+                      <div className="flex flex-col sm:flex-row gap-4 items-center">
+                        <div className="relative border border-slate-300 dark:border-slate-700 bg-white rounded-xs overflow-hidden w-full max-w-[340px] h-[130px] shadow-inner">
+                          {ba.perwakilanTtdUrl ? (
+                            <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
+                              <img 
+                                src={ba.perwakilanTtdUrl} 
+                                alt="Signature" 
+                                className="h-28 object-contain mix-blend-multiply" 
+                                referrerPolicy="no-referrer"
+                              />
+                            </div>
+                          ) : (
+                            <canvas
+                              ref={sigCanvasRef}
+                              width={340}
+                              height={130}
+                              onMouseDown={startDrawing}
+                              onMouseMove={draw}
+                              onMouseUp={stopDrawing}
+                              onMouseLeave={stopDrawing}
+                              onTouchStart={startDrawing}
+                              onTouchMove={draw}
+                              onTouchEnd={stopDrawing}
+                              className="w-full h-full cursor-crosshair touch-none bg-white"
+                            />
+                          )}
+                          <div className="absolute bottom-1 right-2 text-[9px] font-sans font-semibold text-slate-400 pointer-events-none select-none uppercase">
+                            {ba.perwakilanTtdUrl ? '✓ TANDA TANGAN DISIMPAN' : 'Area Tanda Tangan (Touch/Mouse)'}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-row sm:flex-col gap-2 w-full sm:w-auto shrink-0">
+                          {ba.perwakilanTtdUrl ? (
+                            <button
+                              type="button"
+                              onClick={clearSignature}
+                              className="flex-1 sm:flex-initial px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-[10px] uppercase transition cursor-pointer"
+                            >
+                              Tanda Tangan Ulang
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={clearSignature}
+                                className="flex-1 sm:flex-initial px-3 py-1.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[10px] uppercase transition cursor-pointer"
+                              >
+                                Bersihkan Coretan
+                              </button>
+                              <div className="text-[10px] text-slate-400 font-mono hidden sm:block max-w-[160px] leading-snug">
+                                *Tanda tangan otomatis disimpan setelah Anda selesai menggoreskan pena.
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Action Buttons */}
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
                     <button
@@ -754,7 +1427,8 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
                   </div>
 
                 </div>
-              )}
+                );
+              })()}
 
               {/* Sub-Tab 2: Camera & Foto Lapangan */}
               {activeSubTab === 'CAMERA' && (
@@ -1045,18 +1719,160 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
                       </div>
                     </div>
 
-                    {/* Checklist Summary */}
-                    <div className="space-y-1 pt-1">
-                      <div className="font-bold text-[11px] uppercase">A. Hasil Pemeriksaan Fisik Multi-Disiplin:</div>
-                      <div className="border border-slate-300 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-800 text-[10px]">
-                        {itemsChecked.map((item) => (
-                          <div key={item.id} className="p-1.5 flex items-center justify-between">
-                            <span className="font-semibold">{item.aspectChecked}</span>
-                            <span className="font-bold text-indigo-600">[{item.status}]</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                     {/* Checklist Summary */}
+                     <div className="space-y-3 pt-1">
+                       <div className="font-bold text-[11px] uppercase">A. Pemeriksaan Kondisi Fisik Lapangan & Kesesuaian Laporan:</div>
+                       
+                       {/* Official Physical Conditions */}
+                       <div className="grid grid-cols-2 gap-3 text-[10.5px]">
+                         <div className="border border-slate-300 dark:border-slate-700 p-2.5 space-y-1 bg-slate-50/50">
+                           <div className="font-bold border-b pb-0.5 mb-1 text-[10.5px] uppercase">Kondisi Lapangan</div>
+                           <div>
+                             {selectedApp.baLapangan?.kondisiLapangan?.tanahKosong ? '☑' : '☐'} 1. Tanah kosong
+                           </div>
+                           <div>
+                             {selectedApp.baLapangan?.kondisiLapangan?.adaBangunanLama ? '☑' : '☐'} 2. Ada bangunan lama
+                             {selectedApp.baLapangan?.kondisiLapangan?.adaBangunanLama && (
+                               <div className="pl-4 text-[9.5px] text-slate-500">
+                                 {selectedApp.baLapangan?.kondisiLapangan?.bongkarKeseluruhan ? '• Dibongkar keseluruhan' : ''}
+                                 {selectedApp.baLapangan?.kondisiLapangan?.bongkarSebagian ? '• Dibongkar sebagian' : ''}
+                               </div>
+                             )}
+                           </div>
+                           <div>
+                             {selectedApp.baLapangan?.kondisiLapangan?.bangunanSudahJadi ? '☑' : '☐'} 3. Bangunan sudah jadi
+                           </div>
+                         </div>
+
+                         <div className="border border-slate-300 dark:border-slate-700 p-2.5 space-y-1 bg-slate-50/50">
+                           <div className="font-bold border-b pb-0.5 mb-1 text-[10.5px] uppercase">Kondisi Kegiatan</div>
+                           <div>
+                             {selectedApp.baLapangan?.kondisiKegiatan?.belumAdaKegiatan ? '☑' : '☐'} 1. Belum ada kegiatan
+                           </div>
+                           <div>
+                             {selectedApp.baLapangan?.kondisiKegiatan?.sedangAdaKegiatan ? '☑' : '☐'} 2. Sedang ada kegiatan {selectedApp.baLapangan?.kondisiKegiatan?.sedangAdaKegiatanPersen ? `(${selectedApp.baLapangan.kondisiKegiatan.sedangAdaKegiatanPersen}%)` : ''}
+                           </div>
+                           <div>
+                             {selectedApp.baLapangan?.kondisiKegiatan?.selesaiDikerjakan ? '☑' : '☐'} 3. Bangunan sudah selesai
+                           </div>
+                         </div>
+                       </div>
+
+                       <div className="grid grid-cols-2 gap-3 text-[10.5px]">
+                         <div className="border border-slate-300 dark:border-slate-700 p-2">
+                           <span className="font-bold">Fungsi Terpilih: </span>
+                           <span className="capitalize">{selectedApp.baLapangan?.fungsiBangunanTerpilih?.replace('_', ' ').toLowerCase() || '-'}</span>
+                         </div>
+                         <div className="border border-slate-300 dark:border-slate-700 p-2">
+                           <span className="font-bold">Keterangan Lain: </span>
+                           <span>{selectedApp.baLapangan?.keteranganLain || '-'}</span>
+                         </div>
+                       </div>
+
+                       {/* Checklist details */}
+                       <div className="space-y-1">
+                         <div className="font-bold text-[10.5px] uppercase">B. Verifikasi 4 Aspek Teknis (PP 16/2021):</div>
+                         <div className="border border-slate-300 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-800 text-[10px]">
+                           {itemsChecked.map((item) => (
+                             <div key={item.id} className="p-1.5 flex items-center justify-between">
+                               <span className="font-semibold">{item.aspectChecked} ({item.category})</span>
+                               <span className="font-bold text-indigo-600">[{item.status}]</span>
+                             </div>
+                           ))}
+                         </div>
+                       </div>
+
+                       {/* Matrix Parameters */}
+                       <div className="space-y-1">
+                         <div className="font-bold text-[10.5px] uppercase">C. Matriks Parameter Kesesuaian Tata Ruang & Fisik:</div>
+                         <table className="w-full border-collapse border border-slate-300 text-[10px] text-left">
+                           <thead>
+                             <tr className="bg-slate-100 font-bold">
+                               <th className="border border-slate-300 p-1 w-8 text-center">No</th>
+                               <th className="border border-slate-300 p-1">Uraian Parameter</th>
+                               <th className="border border-slate-300 p-1">Informasi Lapangan</th>
+                               <th className="border border-slate-300 p-1">Rencana (KRK) / Aturan</th>
+                             </tr>
+                           </thead>
+                           <tbody>
+                             <tr>
+                               <td className="border border-slate-300 p-1 text-center font-bold" colSpan={4}>Sertifikat Tanah</td>
+                             </tr>
+                             <tr>
+                               <td className="border border-slate-300 p-1 text-center">1</td>
+                               <td className="border border-slate-300 p-1">Luas Tanah</td>
+                               <td className="border border-slate-300 p-1 font-bold">{selectedApp.baLapangan?.paramSertifikatLuas || '-'} m²</td>
+                               <td className="border border-slate-300 p-1">Sesuai kepemilikan</td>
+                             </tr>
+                             <tr>
+                               <td className="border border-slate-300 p-1 text-center">2</td>
+                               <td className="border border-slate-300 p-1">No Sertifikat</td>
+                               <td className="border border-slate-300 p-1 font-bold">{selectedApp.baLapangan?.paramSertifikatNomor || '-'}</td>
+                               <td className="border border-slate-300 p-1">Sesuai kepemilikan</td>
+                             </tr>
+                             <tr>
+                               <td className="border border-slate-300 p-1 text-center font-bold" colSpan={4}>Keterangan Rencana Kabupaten (KRK)</td>
+                             </tr>
+                             <tr>
+                               <td className="border border-slate-300 p-1 text-center">3</td>
+                               <td className="border border-slate-300 p-1">Jenis Bangunan</td>
+                               <td className="border border-slate-300 p-1 font-bold">{selectedApp.baLapangan?.paramKrkJenisBangunan || '-'}</td>
+                               <td className="border border-slate-300 p-1">Rencana Peruntukan</td>
+                             </tr>
+                             <tr>
+                               <td className="border border-slate-300 p-1 text-center">4</td>
+                               <td className="border border-slate-300 p-1">Jumlah Lantai</td>
+                               <td className="border border-slate-300 p-1 font-bold">{selectedApp.baLapangan?.paramKrkJumlahLantai || '-'} ({selectedApp.baLapangan?.paramKrkJumlahLantaiKet || 'OK'})</td>
+                               <td className="border border-slate-300 p-1">Sesuai RTB</td>
+                             </tr>
+                             <tr>
+                               <td className="border border-slate-300 p-1 text-center">5</td>
+                               <td className="border border-slate-300 p-1">KDB (%)</td>
+                               <td className="border border-slate-300 p-1 font-bold">{selectedApp.baLapangan?.paramKrkKdb || '-'}% ({selectedApp.baLapangan?.paramKrkKdbKet || 'OK'})</td>
+                               <td className="border border-slate-300 p-1">Maksimal KDB</td>
+                             </tr>
+                             <tr>
+                               <td className="border border-slate-300 p-1 text-center">6</td>
+                               <td className="border border-slate-300 p-1">KLB</td>
+                               <td className="border border-slate-300 p-1 font-bold">{selectedApp.baLapangan?.paramKrkKlb || '-'} ({selectedApp.baLapangan?.paramKrkKlbKet || 'OK'})</td>
+                               <td className="border border-slate-300 p-1">Maksimal KLB</td>
+                             </tr>
+                             <tr>
+                               <td className="border border-slate-300 p-1 text-center">7</td>
+                               <td className="border border-slate-300 p-1">KDH (%)</td>
+                               <td className="border border-slate-300 p-1 font-bold">{selectedApp.baLapangan?.paramKrkKdh || '-'}% ({selectedApp.baLapangan?.paramKrkKdhKet || 'OK'})</td>
+                               <td className="border border-slate-300 p-1">Minimal KDH</td>
+                             </tr>
+                             <tr>
+                               <td className="border border-slate-300 p-1 text-center">8</td>
+                               <td className="border border-slate-300 p-1">Garis Sempadan (GSJ & GSB)</td>
+                               <td className="border border-slate-300 p-1 font-bold" colSpan={2}>
+                                 <div>GSJ: {selectedApp.baLapangan?.paramKrkGsj || '-'} m</div>
+                                 <div className="grid grid-cols-4 gap-1 text-[9.5px] mt-0.5">
+                                   <span>Depan: {selectedApp.baLapangan?.paramKrkGsbDepan || '0'}m</span>
+                                   <span>Belakang: {selectedApp.baLapangan?.paramKrkGsbBelakang || '0'}m</span>
+                                   <span>Kanan: {selectedApp.baLapangan?.paramKrkGsbKanan || '0'}m</span>
+                                   <span>Kiri: {selectedApp.baLapangan?.paramKrkGsbKiri || '0'}m</span>
+                                 </div>
+                               </td>
+                             </tr>
+                             <tr>
+                               <td className="border border-slate-300 p-1 text-center font-bold" colSpan={4}>Karakteristik & Klasifikasi Bangunan</td>
+                             </tr>
+                             <tr>
+                               <td className="border border-slate-300 p-1 text-center">9</td>
+                               <td className="border border-slate-300 p-1">Kompleksitas</td>
+                               <td className="border border-slate-300 p-1 font-bold" colSpan={2}>{selectedApp.baLapangan?.paramKlasifikasiKompleksitas || '-'}</td>
+                             </tr>
+                             <tr>
+                               <td className="border border-slate-300 p-1 text-center">10</td>
+                               <td className="border border-slate-300 p-1">Permanensi</td>
+                               <td className="border border-slate-300 p-1 font-bold" colSpan={2}>{selectedApp.baLapangan?.paramKlasifikasiPermanensi === 'DIATAS_5_TAHUN' ? 'Permanen (>5 Tahun)' : 'Semi Permanen (<5 Tahun)'}</td>
+                             </tr>
+                           </tbody>
+                         </table>
+                       </div>
+                     </div>
 
                     {/* Conclusion & Recommendations */}
                     <div className="space-y-1 pt-1 text-[11px]">
@@ -1079,15 +1895,47 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
 
                     {/* Signatures: Operator SIMBG & Pemohon/Yang Dikuasakan */}
                     <div className="pt-6 grid grid-cols-2 gap-6 text-center text-[10px] border-t border-slate-300 dark:border-slate-700">
-                      <div className="space-y-12">
-                        <div className="font-bold uppercase text-slate-800 dark:text-slate-200">PEMOHON / YANG DIKUASAKAN</div>
+                      <div className="flex flex-col items-center justify-between min-h-[140px] space-y-2">
+                        <div className="font-bold uppercase text-slate-800 dark:text-slate-200">
+                          {selectedApp.baLapangan?.attendeesOwner?.role ? selectedApp.baLapangan.attendeesOwner.role.toUpperCase() : 'PEMOHON / YANG DIKUASAKAN'}
+                        </div>
+                        
+                        {selectedApp.baLapangan?.perwakilanTtdUrl ? (
+                          <div className="my-1 h-16 flex items-center justify-center">
+                            <img 
+                              src={selectedApp.baLapangan.perwakilanTtdUrl} 
+                              alt="Tanda Tangan Pemohon" 
+                              className="h-16 object-contain mix-blend-multiply" 
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
+                        ) : (
+                          <div className="h-16 flex items-center justify-center text-slate-300 italic text-[9px] font-sans">
+                            (Belum ditandatangani)
+                          </div>
+                        )}
+
                         <div>
-                          <div className="font-bold underline text-slate-900 dark:text-white uppercase">{selectedApp.applicant.name}</div>
-                          <div className="text-[9px] text-slate-500 font-mono">NIK: {selectedApp.applicant.nik}</div>
+                          <div className="font-bold underline text-slate-900 dark:text-white uppercase">
+                            {selectedApp.baLapangan?.attendeesOwner?.name || selectedApp.applicant.name}
+                          </div>
+                          <div className="text-[9px] text-slate-500 font-mono">
+                            NIK: {selectedApp.baLapangan?.attendeesOwner?.nik || selectedApp.applicant.nik || '-'}
+                          </div>
                         </div>
                       </div>
-                      <div className="space-y-12">
+
+                      <div className="flex flex-col items-center justify-between min-h-[140px] space-y-2">
                         <div className="font-bold uppercase text-slate-800 dark:text-slate-200">PETUGAS / OPERATOR SIMBG DPUPR GARUT</div>
+                        
+                        <div className="my-1 h-16 flex items-center justify-center text-slate-400 text-[8px] font-mono leading-tight">
+                          <div className="border border-slate-300 p-1 text-center bg-slate-50 select-none uppercase">
+                            <div>TERTANDALINDUNGI</div>
+                            <div className="font-bold text-slate-600">SIMBG Garut TTE</div>
+                            <div>RFC-7515 JWS SECURE</div>
+                          </div>
+                        </div>
+
                         <div>
                           <div className="font-bold underline text-slate-900 dark:text-white uppercase">OPERATOR TEKNIS SIMBG</div>
                           <div className="text-[9px] text-slate-500 font-mono">Dinas PUPR Kabupaten Garut</div>

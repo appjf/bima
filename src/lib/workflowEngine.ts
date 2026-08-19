@@ -202,6 +202,16 @@ export function generateBeritaAcaraLapanganDraft(
   recommendations: string = 'Kondisi fisik bangunan eksisting laik fungsi dan sesuai dengan dokumen laporan kelaikan fungsi. Dapat dilanjutkan ke Sidang Konsultasi Teknis TPA/TPT.'
 ): BeritaAcaraLapangan {
   const regClean = app.registerNumber.replace(/[^a-zA-Z0-9]/g, '').slice(-6);
+  
+  let functionMap: 'HUNIAN' | 'KEAGAMAAN' | 'USAHA' | 'SOSIAL_BUDAYA' | 'KHUSUS' | 'CAMPURAN' = 'HUNIAN';
+  const appFunc = app.building.functionType?.toUpperCase() || 'HUNIAN';
+  if (appFunc.includes('HUNIAN') || appFunc.includes('TINGGAL')) functionMap = 'HUNIAN';
+  else if (appFunc.includes('KEAGAMAAN') || appFunc.includes('MASJID') || appFunc.includes('IBADAH')) functionMap = 'KEAGAMAAN';
+  else if (appFunc.includes('USAHA') || appFunc.includes('TOKO') || appFunc.includes('KANTOR')) functionMap = 'USAHA';
+  else if (appFunc.includes('SOSIAL') || appFunc.includes('BUDAYA') || appFunc.includes('SEKOLAH')) functionMap = 'SOSIAL_BUDAYA';
+  else if (appFunc.includes('KHUSUS') || appFunc.includes('PABRIK')) functionMap = 'KHUSUS';
+  else if (appFunc.includes('CAMPURAN')) functionMap = 'CAMPURAN';
+
   return {
     baLapanganNumber: `BA-VISITE/${regClean}/DPUPR-GRT/2026`,
     visitDate: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
@@ -216,7 +226,52 @@ export function generateBeritaAcaraLapanganDraft(
     conformityStatus,
     recommendations,
     isCompleted: true,
-    completedAt: new Date().toISOString()
+    completedAt: new Date().toISOString(),
+
+    // New official form fields defaults
+    kondisiLapangan: {
+      tanahKosong: false,
+      adaBangunanLama: false,
+      bongkarKeseluruhan: false,
+      bongkarSebagian: false,
+      bangunanSudahJadi: true
+    },
+    kondisiKegiatan: {
+      belumAdaKegiatan: false,
+      sedangAdaKegiatan: false,
+      sedangAdaKegiatanPersen: '100',
+      selesaiDikerjakan: true
+    },
+    fungsiBangunanTerpilih: functionMap,
+    keteranganLain: 'Bangunan berdiri kokoh, struktur balok dan kolom beton bertulang dalam kondisi aman dan laik fungsi. Akses jalan memadai dan prasarana lingkungan tertata baik.',
+
+    // Parameters Table fields
+    paramSertifikatLuas: app.building.landArea?.toString() || '350',
+    paramSertifikatNomor: `M.${regClean}/Garut`,
+    paramKrkJenisBangunan: app.building.name,
+    paramKrkJumlahLantai: app.building.floors?.toString() || '2',
+    paramKrkJumlahLantaiKet: 'OK',
+    paramKrkKdb: app.building.kdb?.toString() || '60',
+    paramKrkKdbKet: 'OK',
+    paramKrkKlb: app.building.klb?.toString() || '1.2',
+    paramKrkKlbKet: 'OK',
+    paramKrkKdh: '20',
+    paramKrkKdhKet: 'OK',
+    paramKrkLuasPerkerasan: '120',
+    paramKrkPanjangPagar: '45',
+    paramKrkGsj: '6 m',
+    paramKrkGsbDepan: '5',
+    paramKrkGsbBelakang: '3',
+    paramKrkGsbKanan: '2',
+    paramKrkGsbKiri: '2',
+
+    // Classification fields
+    paramKlasifikasiKompleksitas: app.building.complexity === 'SEDERHANA' ? 'SEDERHANA' : app.building.complexity === 'KHUSUS' ? 'KHUSUS' : 'TIDAK_SESUAI' as any,
+    paramKlasifikasiPermanensi: 'DIATAS_5_TAHUN',
+    paramKlasifikasiKepadatan: 'SEDANG',
+    paramKlasifikasiKetinggian: (app.building.floors || 1) <= 4 ? 'RENDAH_1_4_LT' : (app.building.floors || 1) <= 8 ? 'SEDANG_5_8_LT' : 'TINGGI_GT_8_LT',
+    paramKlasifikasiKepemilikan: 'PERORANGAN',
+    paramKlasifikasiFungsiJalan: 'LOKAL'
   };
 }
 

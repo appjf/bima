@@ -160,6 +160,51 @@ export interface BeritaAcaraLapangan {
   recommendations: string;
   isCompleted: boolean;
   completedAt?: string;
+
+  // New fields from the official PDF
+  kondisiLapangan?: {
+    tanahKosong?: boolean;
+    adaBangunanLama?: boolean;
+    bongkarKeseluruhan?: boolean;
+    bongkarSebagian?: boolean;
+    bangunanSudahJadi?: boolean;
+  };
+  kondisiKegiatan?: {
+    belumAdaKegiatan?: boolean;
+    sedangAdaKegiatan?: boolean;
+    sedangAdaKegiatanPersen?: string;
+    selesaiDikerjakan?: boolean;
+  };
+  fungsiBangunanTerpilih?: 'HUNIAN' | 'KEAGAMAAN' | 'USAHA' | 'SOSIAL_BUDAYA' | 'KHUSUS' | 'CAMPURAN';
+  keteranganLain?: string;
+
+  // Parameters Table fields
+  paramSertifikatLuas?: string;
+  paramSertifikatNomor?: string;
+  paramKrkJenisBangunan?: string;
+  paramKrkJumlahLantai?: string;
+  paramKrkJumlahLantaiKet?: string; // 'OK' | 'LEBIH'
+  paramKrkKdb?: string;
+  paramKrkKdbKet?: string; // 'OK' | 'LEBIH'
+  paramKrkKlb?: string;
+  paramKrkKlbKet?: string; // 'OK' | 'LEBIH'
+  paramKrkKdh?: string;
+  paramKrkKdhKet?: string; // 'OK' | 'KURANG'
+  paramKrkLuasPerkerasan?: string;
+  paramKrkPanjangPagar?: string;
+  paramKrkGsj?: string;
+  paramKrkGsbDepan?: string;
+  paramKrkGsbBelakang?: string;
+  paramKrkGsbKanan?: string;
+  paramKrkGsbKiri?: string;
+
+  // Classification fields
+  paramKlasifikasiKompleksitas?: 'SEDERHANA' | 'TIDAK_SEDERHANA' | 'KHUSUS';
+  paramKlasifikasiPermanensi?: 'DIATAS_5_TAHUN' | 'DIBAWAH_5_TAHUN';
+  paramKlasifikasiKepadatan?: 'TINGGI' | 'SEDANG' | 'RENDAH';
+  paramKlasifikasiKetinggian?: 'RENDAH_1_4_LT' | 'SEDANG_5_8_LT' | 'TINGGI_GT_8_LT';
+  paramKlasifikasiKepemilikan?: 'PERORANGAN' | 'BADAN' | 'PEMERINTAH';
+  paramKlasifikasiFungsiJalan?: 'JALAN_KOLEKTOR' | 'LOKAL' | 'ARTERI' | 'LINGKUNGAN' | 'PERUMAHAN';
 }
 
 export interface VerificationReview {

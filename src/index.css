@@ -28,20 +28,35 @@
     print-color-adjust: exact !important;
   }
 
+  /* Bulletproof Direct Print Override: hide everything except printable areas if printing on main window */
+  body {
+    visibility: hidden !important;
+  }
+
   /* Make printable elements visible and full width */
   .printable-document,
   .print\:block,
-  #printable-area {
-    display: block !important;
+  #printable-area,
+  #printable-ba-area {
     visibility: visible !important;
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 auto !important;
     padding: 0 !important;
     background: #ffffff !important;
     color: #0f172a !important;
-    position: static !important;
     overflow: visible !important;
+  }
+
+  .printable-document *,
+  .print\:block *,
+  #printable-area *,
+  #printable-ba-area * {
+    visibility: visible !important;
   }
 
   /* Page break optimization */
