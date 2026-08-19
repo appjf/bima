@@ -92,17 +92,17 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 shadow-xs">
       
-      {/* Top Header Bar - Geometric Precision */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-18">
+      {/* Top Header Bar - Ultra Clean & Responsive */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-14 sm:h-16 md:h-18">
           
           {/* Logo & System Brand */}
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
             <div className="flex items-center gap-1.5 shrink-0">
               <img 
                 src="/logo_garut.png" 
                 alt="Logo Pemkab Garut" 
-                className="w-9 h-11 sm:w-10 sm:h-12 object-contain"
+                className="w-7 h-9 sm:w-9 sm:h-11 md:w-10 md:h-12 object-contain"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = 'none';
                 }}
@@ -116,25 +116,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }}
               />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white uppercase font-mono">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h1 className="text-sm sm:text-base md:text-lg font-bold tracking-tight text-slate-900 dark:text-white uppercase font-mono truncate">
                   BIMA-BG<span className="text-indigo-600">.GARUT</span>
                 </h1>
-                <span className="text-[10px] px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-mono font-bold border border-indigo-200 dark:border-indigo-800">
-                  DPUPR GARUT
+                <span className="text-[9px] sm:text-[10px] px-1.5 py-0.2 bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-mono font-bold border border-indigo-200 dark:border-indigo-800 shrink-0">
+                  DPUPR
                 </span>
               </div>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none font-mono mt-0.5">
+              <p className="hidden sm:block text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none font-mono mt-0.5 truncate">
                 Sistem Informasi Manajemen Bangunan Gedung // PP 16/2021
               </p>
             </div>
           </div>
 
           {/* Right Status & Actions */}
-          <div className="flex items-center gap-3 sm:gap-6">
+          <div className="flex items-center gap-1.5 sm:gap-3 md:gap-4 shrink-0">
             
-            {/* System Status Indicator */}
+            {/* System Status Indicator (Desktop Only) */}
             <div className="hidden lg:flex flex-col items-end font-mono">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -145,12 +145,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
 
-            <div className="hidden lg:block h-8 w-[1px] bg-slate-200 dark:bg-slate-800"></div>
+            <div className="hidden lg:block h-7 w-[1px] bg-slate-200 dark:bg-slate-800"></div>
 
-            {/* Role Switcher */}
-            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1.5">
-              <UserCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 hidden sm:inline" />
-              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 hidden sm:inline">Role:</span>
+            {/* Role Switcher (Desktop / Tablet) */}
+            <div className="hidden sm:flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1.5">
+              <UserCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 hidden md:inline">Role:</span>
               <select
                 value={currentRole}
                 onChange={(e) => setCurrentRole(e.target.value as UserRole)}
@@ -169,6 +169,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setIsDarkMode(prev => !prev)}
               className="w-8 h-8 flex items-center justify-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition"
               title="Toggle Theme"
+              aria-label="Ganti Mode Gelap / Terang"
             >
               {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
             </button>
@@ -177,30 +178,31 @@ export const Navbar: React.FC<NavbarProps> = ({
             {onOpenQrScanner && (
               <button
                 onClick={onOpenQrScanner}
-                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-mono font-bold uppercase flex items-center gap-1.5 transition shadow-2xs"
+                className="h-8 px-2 sm:px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-mono font-bold uppercase flex items-center justify-center gap-1.5 transition shadow-2xs"
                 title="Buka Pemindai QR Code Kamera Internal untuk Presensi Sidang"
               >
-                <QrCode className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Pindai QR Presensi</span>
+                <QrCode className="w-4 h-4" />
+                <span className="hidden md:inline">Pindai QR</span>
               </button>
             )}
 
             {/* AI Copilot Button */}
             <button
               onClick={onOpenCopilot}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase tracking-wider px-3.5 py-2 shadow-xs transition"
+              className="h-8 px-2.5 sm:px-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-xs transition"
+              title="Buka Asisten AI Copilot SIMBG"
             >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
               <span className="hidden sm:inline font-mono">AI COPILOT</span>
             </button>
 
             {/* Mobile Navigation Toggle Button */}
             <button
               onClick={() => setIsMobileMenuOpen(prev => !prev)}
-              className="md:hidden w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
+              className="md:hidden w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 transition active:scale-95"
               aria-label="Toggle Navigation Menu"
             >
-              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
 
           </div>
@@ -208,13 +210,36 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      {/* Collapsible Mobile Menu Drawer */}
+      {/* Collapsible Mobile Menu Drawer with Integrated Role & Modules */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 shadow-lg font-mono">
-          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">
-            PILIH MODUL (MENU UTAMA)
+        <div className="md:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3.5 shadow-xl font-mono animate-in slide-in-from-top-2 duration-150">
+          
+          {/* Mobile Role Switcher */}
+          <div className="mb-3.5 p-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">
+              <span className="flex items-center gap-1">
+                <UserCheck className="w-3 h-3 text-indigo-500" />
+                <span>PERAN AKTIF (ROLE)</span>
+              </span>
+              <span className="text-indigo-600 dark:text-indigo-400 font-bold">DPUPR GARUT</span>
+            </div>
+            <select
+              value={currentRole}
+              onChange={(e) => setCurrentRole(e.target.value as UserRole)}
+              className="w-full p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-900 dark:text-white font-sans focus:outline-none focus:border-indigo-500"
+            >
+              {(Object.keys(roleNames) as UserRole[]).map((role) => (
+                <option key={role} value={role} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+                  {roleNames[role]}
+                </option>
+              ))}
+            </select>
           </div>
-          <div className="grid grid-cols-1 gap-1">
+
+          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">
+            PILIH MODUL SIMBG
+          </div>
+          <div className="grid grid-cols-1 gap-1 max-h-[60vh] overflow-y-auto pr-1">
             {navTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -225,7 +250,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     setActiveTab(tab.id as any);
                     setIsMobileMenuOpen(false);
                   }}
-                  className={`flex items-center justify-between px-3 py-2 text-xs font-bold uppercase tracking-wide transition ${
+                  className={`flex items-center justify-between px-3 py-2.5 text-xs font-bold uppercase tracking-wide transition ${
                     isActive
                       ? 'bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-300 border-l-4 border-indigo-600'
                       : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -247,8 +272,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       )}
 
-      {/* Navigation Sub-bar with Horizontal Scroll for Desktop & Mobile */}
-      <div className="border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 px-4 sm:px-6 lg:px-8 overflow-x-auto scrollbar-none">
+      {/* Navigation Sub-bar with Horizontal Scroll for Desktop (Hidden on Mobile) */}
+      <div className="hidden md:block border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 px-4 sm:px-6 lg:px-8 overflow-x-auto scrollbar-none">
         <div className="max-w-7xl mx-auto flex items-center gap-1 min-w-max">
           {navTabs.map((tab) => {
             const Icon = tab.icon;

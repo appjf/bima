@@ -125,15 +125,22 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          videoRef.current.play();
+          videoRef.current.play().catch(e => {
+            console.warn('Video play warning:', e);
+          });
         }
         setIsCameraActive(true);
       } else {
-        setCameraError('Kamera tidak didukung di browser ini. Gunakan fitur upload berkas foto.');
+        setCameraError('Kamera tidak didukung di browser ini. Silakan gunakan tombol upload file foto.');
       }
     } catch (err: any) {
-      console.error('Camera access error:', err);
-      setCameraError('Izin akses kamera ditolak atau tidak tersedia. Anda tetap dapat mengunggah file foto dari perangkat.');
+      console.warn('Camera access was not granted or not available:', err?.message || err);
+      const isDenied = err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError';
+      setCameraError(
+        isDenied
+          ? 'Izin akses kamera belum diaktifkan pada browser. Silakan unggah foto dokumentasi langsung dari perangkat/galeri.'
+          : 'Kamera tidak dapat diakses atau sedang digunakan oleh aplikasi lain.'
+      );
     }
   };
 
