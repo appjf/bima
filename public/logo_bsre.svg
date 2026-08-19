@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bsreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284C7" />
+      <stop offset="100%" stop-color="#0369A1" />
+    </linearGradient>
+  </defs>
+  <!-- Security Shield & Electronic Stamp -->
+  <path d="M100 15 L170 45 V110 C170 150 135 180 100 190 C65 180 30 150 30 110 V45 Z" fill="url(#bsreGrad)" stroke="#38BDF8" stroke-width="4" />
+  
+  <!-- Lock & Checkmark Geometry -->
+  <circle cx="100" cy="90" r="28" fill="#FFFFFF" />
+  <path d="M85 92 L95 102 L118 78" fill="none" stroke="#0284C7" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+  
+  <!-- BSrE Text banner -->
+  <rect x="50" y="130" width="100" height="24" rx="4" fill="#0F172A" />
+  <text x="100" y="146" text-anchor="middle" font-size="12" font-weight="900" font-family="monospace" fill="#38BDF8" letter-spacing="2">
+    BSrE BSSN
+  </text>
+</svg>

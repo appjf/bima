@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+/* Comprehensive Print & PDF Export Stylesheet for SIMBG.OS DPUPR Garut */
+@media print {
+  /* Hide all non-printable application chrome, navigation, drawers, modals backdrop, and dark themes */
+  header,
+  nav,
+  aside,
+  button,
+  .no-print,
+  .fixed.inset-0.bg-slate-900\/70,
+  .backdrop-blur-xs,
+  [role="dialog"] > div:not(.printable-document) {
+    display: none !important;
+  }
+
+  /* Reset body and background for crisp printing */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Make printable elements visible and full width */
+  .printable-document,
+  .print\:block,
+  #printable-area {
+    display: block !important;
+    visibility: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    position: static !important;
+    overflow: visible !important;
+  }
+
+  /* Page break optimization */
+  .break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .page-break-after {
+    page-break-after: always !important;
+  }
+
+  /* Table print optimization */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  th, td {
+    border-color: #cbd5e1 !important; /* slate-300 */
+  }
+
+  /* Force white background on printed tables */
+  .bg-slate-50, .bg-slate-100, .bg-indigo-50 {
+    background-color: #f8fafc !important;
+  }
+
+  /* Page margins */
+  @page {
+    size: A4 portrait;
+    margin: 12mm 10mm 12mm 10mm;
+  }
+}

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%">
+  <defs>
+    <linearGradient id="puprYellow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FCD34D" />
+      <stop offset="100%" stop-color="#F59E0B" />
+    </linearGradient>
+    <linearGradient id="puprBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E3A8A" />
+      <stop offset="100%" stop-color="#0F172A" />
+    </linearGradient>
+  </defs>
+  <!-- Background Circle / Base -->
+  <circle cx="100" cy="100" r="90" fill="url(#puprYellow)" stroke="#0F172A" stroke-width="4" />
+  
+  <!-- PUPR Gear / Baling-Baling Lambang PUPR -->
+  <circle cx="100" cy="100" r="75" fill="none" stroke="#1E3A8A" stroke-width="12" />
+  <circle cx="100" cy="100" r="38" fill="url(#puprBlue)" />
+  <circle cx="100" cy="100" r="18" fill="#FBBF24" />
+
+  <!-- 8 spokes of PUPR symbol -->
+  <path d="M100 25 L100 50 M100 150 L100 175 M25 100 L50 100 M150 100 L175 100 M47 47 L65 65 M135 135 L153 153 M47 153 L65 135 M135 65 L153 47" stroke="#1E3A8A" stroke-width="10" stroke-linecap="round" />
+</svg>

@@ -1,0 +1,622 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Calendar, 
+  Clock, 
+  Users, 
+  QrCode, 
+  CheckCircle2, 
+  Printer, 
+  FileText, 
+  Plus, 
+  Building2, 
+  MapPin, 
+  Sparkles,
+  Zap,
+  ShieldCheck,
+  UserCheck,
+  Download,
+  Copy,
+  Check,
+  Scan,
+  Search,
+  X,
+  ExternalLink
+} from 'lucide-react';
+import { Application, ConsultationSchedule } from '../types';
+import { getNextFridayDate, MASTER_EXPERTS, MASTER_ROOMS } from '../lib/schedulingEngine';
+import { SchedulingAttendancePrint } from './SchedulingAttendancePrint';
+import { triggerPdfPrint } from '../lib/pdfPrintEngine';
+import { InternalQrScannerModal } from './InternalQrScannerModal';
+import { 
+  buildAttendanceQrPayload, 
+  generateQrDataUrl, 
+  parseAndVerifyAttendanceQr, 
+  AttendanceVerificationResult 
+} from '../lib/qrAttendanceService';
+
+interface SchedulingViewProps {
+  applications: Application[];
+  onAutoGenerateFridaySchedule: () => void;
+  onToggleAttendance: (appId: string) => void;
+  onUpdateConsultationResult: (appId: string, result: 'DISETUJUI' | 'PERBAIKAN' | 'KONSULTASI_ULANG', notes?: string) => void;
+  onSelectApplication: (app: Application) => void;
+}
+
+export const SchedulingView: React.FC<SchedulingViewProps> = ({
+  applications,
+  onAutoGenerateFridaySchedule,
+  onToggleAttendance,
+  onUpdateConsultationResult,
+  onSelectApplication
+}) => {
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+  const [showQrModal, setShowQrModal] = useState<Application | null>(null);
+  const [filterDate, setFilterDate] = useState<string>('ALL');
+
+  // QR Attendance State
+  const [generatedQrUrl, setGeneratedQrUrl] = useState<string>('');
+  const [isGeneratingQr, setIsGeneratingQr] = useState<boolean>(false);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
+
+  // Scanner State
+  const [showScannerModal, setShowScannerModal] = useState<boolean>(false);
+  const [scanInput, setScanInput] = useState<string>('');
+  const [scanResult, setScanResult] = useState<AttendanceVerificationResult | null>(null);
+
+  const scheduledApps = applications.filter(a => a.schedule);
+  const unscheduledReadyApps = applications.filter(a => (a.status === 'READY_FOR_CONSULTATION' || a.status === 'COMPLETE') && !a.schedule);
+
+  const nextFriday = getNextFridayDate();
+
+  // Generate QR Data URL whenever QR Modal is opened
+  useEffect(() => {
+    if (showQrModal) {
+      setIsGeneratingQr(true);
+      const payload = buildAttendanceQrPayload(showQrModal);
+      generateQrDataUrl(payload, { width: 320, margin: 2 })
+        .then(url => {
+          setGeneratedQrUrl(url);
+          setIsGeneratingQr(false);
+        })
+        .catch(() => setIsGeneratingQr(false));
+    } else {
+      setGeneratedQrUrl('');
+      setCopiedLink(false);
+    }
+  }, [showQrModal]);
+
+  const handleCopyVerificationLink = () => {
+    if (showQrModal) {
+      const payload = buildAttendanceQrPayload(showQrModal);
+      navigator.clipboard.writeText(payload.verificationUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(null as any), 2000);
+    }
+  };
+
+  const handleDownloadQrImage = () => {
+    if (generatedQrUrl && showQrModal) {
+      const a = document.createElement('a');
+      a.href = generatedQrUrl;
+      a.download = `QR_Presensi_${showQrModal.registerNumber}.png`;
+      a.click();
+    }
+  };
+
+  const handleRunScanVerification = (input: string) => {
+    setScanInput(input);
+    const result = parseAndVerifyAttendanceQr(input);
+    setScanResult(result);
+  };
+
+  const handlePrintAttendanceList = () => {
+    triggerPdfPrint('printable-attendance-area', `Daftar_Hadir_Sidang_${nextFriday.replace(/\s/g, '_')}`);
+  };
+
+  return (
+    <div className="space-y-6">
+      
+      {/* Top Banner (Geometric Balance) */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
+              SCHEDULE ENGINE // FRIDAY CONSULTATION
+            </span>
+            <span className="text-[10px] font-mono text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.2 border border-emerald-200">
+              NEXT: {nextFriday}
+            </span>
+          </div>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight uppercase font-mono">
+            Penjadwalan Sidang Konsultasi TPA / TPT (Hari Jumat)
+          </h2>
+          <p className="text-xs text-slate-500 max-w-2xl mt-0.5">
+            Manajemen alokasi ruangan sidang, penugasan Tim Profesi Ahli (TPA) & TPT, presensi pemohon berbasis Token QR digital, dan penerbitan berita acara konsultasi.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={() => setShowScannerModal(true)}
+            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold uppercase tracking-wider px-4 py-2.5 transition shadow-xs"
+            title="Scan / Verifikasi Token Presensi QR Pemohon"
+          >
+            <Scan className="w-4 h-4 text-emerald-100" />
+            <span>Scan / Verifikasi QR</span>
+          </button>
+
+          <button
+            onClick={handlePrintAttendanceList}
+            className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-mono font-bold uppercase tracking-wider px-4 py-2.5 transition border border-slate-200 dark:border-slate-700"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Cetak Daftar Hadir</span>
+          </button>
+
+          <button
+            onClick={onAutoGenerateFridaySchedule}
+            disabled={unscheduledReadyApps.length === 0}
+            className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider px-5 py-2.5 transition ${
+              unscheduledReadyApps.length > 0 
+                ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs' 
+                : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+            }`}
+          >
+            <Zap className="w-4 h-4 text-amber-300" />
+            <span>Jadwalkan Otomatis ({unscheduledReadyApps.length})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Metrics Row (3-Col Geometric Balance) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
+          <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest block mb-1">
+            TERJADWAL SIDANG JUMAT
+          </span>
+          <div className="text-2xl font-mono font-bold text-indigo-600 dark:text-indigo-400">
+            {scheduledApps.length} <span className="text-xs font-sans text-slate-400">permohonan</span>
+          </div>
+          <div className="text-[10px] text-slate-500 font-mono mt-2">
+            Ruang DPUPR-01 & Ruang Rapat Lt. 2
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
+          <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest block mb-1">
+            SIAP DIJADWALKAN
+          </span>
+          <div className="text-2xl font-mono font-bold text-amber-600 dark:text-amber-400">
+            {unscheduledReadyApps.length} <span className="text-xs font-sans text-slate-400">antrean berkas</span>
+          </div>
+          <div className="text-[10px] text-slate-500 font-mono mt-2">
+            Dokumen 100% lengkap & terverifikasi
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5">
+          <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest block mb-1">
+            TIM PROFESI AHLI (TPA) GARUT
+          </span>
+          <div className="text-2xl font-mono font-bold text-emerald-600 dark:text-emerald-400">
+            {MASTER_EXPERTS.length} <span className="text-xs font-sans text-slate-400">tenaga ahli</span>
+          </div>
+          <div className="text-[10px] text-slate-500 font-mono mt-2">
+            Arsitektur, Struktur, Geoteknik, MEP
+          </div>
+        </div>
+      </div>
+
+      {/* Main Schedule Table */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div>
+            <h3 className="font-bold text-sm text-slate-900 dark:text-white uppercase font-mono">
+              Jadwal Sidang & Daftar Hadir Presensi Digital
+            </h3>
+            <p className="text-xs text-slate-500">
+              Verifikasi kehadiran pemohon menggunakan token presensi QR dan catat rekomendasi sidang TPA.
+            </p>
+          </div>
+
+          <span className="text-[11px] font-mono text-slate-500">
+            TOTAL SESI: <span className="font-bold text-indigo-600 dark:text-indigo-400">{scheduledApps.length}</span>
+          </span>
+        </div>
+
+        <div className="border border-slate-200 dark:border-slate-800 overflow-x-auto">
+          <table className="w-full text-left text-xs font-sans">
+            <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 font-mono text-slate-500 uppercase text-[10px] tracking-wider">
+              <tr>
+                <th className="px-4 py-3">Waktu & Sesi</th>
+                <th className="px-4 py-3">Ruangan</th>
+                <th className="px-4 py-3">No. Register & Pemohon</th>
+                <th className="px-4 py-3">Bangunan & Kompleksitas</th>
+                <th className="px-4 py-3">Kehadiran (Presensi)</th>
+                <th className="px-4 py-3">Hasil Sidang</th>
+                <th className="px-4 py-3 text-right">QR / Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {scheduledApps.map((app) => {
+                const sch = app.schedule!;
+                return (
+                  <tr key={app.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
+                    
+                    {/* Time Slot */}
+                    <td className="px-4 py-3 font-mono">
+                      <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5 text-xs">
+                        <Clock className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                        <span>{sch.timeSlot}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 block mt-0.5">
+                        Jumat, {sch.scheduleDate}
+                      </span>
+                    </td>
+
+                    {/* Room */}
+                    <td className="px-4 py-3">
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-[11px] block">
+                        {sch.room}
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.2 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-mono font-bold border border-indigo-200 dark:border-indigo-800 mt-0.5 inline-block">
+                        {sch.sessionType}
+                      </span>
+                    </td>
+
+                    {/* Applicant */}
+                    <td className="px-4 py-3">
+                      <div className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-xs">
+                        {app.registerNumber}
+                      </div>
+                      <div className="font-semibold text-slate-900 dark:text-white">
+                        {app.applicant.name}
+                      </div>
+                    </td>
+
+                    {/* Building */}
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-slate-800 dark:text-slate-200 truncate max-w-[180px]">
+                        {app.building.name}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-mono">
+                        {app.building.functionType} • {app.building.buildingArea}m²
+                      </div>
+                    </td>
+
+                    {/* Attendance */}
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => onToggleAttendance(app.id)}
+                        className={`px-3 py-1 text-[10px] font-mono font-bold uppercase flex items-center gap-1.5 transition ${
+                          sch.applicantAttended
+                            ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700 hover:border-indigo-500'
+                        }`}
+                      >
+                        <UserCheck className="w-3.5 h-3.5" />
+                        <span>{sch.applicantAttended ? 'HADIR (VERIFIED)' : 'BELUM HADIR'}</span>
+                      </button>
+                    </td>
+
+                    {/* Result */}
+                    <td className="px-4 py-3">
+                      <select
+                        value={sch.consultationResult || 'PENDING'}
+                        onChange={(e) => onUpdateConsultationResult(app.id, e.target.value as any)}
+                        className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold px-2 py-1 focus:outline-none"
+                      >
+                        <option value="PENDING">MENUNGGU SIDANG</option>
+                        <option value="DISETUJUI">DISETUJUI (REKOMENDASI TERBIT)</option>
+                        <option value="PERBAIKAN">PERBAIKAN GAMBAR</option>
+                        <option value="KONSULTASI_ULANG">KONSULTASI ULANG</option>
+                      </select>
+                    </td>
+
+                    {/* QR Button */}
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => setShowQrModal(app)}
+                        className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-700 dark:text-slate-300 transition"
+                        title="Tampilkan QR Code Presensi"
+                      >
+                        <QrCode className="w-4 h-4" />
+                      </button>
+                    </td>
+
+                  </tr>
+                );
+              })}
+
+              {scheduledApps.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="text-center py-10 text-slate-400 font-mono text-xs">
+                    BELUM ADA PERMOHONAN YANG DIJADWALKAN UNTUK HARI JUMAT.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* MODAL 1: QR Code Digital Token Display Modal */}
+      {showQrModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 space-y-4 shadow-2xl relative font-sans">
+            <button
+              onClick={() => setShowQrModal(null)}
+              className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white font-mono text-xs"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-3 text-center">
+              <span className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest block mb-0.5">
+                DAFTAR HADIR // DIGITAL PRESENCE TOKEN
+              </span>
+              <h3 className="font-bold text-base text-slate-900 dark:text-white uppercase font-mono">
+                QR Presensi Sidang TPA/TPT
+              </h3>
+              <p className="text-[11px] text-slate-500 font-sans mt-0.5">
+                Scan QR Code ini pada meja registrasi / operator sidang untuk memverifikasi kehadiran.
+              </p>
+            </div>
+
+            {/* Generated QR Code Display Container */}
+            <div className="bg-slate-50 dark:bg-slate-950 p-4 border border-slate-200 dark:border-slate-800 rounded-none flex flex-col items-center justify-center space-y-3">
+              {isGeneratingQr ? (
+                <div className="w-52 h-52 flex flex-col items-center justify-center space-y-2 text-slate-400 font-mono text-xs">
+                  <QrCode className="w-12 h-12 animate-pulse text-indigo-500" />
+                  <span>Membuat QR Presensi...</span>
+                </div>
+              ) : generatedQrUrl ? (
+                <div className="bg-white p-3 border border-slate-300 shadow-md flex flex-col items-center">
+                  <img src={generatedQrUrl} alt="QR Code Presensi" className="w-52 h-52 object-contain" />
+                  <span className="text-[10px] font-mono text-slate-500 mt-1 uppercase font-bold tracking-wider">
+                    {showQrModal.registerNumber}
+                  </span>
+                </div>
+              ) : (
+                <div className="w-52 h-52 flex items-center justify-center text-red-500 font-mono text-xs">
+                  Gagal mendatangkan QR Code
+                </div>
+              )}
+
+              {/* Status Badge */}
+              <div className="flex items-center gap-1.5">
+                <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 border ${
+                  showQrModal.schedule?.applicantAttended
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800'
+                    : 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800'
+                }`}>
+                  {showQrModal.schedule?.applicantAttended ? '✓ STATUS: TERDAPAT PRESENSI (HADIR)' : '! STATUS: BELUM PRESENSI'}
+                </span>
+              </div>
+            </div>
+
+            {/* Meeting Info Summary */}
+            <div className="text-xs space-y-1.5 font-mono bg-slate-100 dark:bg-slate-800/60 p-3 border border-slate-200 dark:border-slate-700">
+              <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-1">
+                <span className="text-slate-500">Pemohon:</span>
+                <strong className="text-slate-900 dark:text-white">{showQrModal.applicant.name}</strong>
+              </div>
+              <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-1">
+                <span className="text-slate-500">Jadwal:</span>
+                <strong className="text-indigo-600 dark:text-indigo-400">Jumat, {showQrModal.schedule?.scheduleDate} ({showQrModal.schedule?.timeSlot})</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Ruangan:</span>
+                <strong className="text-slate-900 dark:text-white">{showQrModal.schedule?.room}</strong>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2 pt-1 font-mono">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={handleDownloadQrImage}
+                  disabled={!generatedQrUrl}
+                  className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 px-3 py-2 text-xs font-bold flex items-center justify-center gap-1.5 border border-slate-300 dark:border-slate-600 transition"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Unduh QR</span>
+                </button>
+
+                <button
+                  onClick={handleCopyVerificationLink}
+                  className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 px-3 py-2 text-xs font-bold flex items-center justify-center gap-1.5 border border-slate-300 dark:border-slate-600 transition"
+                >
+                  {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedLink ? 'Tersalin!' : 'Salin Link'}</span>
+                </button>
+              </div>
+
+              <button
+                onClick={() => {
+                  onToggleAttendance(showQrModal.id);
+                  setShowQrModal(null);
+                }}
+                className={`w-full py-2.5 px-4 font-bold text-xs uppercase transition flex items-center justify-center gap-2 ${
+                  showQrModal.schedule?.applicantAttended
+                    ? 'bg-amber-600 hover:bg-amber-500 text-white'
+                    : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                }`}
+              >
+                <UserCheck className="w-4 h-4" />
+                <span>{showQrModal.schedule?.applicantAttended ? 'Ubah Menjadi Belum Hadir' : 'Tandai Hadir Sekarang'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: Scanner / Verifikasi Token Presensi QR */}
+      {showScannerModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 max-w-lg w-full p-6 space-y-4 shadow-2xl relative font-sans">
+            <button
+              onClick={() => {
+                setShowScannerModal(false);
+                setScanInput('');
+                setScanResult(null);
+              }}
+              className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white font-mono text-xs"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Scan className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                <h3 className="font-bold text-base text-slate-900 dark:text-white uppercase font-mono">
+                  Scan & Verifikasi QR Presensi
+                </h3>
+              </div>
+              <p className="text-xs text-slate-500">
+                Pindai kamera atau tempelkan token/string QR Code pemohon untuk memeriksa keabsahan kehadiran sidang.
+              </p>
+            </div>
+
+            {/* Input & Simulation Area */}
+            <div className="space-y-3 font-mono text-xs">
+              <label className="block text-slate-700 dark:text-slate-300 font-bold uppercase text-[10px]">
+                Tempelkan String / Token QR Presensi:
+              </label>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={scanInput}
+                  onChange={(e) => handleRunScanVerification(e.target.value)}
+                  placeholder="Contoh: GARUT-PRESENSI-PBG-320501... atau tempelkan JSON QR"
+                  className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 p-2.5 font-mono text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                />
+                <button
+                  onClick={() => handleRunScanVerification(scanInput)}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 flex items-center gap-1.5 transition"
+                >
+                  <Search className="w-4 h-4" />
+                  <span>Verifikasi</span>
+                </button>
+              </div>
+
+              {/* Preset Quick Scan Buttons for Scheduled Meetings */}
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                  Simulasi 1-Click Scan Pemohon Terjadwal:
+                </span>
+                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                  {scheduledApps.map((app) => {
+                    const payload = buildAttendanceQrPayload(app);
+                    return (
+                      <button
+                        key={app.id}
+                        onClick={() => handleRunScanVerification(JSON.stringify(payload))}
+                        className="bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 px-2 py-1 text-[10px] font-mono flex items-center gap-1 transition"
+                      >
+                        <QrCode className="w-3 h-3 text-emerald-600" />
+                        <span>{app.applicant.name} ({app.registerNumber})</span>
+                      </button>
+                    );
+                  })}
+                  {scheduledApps.length === 0 && (
+                    <span className="text-[10px] text-slate-400 p-1">Belum ada pemohon terjadwal untuk dites.</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Verification Result Feedback Box */}
+              {scanResult && (
+                <div className={`p-4 border space-y-2 transition ${
+                  scanResult.isValid
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-950 dark:bg-emerald-950/60 dark:border-emerald-800 dark:text-emerald-100'
+                    : 'bg-red-50 border-red-300 text-red-950 dark:bg-red-950/60 dark:border-red-800 dark:text-red-100'
+                }`}>
+                  <div className="flex items-center gap-2 font-bold text-xs uppercase">
+                    {scanResult.isValid ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    ) : (
+                      <X className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
+                    )}
+                    <span>{scanResult.message}</span>
+                  </div>
+
+                  {scanResult.payload && (
+                    <div className="text-[11px] space-y-1 border-t border-emerald-200 dark:border-emerald-800/60 pt-2 font-mono">
+                      <div><span className="opacity-70">No. Register:</span> <strong>{scanResult.payload.registerNumber}</strong></div>
+                      <div><span className="opacity-70">Bangunan:</span> {scanResult.payload.buildingName}</div>
+                      <div><span className="opacity-70">Sesi Sidang:</span> {scanResult.payload.scheduleDate} ({scanResult.payload.timeSlot})</div>
+                      <div><span className="opacity-70">Ruangan:</span> {scanResult.payload.room}</div>
+
+                      {/* Action to auto-mark attendance for matched app */}
+                      {(() => {
+                        const matchedApp = scheduledApps.find(a => a.registerNumber === scanResult.payload?.registerNumber || a.id === scanResult.payload?.appId);
+                        if (matchedApp) {
+                          return (
+                            <div className="pt-2">
+                              <button
+                                onClick={() => {
+                                  if (!matchedApp.schedule?.applicantAttended) {
+                                    onToggleAttendance(matchedApp.id);
+                                  }
+                                  setShowScannerModal(false);
+                                  setScanInput('');
+                                  setScanResult(null);
+                                }}
+                                className="w-full bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-3 py-2 text-xs uppercase flex items-center justify-center gap-1.5 shadow-xs"
+                              >
+                                <UserCheck className="w-4 h-4" />
+                                <span>{matchedApp.schedule?.applicantAttended ? 'Hadir (Sudah Dikonfirmasi)' : 'Konfirmasi Kehadiran Pemohon Ini'}</span>
+                              </button>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 text-right border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => {
+                  setShowScannerModal(false);
+                  setScanInput('');
+                  setScanResult(null);
+                }}
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-mono font-bold uppercase"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Internal Camera QR Scanner Modal */}
+      <InternalQrScannerModal
+        isOpen={showScannerModal}
+        onClose={() => setShowScannerModal(false)}
+        applications={applications}
+        onAttendanceVerified={(res) => {
+          // Auto mark attendance for matched application
+          const matchedApp = applications.find(a => 
+            res.rawPayload.includes(a.registerNumber) || a.registerNumber === res.title || a.id === res.title
+          );
+          if (matchedApp && matchedApp.schedule && !matchedApp.schedule.applicantAttended) {
+            onToggleAttendance(matchedApp.id);
+          }
+        }}
+      />
+
+      {/* Printable Attendance Sheet */}
+      <div id="printable-attendance-area" className="hidden print:block">
+        <SchedulingAttendancePrint scheduledApps={scheduledApps} nextFridayDate={nextFriday} />
+      </div>
+
+    </div>
+  );
+};

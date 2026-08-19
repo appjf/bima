@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" width="100%" height="100%">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+    <linearGradient id="mountainGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0284C7" />
+      <stop offset="100%" stop-color="#0369A1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Perisai Luar -->
+  <path d="M100 8 L185 45 V150 C185 190 145 220 100 234 C55 220 15 190 15 150 V45 Z" fill="url(#goldGrad)" stroke="#1E293B" stroke-width="4" />
+  
+  <!-- Perisai Dalam -->
+  <path d="M100 18 L175 52 V145 C175 180 140 208 100 220 C60 208 25 180 25 145 V52 Z" fill="url(#shieldGrad)" stroke="#FFFFFF" stroke-width="3" />
+
+  <!-- Bintang Emas Sudut Lima -->
+  <polygon points="100,30 106,46 122,46 110,56 114,72 100,62 86,72 90,56 78,46 94,46" fill="#FDE047" stroke="#CA8A04" stroke-width="1.5" />
+
+  <!-- Gunung (Papandayan, Guntur, Cikuray) -->
+  <path d="M44 125 L72 85 L100 113 L128 85 L156 125 Z" fill="url(#mountainGrad)" stroke="#FFFFFF" stroke-width="2" />
+
+  <!-- Gelombang Air Sungai Cimanuk (3 Garis) -->
+  <path d="M40 137 Q70 130 100 137 T160 137" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+  <path d="M40 147 Q70 140 100 147 T160 147" fill="none" stroke="#67E8F9" stroke-width="4" stroke-linecap="round" />
+  <path d="M40 157 Q70 150 100 157 T160 157" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+
+  <!-- Jeruk Garut -->
+  <circle cx="100" cy="173" r="13" fill="#F97316" stroke="#FFFFFF" stroke-width="2.5" />
+  <path d="M100 160 Q105 155 110 158" fill="none" stroke="#15803D" stroke-width="3" stroke-linecap="round" />
+
+  <!-- Pita Semboyan -->
+  <path d="M25 195 Q100 215 175 195 L168 212 Q100 230 32 212 Z" fill="#FFFFFF" stroke="#0F172A" stroke-width="2.5" />
+  <text x="100" y="208" text-anchor="middle" font-size="8.5" font-weight="900" font-family="'Times New Roman', serif" fill="#0F172A" letter-spacing="0.5">
+    TATA TENTREM KERTA RAHARJA
+  </text>
+</svg>

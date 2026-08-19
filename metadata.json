@@ -1,0 +1,6 @@
+{
+  "name": "Asisten Operator SIMBG",
+  "description": "Sistem Asisten Operator SIMBG Otomatis untuk Verifikasi Dokumen, Penjadwalan Konsultasi TPA/TPT, Daftar Hadir QR, Perhitungan Retribusi PP 16/2021, Notifikasi WhatsApp, dan Monitoring SLA.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
