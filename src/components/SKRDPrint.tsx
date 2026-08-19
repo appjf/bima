@@ -1,8 +1,8 @@
 import React from 'react';
 import { Application } from '../types';
 import { calculateRetribution } from '../lib/retributionEngine';
-import { QrCode } from 'lucide-react';
-import { getSavedSignatures } from '../lib/signatureEngine';
+import { ShieldCheck } from 'lucide-react';
+import { getSavedSignatures, generateSignatureQrPayload } from '../lib/signatureEngine';
 import { OfficialLetterhead } from './OfficialLetterhead';
 
 interface SKRDPrintProps {
@@ -23,6 +23,8 @@ export const SKRDPrint: React.FC<SKRDPrintProps> = ({ application, customShst = 
   const kabidSig = savedSignatures.kabid;
 
   const skrdNumber = `SKRD/3205/DPUPR/${new Date().getFullYear()}/${application.id.slice(-5).toUpperCase()}`;
+  const pengawasQr = pengawasSig.qrCodeUrl || generateSignatureQrPayload(pengawasSig, skrdNumber);
+  const kabidQr = kabidSig.qrCodeUrl || generateSignatureQrPayload(kabidSig, skrdNumber);
 
   return (
     <div id="printable-skrd-doc" className="bg-white text-slate-900 p-8 font-mono w-full max-w-[210mm] mx-auto text-xs space-y-4 leading-relaxed border border-slate-200 shadow-sm print:border-none print:shadow-none print:p-0">
@@ -127,15 +129,15 @@ export const SKRDPrint: React.FC<SKRDPrintProps> = ({ application, customShst = 
           <div className="font-bold text-indigo-950 uppercase text-[11px]">PENGAWAS SIMBG DPUPR GARUT</div>
           <div className="h-16 flex items-center justify-center gap-2 my-1">
             {pengawasSig.signatureDataUrl ? (
-              <img src={pengawasSig.signatureDataUrl} alt="TTD Pengawas" className="h-14 max-w-[110px] object-contain" />
-            ) : null}
-            {pengawasSig.qrCodeUrl ? (
-              <img src={pengawasSig.qrCodeUrl} alt="QR Pengawas" className="w-12 h-12 border border-slate-300 p-0.5 bg-white" />
-            ) : (
-              <div className="border border-indigo-300 bg-white px-2 py-1 text-[9px] font-bold text-indigo-900">
-                [ VERIFIED BY PENGAWAS SIMBG ]
+              <div className="flex flex-col items-center">
+                <img src={pengawasSig.signatureDataUrl} alt="TTD Pengawas" className="h-14 max-w-[100px] object-contain" />
+                <span className="text-[6.5pt] text-slate-400">TTD Digital</span>
               </div>
-            )}
+            ) : null}
+            <div className="flex flex-col items-center">
+              <img src={pengawasQr} alt="QR Pengawas" className="w-12 h-12 border border-slate-300 p-0.5 bg-white shadow-2xs" />
+              <span className="text-[6.5pt] text-indigo-900 font-bold">TTE PENGAWAS</span>
+            </div>
           </div>
           <div className="font-bold text-slate-900 underline">{pengawasSig.name || 'DEDI KURNIAWAN, S.ST, MT'}</div>
           <div className="text-[10px] text-slate-600">NIP. {pengawasSig.nip || '19820315 200801 1 009'}</div>
@@ -148,18 +150,38 @@ export const SKRDPrint: React.FC<SKRDPrintProps> = ({ application, customShst = 
           <div className="font-bold text-indigo-950 uppercase text-[11px]">KEPALA BIDANG BANGUNAN</div>
           <div className="h-16 flex items-center justify-center gap-2 my-1">
             {kabidSig.signatureDataUrl ? (
-              <img src={kabidSig.signatureDataUrl} alt="TTD Kabid" className="h-14 max-w-[110px] object-contain" />
-            ) : null}
-            {kabidSig.qrCodeUrl ? (
-              <img src={kabidSig.qrCodeUrl} alt="QR Kabid" className="w-12 h-12 border border-slate-300 p-0.5 bg-white" />
-            ) : (
-              <div className="w-12 h-12 border border-slate-300 flex items-center justify-center p-0.5 bg-white">
-                <QrCode className="w-10 h-10 text-slate-800" />
+              <div className="flex flex-col items-center">
+                <img src={kabidSig.signatureDataUrl} alt="TTD Kabid" className="h-14 max-w-[100px] object-contain" />
+                <span className="text-[6.5pt] text-slate-400">TTD Digital</span>
               </div>
-            )}
+            ) : null}
+            <div className="flex flex-col items-center">
+              <img src={kabidQr} alt="QR Kabid" className="w-12 h-12 border border-slate-300 p-0.5 bg-white shadow-2xs" />
+              <span className="text-[6.5pt] text-indigo-900 font-bold">TTE KABID</span>
+            </div>
           </div>
           <div className="font-bold text-slate-900 underline">{kabidSig.name || 'JUJU EKA UTAMA, S.T., M.T.'}</div>
           <div className="text-[10px] text-slate-600">NIP. {kabidSig.nip || '19780512 200501 1 008'}</div>
+        </div>
+      </div>
+
+      {/* Real-time Verification Footer SKRD */}
+      <div className="mt-6 pt-3 border-t border-slate-300 flex items-center justify-between text-[7.5pt] font-mono text-slate-600 bg-slate-50 p-2.5 border">
+        <div className="flex items-center gap-2.5">
+          <img src={kabidQr} alt="QR Verifikasi SKRD" className="w-8 h-8 border border-slate-300 p-0.5 bg-white shrink-0" />
+          <div>
+            <div className="font-bold text-slate-900 flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3 text-emerald-600" />
+              <span>DOKUMEN KETETAPAN RETRIBUSI RESMI DPUPR KABUPATEN GARUT</span>
+            </div>
+            <div className="text-[7pt] text-slate-500 font-sans">
+              Sah secara elektronik berdasarkan PP 16/2021. Pindai QR Code untuk validasi keaslian SKRD ini.
+            </div>
+          </div>
+        </div>
+        <div className="text-right text-[7pt] text-slate-500 shrink-0 font-mono">
+          <div>SKRD: {skrdNumber}</div>
+          <div>REG: {application.registerNumber}</div>
         </div>
       </div>
 

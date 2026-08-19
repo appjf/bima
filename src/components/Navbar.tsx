@@ -94,15 +94,15 @@ export const Navbar: React.FC<NavbarProps> = ({
       
       {/* Top Header Bar - Ultra Clean & Responsive */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14 sm:h-16 md:h-18">
+        <div className="flex items-center justify-between h-14 sm:h-16">
           
           {/* Logo & System Brand */}
-          <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <div className="flex items-center gap-1.5 shrink-0">
               <img 
                 src="/logo_garut.png" 
                 alt="Logo Pemkab Garut" 
-                className="w-7 h-9 sm:w-9 sm:h-11 md:w-10 md:h-12 object-contain"
+                className="w-7 h-9 sm:w-8 sm:h-10 object-contain"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = 'none';
                 }}
@@ -110,29 +110,37 @@ export const Navbar: React.FC<NavbarProps> = ({
               <img 
                 src="/logo_pupr.svg" 
                 alt="Logo PUPR" 
-                className="w-8 h-8 sm:w-9 sm:h-9 object-contain hidden sm:block"
+                className="w-7 h-7 sm:w-8 sm:h-8 object-contain hidden sm:block"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = 'none';
                 }}
               />
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <h1 className="text-sm sm:text-base md:text-lg font-bold tracking-tight text-slate-900 dark:text-white uppercase font-mono truncate">
-                  BIMA-BG<span className="text-indigo-600">.GARUT</span>
+            <div className="min-w-0 flex flex-col justify-center">
+              <div className="flex items-center gap-1.5">
+                <h1 className="text-sm sm:text-base md:text-lg font-bold tracking-tight text-slate-900 dark:text-white font-mono truncate">
+                  BIMA-BG<span className="text-indigo-600 dark:text-indigo-400">.GARUT</span>
                 </h1>
-                <span className="text-[9px] sm:text-[10px] px-1.5 py-0.2 bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-mono font-bold border border-indigo-200 dark:border-indigo-800 shrink-0">
+                <span className="text-[9px] px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-mono font-bold border border-indigo-200 dark:border-indigo-800 shrink-0">
                   DPUPR
                 </span>
               </div>
-              <p className="hidden sm:block text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none font-mono mt-0.5 truncate">
-                Sistem Informasi Manajemen Bangunan Gedung // PP 16/2021
-              </p>
+              
+              {/* Active Tab Badge on Mobile for Clarity */}
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <p className="hidden sm:block text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none font-mono truncate">
+                  Sistem Informasi Manajemen Bangunan Gedung // PP 16/2021
+                </p>
+                <div className="sm:hidden flex items-center gap-1 text-[9.5px] font-mono text-indigo-600 dark:text-indigo-400 font-bold uppercase truncate">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                  <span className="truncate">{navTabs.find(t => t.id === activeTab)?.label}</span>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Right Status & Actions */}
-          <div className="flex items-center gap-1.5 sm:gap-3 md:gap-4 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 md:gap-3 shrink-0">
             
             {/* System Status Indicator (Desktop Only) */}
             <div className="hidden lg:flex flex-col items-end font-mono">
@@ -167,7 +175,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Dark Mode Toggle */}
             <button
               onClick={() => setIsDarkMode(prev => !prev)}
-              className="w-8 h-8 flex items-center justify-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition"
+              className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
               title="Toggle Theme"
               aria-label="Ganti Mode Gelap / Terang"
             >
@@ -178,7 +186,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {onOpenQrScanner && (
               <button
                 onClick={onOpenQrScanner}
-                className="h-8 px-2 sm:px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-mono font-bold uppercase flex items-center justify-center gap-1.5 transition shadow-2xs"
+                className="h-8 sm:h-9 px-2 sm:px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-mono font-bold uppercase flex items-center justify-center gap-1.5 transition shadow-2xs"
                 title="Buka Pemindai QR Code Kamera Internal untuk Presensi Sidang"
               >
                 <QrCode className="w-4 h-4" />
@@ -189,7 +197,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* AI Copilot Button */}
             <button
               onClick={onOpenCopilot}
-              className="h-8 px-2.5 sm:px-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-xs transition"
+              className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-xs transition"
               title="Buka Asisten AI Copilot SIMBG"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
@@ -199,10 +207,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Mobile Navigation Toggle Button */}
             <button
               onClick={() => setIsMobileMenuOpen(prev => !prev)}
-              className="md:hidden w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 transition active:scale-95"
+              className="md:hidden w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 transition active:scale-95"
               aria-label="Toggle Navigation Menu"
             >
-              {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+              {isMobileMenuOpen ? <X className="w-4 h-4 text-rose-500" /> : <Menu className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
             </button>
 
           </div>

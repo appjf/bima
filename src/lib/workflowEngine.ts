@@ -6,6 +6,7 @@ import {
   BeritaAcaraKonsultasi, 
   BeritaAcaraPleno,
   BeritaAcaraLapangan,
+  SuratUndanganVisite,
   FieldVisitItem,
   ExistingImbStatus 
 } from '../types';
@@ -315,5 +316,55 @@ export function generateBeritaAcaraPlenoDraft(app: Application, notes: string): 
     leadExpertName: 'Dr. Ir. H. Hendra Setiawan, MT, IAI (Ketua Rapat Konsultasi TPA/TPT)',
     leadExpertNip: '19680514 199403 1 002',
     isSigned: true
+  };
+}
+
+export function generateSuratUndanganVisiteDraft(
+  app: Application,
+  date?: string,
+  timeSlot?: string,
+  meetingPoint?: string
+): SuratUndanganVisite {
+  const regClean = app.registerNumber.replace(/[^a-zA-Z0-9]/g, '').slice(-6);
+  const defaultDate = date || new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toLocaleDateString('id-ID', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  return {
+    letterNumber: `600.1.15/${regClean}/DPUPR-VISITE/2026`,
+    letterDate: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+    nature: 'PENTING',
+    attachments: '1 (satu) Berkas Jadwal',
+    subject: `Undangan Pemeriksaan / Visite Lapangan Kelaikan Bangunan Gedung (${isSlfApplication(app) ? 'SLF Eksisting' : 'PBG'})`,
+    recipientName: app.applicant.name,
+    recipientRole: 'Pemilik / Penanggung Jawab Bangunan Gedung',
+    recipientAddress: app.applicant.address || 'Kabupaten Garut',
+    visitDate: defaultDate,
+    visitTime: timeSlot || '09.30 WIB s.d. Selesai',
+    meetingPoint: meetingPoint || `${app.building.name}, ${app.building.address}, Kec. ${app.building.district}`,
+    agenda: `Pemeriksaan Kesesuaian Fisik Bangunan Terbangun dengan Dokumen Gambar Teknis dan Persyaratan Kelaikan Fungsi (${isSlfApplication(app) ? 'SLF Eksisting' : 'PBG'})`,
+    assignedInspectors: [
+      { name: 'Dedi Kurniawan, S.ST, MT', role: 'Koordinator Tim Penilik Teknis DPUPR', nip: '19820315 200801 1 009' },
+      { name: 'Rian Pratama, ST, M.Eng', role: 'Penilik Teknis Sub Bidang MEP & Proteksi Kebakaran', nip: '19880512 201101 1 003' },
+      { name: 'Ir. Ahmad Fauzi, ST, MT, IPM', role: 'Tim Pengkaji Teknis (TPT) Bangunan Gedung', nip: '19750918 200212 1 004' }
+    ],
+    instructions: [
+      'Menyiapkan dokumen gambar terbangun (As-Built Drawings), sertifikat kelayakan instalasi / proteksi kebakaran (jika ada), dan dokumen permohonan.',
+      'Membuka akses penuh bagi Tim Penilik Teknis ke seluruh lantai, ruang, atap, serta sarana utilitas gedung.',
+      'Menghadirkan penanggung jawab gedung / konsultan pengkaji teknis berizin selama proses pemeriksaan lapangan berlangsung.'
+    ],
+    contactPerson: {
+      name: 'Sekretariat SIMBG DPUPR Garut',
+      phone: '0812-2345-6789',
+      role: 'Helpdesk Teknis Bangunan Gedung'
+    },
+    signerName: 'Dedi Kurniawan, S.ST, MT',
+    signerNip: '19820315 200801 1 009',
+    signerRole: 'Pengawas SIMBG DPUPR Kabupaten Garut',
+    isSigned: true,
+    signedAt: new Date().toISOString()
   };
 }

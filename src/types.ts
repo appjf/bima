@@ -122,6 +122,31 @@ export interface FieldVisitItem {
   photoEvidence?: string;
 }
 
+export interface SuratUndanganVisite {
+  letterNumber: string; // e.g. "600.1.15/048/DPUPR-BG/2026"
+  letterDate: string;
+  nature: 'BIASA' | 'SEGERA' | 'PENTING' | 'AMAT_SEGERA';
+  attachments: string;
+  subject: string;
+  recipientName: string;
+  recipientRole?: string;
+  recipientAddress?: string;
+  visitDate: string;
+  visitTime: string;
+  meetingPoint: string;
+  agenda: string;
+  assignedInspectors: { name: string; nip?: string; role: string }[];
+  instructions: string[];
+  contactPerson: { name: string; phone: string; role: string };
+  signerName: string;
+  signerNip: string;
+  signerRole: string;
+  isSigned: boolean;
+  signedAt?: string;
+  tteToken?: string;
+  notes?: string;
+}
+
 export interface BeritaAcaraLapangan {
   baLapanganNumber: string; // e.g. "BA-VISITE/042/DPUPR-GRT/2026"
   visitDate: string;
@@ -309,6 +334,7 @@ export interface Application {
   documents: DocumentItem[];
   verificationIterations?: VerificationIteration[];
   multiVerifications?: VerificationReview[]; // Multi-verifikator reviews
+  undanganVisite?: SuratUndanganVisite; // Surat Undangan Pemeriksaan Lapangan / Visite
   baLapangan?: BeritaAcaraLapangan; // Khusus SLF: Berita Acara Visite Lapangan
   consultationNotice?: ConsultationNoticeLetter; // Surat Pemberitahuan Konsultasi
   baKonsultasi?: BeritaAcaraKonsultasi; // BA Konsultasi Teknis

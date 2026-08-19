@@ -20,7 +20,7 @@ export interface SignatureStore {
 export const DEFAULT_SIGNATURE_STORE: SignatureStore = {
   operator: {
     role: 'OPERATOR',
-    name: 'OPERATOR TEKNIS SIMBG',
+    name: 'H. IRWAN KURNIA, S.ST',
     nip: '19880512 201101 1 003',
     signatureDataUrl: '',
     qrCodeUrl: '',
@@ -28,16 +28,16 @@ export const DEFAULT_SIGNATURE_STORE: SignatureStore = {
   },
   pengawas: {
     role: 'PENGAWAS',
-    name: 'PENGAWAS SIMBG DPUPR GARUT',
-    nip: '19840210 200902 1 005',
+    name: 'DEDI KURNIAWAN, S.ST, MT',
+    nip: '19820315 200801 1 009',
     signatureDataUrl: '',
     qrCodeUrl: '',
     updatedAt: new Date().toISOString()
   },
   kabid: {
     role: 'KABID',
-    name: 'DEDI KURNIAWAN, S.ST, MT',
-    nip: '19820315 200801 1 009',
+    name: 'JUJU EKA UTAMA, S.T., M.T.',
+    nip: '19780512 200501 1 008',
     signatureDataUrl: '',
     qrCodeUrl: '',
     updatedAt: new Date().toISOString()
@@ -101,8 +101,30 @@ export function generateSignatureQrPayload(data: DigitalSignatureData, docNumber
   const token = `${header}.${payload}.${sig}`;
 
   // Dynamic Realtime Verification URL with full token & parameters
-  const verificationUrl = `${origin}/verify?token=${token}&type=TTE&role=${encodeURIComponent(data.role)}&nip=${encodeURIComponent(data.nip)}&name=${encodeURIComponent(data.name)}&std=BSRE&hash=${sig}`;
+  const verificationUrl = `${origin}/verify?token=${token}&type=TTE&role=${encodeURIComponent(data.role)}&nip=${encodeURIComponent(data.nip)}&name=${encodeURIComponent(data.name)}&std=BSRE&hash=${sig}&doc=${encodeURIComponent(docNumber || 'SIMBG_GARUT')}`;
   
   return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&ecc=M&data=${encodeURIComponent(verificationUrl)}`;
+}
+
+/**
+ * Helper to get a ready-to-render signature object with guaranteed real-time QR Code
+ */
+export function getActiveSignature(role: 'operator' | 'pengawas' | 'kabid', docNumber?: string): {
+  name: string;
+  nip: string;
+  role: string;
+  signatureDataUrl?: string;
+  qrCodeUrl: string;
+} {
+  const store = getSavedSignatures();
+  const sig = store[role] || DEFAULT_SIGNATURE_STORE[role];
+  const qrCodeUrl = sig.qrCodeUrl || generateSignatureQrPayload(sig, docNumber);
+  return {
+    name: sig.name,
+    nip: sig.nip,
+    role: sig.role,
+    signatureDataUrl: sig.signatureDataUrl || undefined,
+    qrCodeUrl
+  };
 }
 

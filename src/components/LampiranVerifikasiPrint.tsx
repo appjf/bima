@@ -2,8 +2,9 @@ import React from 'react';
 import { getTemplateForDoc } from "../lib/templateEngine";
 import { Application } from '../types';
 import { MASTER_DOCUMENT_RULES } from '../lib/ruleEngine';
-import { getSavedSignatures } from '../lib/signatureEngine';
+import { getSavedSignatures, generateSignatureQrPayload } from '../lib/signatureEngine';
 import { OfficialLetterhead } from './OfficialLetterhead';
+import { ShieldCheck } from 'lucide-react';
 
 interface Props {
   application: Application;
@@ -41,6 +42,7 @@ export const LampiranVerifikasiPrint: React.FC<Props> = ({ application }) => {
   const currentYear = new Date().getFullYear();
   const rawNotice = application.consultationNotice?.letterNumber || `045.2/${application.registerNumber.slice(-5)}/DPUPR-BG/${currentYear}`;
   const noticeNumber = rawNotice.startsWith('600.1.15') ? rawNotice : `600.1.15 / ${rawNotice}`;
+  const qrUrl = operatorSig.qrCodeUrl || generateSignatureQrPayload(operatorSig, noticeNumber);
 
   return (
     <div className="bg-white text-slate-900 font-sans w-full max-w-[210mm] mx-auto text-xs leading-normal">
@@ -170,6 +172,7 @@ export const LampiranVerifikasiPrint: React.FC<Props> = ({ application }) => {
         </div>
 
         {/* TANDA TANGAN KEDINASAN & TEMBUSAN */}
+        {/* FOOTER & TANDA TANGAN */}
         <div className="mt-8 pt-4 border-t border-slate-200">
           <div className="flex justify-between items-end">
             
@@ -183,38 +186,48 @@ export const LampiranVerifikasiPrint: React.FC<Props> = ({ application }) => {
             </div>
 
             {/* BLOCK TTD OPERATOR SIMBG */}
-            <div className="text-center font-sans w-64">
+            <div className="text-center font-sans w-72 border border-slate-300 bg-slate-50/50 p-3">
               <p className="text-[11px] font-semibold text-slate-800 uppercase">PETUGAS VERIFIKATOR / OPERATOR SIMBG</p>
               <p className="text-xs font-bold text-slate-900 uppercase mt-0.5">DINAS PUPR KABUPATEN GARUT</p>
 
-              {/* SPACE STAMP & TTE */}
-              <div className="my-2 py-1 flex items-center justify-center gap-2">
+              {/* SPACE STAMP, CANVAS SIGNATURE & TTE */}
+              <div className="my-2 py-1 flex items-center justify-center gap-2.5">
                 {operatorSig.signatureDataUrl ? (
-                  <img src={operatorSig.signatureDataUrl} alt="TTD Operator" className="h-14 max-w-[110px] object-contain" />
+                  <div className="flex flex-col items-center">
+                    <img src={operatorSig.signatureDataUrl} alt="TTD Operator" className="h-14 max-w-[110px] object-contain" />
+                    <span className="text-[6.5pt] font-mono text-slate-400">TTD Digital</span>
+                  </div>
                 ) : (
-                  <div className="w-16 h-16 border-2 border-indigo-900 border-dashed rounded-full flex flex-col items-center justify-center p-1 text-[8px] font-mono text-indigo-900 font-bold bg-indigo-50/50">
+                  <div className="w-14 h-14 border-2 border-indigo-900 border-dashed rounded-full flex flex-col items-center justify-center p-1 text-[7px] font-mono text-indigo-900 font-bold bg-indigo-50/50">
                     <span>PARAF</span>
                     <span>VERIFIKASI</span>
-                    <span>OPERATOR</span>
                   </div>
                 )}
                 
-                {operatorSig.qrCodeUrl ? (
-                  <img src={operatorSig.qrCodeUrl} alt="QR Operator" className="w-14 h-14 border border-slate-300 p-0.5 bg-white" />
-                ) : (
-                  <div className="w-14 h-14 border border-slate-300 bg-slate-50 flex flex-col items-center justify-center p-1 text-[8px] font-mono text-slate-500">
-                    <span>[ QR CODE ]</span>
-                    <span>OPERATOR</span>
-                  </div>
-                )}
+                <div className="flex flex-col items-center">
+                  <img src={qrUrl} alt="QR Operator" className="w-14 h-14 border border-slate-300 p-0.5 bg-white shadow-2xs" />
+                  <span className="text-[6.5pt] font-mono text-slate-500">TTE BSrE</span>
+                </div>
               </div>
 
-              <p className="font-bold text-xs text-slate-950 underline uppercase">{operatorSig.name || 'OPERATOR TEKNIS SIMBG'}</p>
+              <p className="font-bold text-xs text-slate-950 underline uppercase">{operatorSig.name || 'H. IRWAN KURNIA, S.ST'}</p>
               <p className="text-[11px] font-medium text-slate-700">NIP. {operatorSig.nip || '19880512 201101 1 003'}</p>
               <p className="text-[10px] font-mono font-semibold text-slate-800">DPUPR KABUPATEN GARUT</p>
             </div>
 
           </div>
+        </div>
+
+        {/* REALTIME VERIFICATION FOOTER LEMBAR 1 */}
+        <div className="mt-8 pt-2.5 border-t border-slate-300 flex items-center justify-between text-[7.5pt] font-mono text-slate-600">
+          <div className="flex items-center gap-2">
+            <img src={qrUrl} alt="QR Code Realtime" className="w-7 h-7 border border-slate-300 p-0.5 bg-white" />
+            <div className="flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3 text-emerald-600" />
+              <span>VERIFIKASI REAL-TIME: SIMBG DPUPR GARUT // {application.registerNumber}</span>
+            </div>
+          </div>
+          <span>LEMBAR 1 DARI 2 (SURAT PEMBERITAHUAN)</span>
         </div>
       </div>
 
@@ -344,36 +357,46 @@ export const LampiranVerifikasiPrint: React.FC<Props> = ({ application }) => {
 
         {/* TTD OPERATOR SIMBG PADA LAMPIRAN DAFTAR SIMAK */}
         <div className="mt-6 flex justify-end">
-          <div className="text-center font-sans w-64 border border-slate-300 bg-slate-50/50 p-3">
+          <div className="text-center font-sans w-72 border border-slate-300 bg-slate-50/50 p-3">
             <p className="text-[10px] font-semibold text-slate-700 uppercase">Petugas Verifikator / Operator SIMBG</p>
             <p className="text-[11px] font-bold text-slate-900 uppercase">DINAS PUPR KABUPATEN GARUT</p>
             
-            {/* SPACE STAMP & TTE INTEGRATION */}
-            <div className="my-2 py-1 flex items-center justify-center gap-2">
+            {/* SPACE STAMP, CANVAS SIGNATURE & TTE INTEGRATION */}
+            <div className="my-2 py-1 flex items-center justify-center gap-2.5">
               {operatorSig.signatureDataUrl ? (
-                <img src={operatorSig.signatureDataUrl} alt="TTD Operator" className="h-12 max-w-[100px] object-contain" />
+                <div className="flex flex-col items-center">
+                  <img src={operatorSig.signatureDataUrl} alt="TTD Operator" className="h-12 max-w-[100px] object-contain" />
+                  <span className="text-[6.5pt] font-mono text-slate-400">TTD Digital</span>
+                </div>
               ) : (
                 <div className="w-14 h-14 border-2 border-indigo-900 border-dashed rounded-full flex flex-col items-center justify-center p-1 text-[7px] font-mono text-indigo-900 font-bold bg-indigo-50/50">
                   <span>PARAF</span>
                   <span>VERIFIKASI</span>
-                  <span>OPERATOR</span>
                 </div>
               )}
               
-              {operatorSig.qrCodeUrl ? (
-                <img src={operatorSig.qrCodeUrl} alt="QR Operator" className="w-12 h-12 border border-slate-300 p-0.5 bg-white" />
-              ) : (
-                <div className="w-12 h-12 border border-slate-300 bg-slate-50 flex flex-col items-center justify-center p-1 text-[7px] font-mono text-slate-500">
-                  <span>[ QR CODE ]</span>
-                  <span>OPERATOR</span>
-                </div>
-              )}
+              <div className="flex flex-col items-center">
+                <img src={qrUrl} alt="QR Operator" className="w-12 h-12 border border-slate-300 p-0.5 bg-white shadow-2xs" />
+                <span className="text-[6.5pt] font-mono text-slate-500">TTE BSrE</span>
+              </div>
             </div>
 
-            <p className="font-bold text-xs text-slate-950 underline uppercase">{operatorSig.name || 'OPERATOR TEKNIS SIMBG'}</p>
+            <p className="font-bold text-xs text-slate-950 underline uppercase">{operatorSig.name || 'H. IRWAN KURNIA, S.ST'}</p>
             <p className="text-[10px] font-medium text-slate-700">NIP. {operatorSig.nip || '19880512 201101 1 003'}</p>
             <p className="text-[10px] font-mono font-semibold text-slate-800">DPUPR KABUPATEN GARUT</p>
           </div>
+        </div>
+
+        {/* REALTIME VERIFICATION FOOTER LEMBAR 2 */}
+        <div className="mt-8 pt-2.5 border-t border-slate-300 flex items-center justify-between text-[7.5pt] font-mono text-slate-600">
+          <div className="flex items-center gap-2">
+            <img src={qrUrl} alt="QR Code Realtime" className="w-7 h-7 border border-slate-300 p-0.5 bg-white" />
+            <div className="flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3 text-emerald-600" />
+              <span>VERIFIKASI REAL-TIME: DAFTAR SIMAK DOKUMEN // {application.registerNumber}</span>
+            </div>
+          </div>
+          <span>LEMBAR 2 DARI 2 (DAFTAR SIMAK LENGKAP)</span>
         </div>
 
       </div>

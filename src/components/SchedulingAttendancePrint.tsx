@@ -1,7 +1,8 @@
 import React from 'react';
 import { Application } from '../types';
-import { getSavedSignatures } from '../lib/signatureEngine';
+import { getSavedSignatures, generateSignatureQrPayload } from '../lib/signatureEngine';
 import { OfficialLetterhead } from './OfficialLetterhead';
+import { ShieldCheck } from 'lucide-react';
 
 interface SchedulingAttendancePrintProps {
   scheduledApps: Application[];
@@ -14,6 +15,8 @@ export const SchedulingAttendancePrint: React.FC<SchedulingAttendancePrintProps>
 }) => {
   const savedSignatures = getSavedSignatures();
   const operatorSig = savedSignatures.operator;
+  const operatorQr = operatorSig.qrCodeUrl || generateSignatureQrPayload(operatorSig, `PRESENSI-TPA-${nextFridayDate}`);
+
   return (
     <div id="printable-attendance-doc" className="bg-white text-slate-900 p-8 font-mono w-full max-w-[210mm] mx-auto text-xs space-y-4 border border-slate-200 shadow-sm print:border-none print:shadow-none print:p-0">
       
@@ -78,28 +81,50 @@ export const SchedulingAttendancePrint: React.FC<SchedulingAttendancePrintProps>
 
       {/* Signatures: Operator SIMBG & Ketua Rapat Konsultasi TPA/TPT */}
       <div className="pt-6 flex justify-between items-end break-inside-avoid text-xs font-mono border-t border-slate-300">
-        <div>
-          <div className="font-bold text-slate-800 uppercase">PETUGAS PRESENSI / OPERATOR</div>
-          <div className="font-bold text-slate-900 uppercase">SIMBG DPUPR KABUPATEN GARUT</div>
-          <div className="h-16 flex items-center gap-2 my-1">
+        <div className="border border-slate-200 bg-slate-50/50 p-3 text-center w-64">
+          <div className="font-bold text-slate-800 uppercase text-[10px]">PETUGAS PRESENSI / OPERATOR</div>
+          <div className="font-bold text-slate-900 uppercase text-[10px]">SIMBG DPUPR KABUPATEN GARUT</div>
+          <div className="h-16 flex items-center justify-center gap-2 my-1">
             {operatorSig.signatureDataUrl ? (
-              <img src={operatorSig.signatureDataUrl} alt="TTD Operator" className="h-14 max-w-[110px] object-contain" />
+              <div className="flex flex-col items-center">
+                <img src={operatorSig.signatureDataUrl} alt="TTD Operator" className="h-12 max-w-[90px] object-contain" />
+                <span className="text-[6.5pt] text-slate-400">TTD Digital</span>
+              </div>
             ) : null}
-            {operatorSig.qrCodeUrl ? (
-              <img src={operatorSig.qrCodeUrl} alt="QR Operator" className="w-12 h-12 border border-slate-300 p-0.5 bg-white" />
-            ) : null}
+            <div className="flex flex-col items-center">
+              <img src={operatorQr} alt="QR Operator" className="w-12 h-12 border border-slate-300 p-0.5 bg-white shadow-2xs" />
+              <span className="text-[6.5pt] text-indigo-900 font-bold">TTE OPERATOR</span>
+            </div>
           </div>
-          <div className="font-bold text-slate-900 underline uppercase">{operatorSig.name || 'OPERATOR TEKNIS SIMBG'}</div>
+          <div className="font-bold text-slate-900 underline uppercase">{operatorSig.name || 'H. IRWAN KURNIA, S.ST'}</div>
           <div className="text-[10px] text-slate-600 font-mono">NIP. {operatorSig.nip || '19880512 201101 1 003'}</div>
         </div>
 
-        <div className="text-center space-y-1">
-          <div className="whitespace-nowrap">Garut, {nextFridayDate}</div>
-          <div className="font-bold text-slate-800 uppercase">KETUA RAPAT KONSULTASI TEKNIS</div>
-          <div className="font-bold text-indigo-950 uppercase">TIM PROFESI AHLI (TPA) / TPT GARUT</div>
-          <div className="h-14"></div>
+        <div className="text-center space-y-1 border border-slate-200 bg-slate-50/50 p-3 w-64">
+          <div className="whitespace-nowrap text-[10px]">Garut, {nextFridayDate}</div>
+          <div className="font-bold text-slate-800 uppercase text-[10px]">KETUA RAPAT KONSULTASI TEKNIS</div>
+          <div className="font-bold text-indigo-950 uppercase text-[10px]">TIM PROFESI AHLI (TPA) / TPT GARUT</div>
+          <div className="h-16 flex items-center justify-center">
+            <div className="border border-dashed border-slate-300 px-3 py-1.5 text-[8px] text-slate-400 font-mono">
+              [ PARAF KETUA SIDANG ]
+            </div>
+          </div>
           <div className="font-bold text-slate-900 underline uppercase">IR. H. DEDI SUPRIADI, ST., MT</div>
           <div className="text-[10px] text-slate-600 font-mono">KETUA RAPAT KONSULTASI TPA/TPT</div>
+        </div>
+      </div>
+
+      {/* Real-time Bottom Verification Footer */}
+      <div className="mt-4 pt-2 border-t border-slate-300 flex items-center justify-between text-[7.5pt] font-mono text-slate-600 bg-slate-50 p-2 border">
+        <div className="flex items-center gap-2">
+          <img src={operatorQr} alt="QR Realtime" className="w-7 h-7 border border-slate-300 p-0.5 bg-white shrink-0" />
+          <div className="flex items-center gap-1">
+            <ShieldCheck className="w-3 h-3 text-emerald-600" />
+            <span>VERIFIKASI REAL-TIME: DAFTAR HADIR SIDANG TPA/TPT // DPUPR KAB. GARUT</span>
+          </div>
+        </div>
+        <div className="text-right text-[7pt] text-slate-500 font-mono">
+          <div>TOTAL AGENDA: {scheduledApps.length} PEMOHON</div>
         </div>
       </div>
 

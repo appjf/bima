@@ -24,7 +24,8 @@ import {
   Filter,
   RefreshCw,
   Eye,
-  Check
+  Check,
+  Mail
 } from 'lucide-react';
 import { 
   Application, 
@@ -41,6 +42,7 @@ import {
   getApplicationWorkflowStage 
 } from '../lib/workflowEngine';
 import { triggerPdfPrint } from '../lib/pdfPrintEngine';
+import { SuratUndanganVisiteDocument } from './SuratUndanganVisiteDocument';
 
 interface VisiteLapanganModuleProps {
   applications: Application[];
@@ -63,7 +65,7 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
     return slfApp ? slfApp.id : (applications[0]?.id || '');
   });
 
-  const [activeSubTab, setActiveSubTab] = useState<'FORM' | 'CAMERA' | 'BA_PREVIEW'>('FORM');
+  const [activeSubTab, setActiveSubTab] = useState<'UNDANGAN_VISITE' | 'FORM' | 'CAMERA' | 'BA_PREVIEW'>('UNDANGAN_VISITE');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'NEED_VISITE' | 'COMPLETED_VISITE'>('ALL');
 
@@ -523,45 +525,72 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
               </div>
 
               {/* Workspace Navigation Tabs */}
-              <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 px-4 text-xs font-mono font-bold uppercase">
+              <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 px-4 text-xs font-mono font-bold uppercase overflow-x-auto scrollbar-none">
+                <button
+                  onClick={() => setActiveSubTab('UNDANGAN_VISITE')}
+                  className={`py-3 px-4 border-b-2 flex items-center gap-1.5 whitespace-nowrap transition ${
+                    activeSubTab === 'UNDANGAN_VISITE'
+                      ? 'border-amber-600 text-amber-600 dark:text-amber-400 bg-white dark:bg-slate-900 -mb-[1px]'
+                      : 'border-transparent text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  <Mail className="w-4 h-4 text-amber-600" />
+                  <span>1. Surat Undangan Visite (Siap Publish)</span>
+                  {selectedApp.undanganVisite?.isSigned && (
+                    <span className="px-1.5 py-0.2 bg-emerald-500 text-white text-[9px] font-bold">TTE SIAP</span>
+                  )}
+                </button>
+
                 <button
                   onClick={() => setActiveSubTab('FORM')}
-                  className={`py-3 px-4 border-b-2 flex items-center gap-1.5 transition ${
+                  className={`py-3 px-4 border-b-2 flex items-center gap-1.5 whitespace-nowrap transition ${
                     activeSubTab === 'FORM'
                       ? 'border-amber-600 text-amber-600 dark:text-amber-400 bg-white dark:bg-slate-900 -mb-[1px]'
                       : 'border-transparent text-slate-500 hover:text-slate-700'
                   }`}
                 >
                   <CheckSquare className="w-4 h-4 text-amber-600" />
-                  <span>1. Laporan Kunjungan & Checklist Kesesuaian</span>
+                  <span>2. Checklist Kesesuaian Fisik</span>
                 </button>
 
                 <button
                   onClick={() => setActiveSubTab('CAMERA')}
-                  className={`py-3 px-4 border-b-2 flex items-center gap-1.5 transition ${
+                  className={`py-3 px-4 border-b-2 flex items-center gap-1.5 whitespace-nowrap transition ${
                     activeSubTab === 'CAMERA'
                       ? 'border-amber-600 text-amber-600 dark:text-amber-400 bg-white dark:bg-slate-900 -mb-[1px]'
                       : 'border-transparent text-slate-500 hover:text-slate-700'
                   }`}
                 >
                   <Camera className="w-4 h-4 text-indigo-600" />
-                  <span>2. Kamera & Foto Lapangan ({photos.length})</span>
+                  <span>3. Kamera & Foto ({photos.length})</span>
                 </button>
 
                 <button
                   onClick={() => setActiveSubTab('BA_PREVIEW')}
-                  className={`py-3 px-4 border-b-2 flex items-center gap-1.5 transition ${
+                  className={`py-3 px-4 border-b-2 flex items-center gap-1.5 whitespace-nowrap transition ${
                     activeSubTab === 'BA_PREVIEW'
                       ? 'border-amber-600 text-amber-600 dark:text-amber-400 bg-white dark:bg-slate-900 -mb-[1px]'
                       : 'border-transparent text-slate-500 hover:text-slate-700'
                   }`}
                 >
                   <FileText className="w-4 h-4 text-emerald-600" />
-                  <span>3. Cetak Berita Acara (BA) Lapangan</span>
+                  <span>4. Cetak BA Lapangan & TTE</span>
                 </button>
               </div>
 
-              {/* Sub-Tab 1: Input Laporan & Checklist */}
+              {/* Sub-Tab 1: Surat Undangan Visite (Siap Publish) */}
+              {activeSubTab === 'UNDANGAN_VISITE' && (
+                <div className="p-4 sm:p-6">
+                  <SuratUndanganVisiteDocument
+                    application={selectedApp}
+                    onUpdateApplication={onUpdateApplication}
+                    onSendWhatsApp={onSendWhatsApp}
+                    currentRole={currentRole}
+                  />
+                </div>
+              )}
+
+              {/* Sub-Tab 2: Input Laporan & Checklist */}
               {activeSubTab === 'FORM' && (
                 <div className="p-6 space-y-6 font-mono text-xs">
                   

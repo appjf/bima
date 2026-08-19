@@ -2,8 +2,9 @@ import React from 'react';
 import { Application } from '../types';
 import { getDocumentDataSchema, DocumentDataSchema } from '../lib/dataEngine';
 import { isSlfApplication } from '../lib/workflowEngine';
-import { getSavedSignatures } from '../lib/signatureEngine';
+import { getSavedSignatures, generateSignatureQrPayload } from '../lib/signatureEngine';
 import { OfficialLetterhead } from './OfficialLetterhead';
+import { ShieldCheck } from 'lucide-react';
 
 interface InternalApprovalFormPrintProps {
   application: Application;
@@ -26,6 +27,7 @@ export const InternalApprovalFormPrint: React.FC<InternalApprovalFormPrintProps>
 
   const permitLabel = isSlf ? 'SERTIFIKAT LAIK FUNGSI (SLF)' : 'PERSETUJUAN BANGUNAN GEDUNG (PBG)';
   const formCode = isSlf ? 'FORM-DPUPR-SLF-02' : 'FORM-DPUPR-PBG-01';
+  const kabidQr = kabidSig.qrCodeUrl || generateSignatureQrPayload(kabidSig, application.registerNumber);
 
   return (
     <div id="printable-internal-approval-area" className="bg-white text-slate-900 p-8 font-mono w-full max-w-[210mm] mx-auto text-xs space-y-5 border border-slate-300 shadow-md print:border-none print:shadow-none print:p-0 print:m-0">
@@ -217,18 +219,32 @@ export const InternalApprovalFormPrint: React.FC<InternalApprovalFormPrintProps>
           <div className="font-bold text-slate-900 uppercase">DINAS PUPR KABUPATEN GARUT</div>
           <div className="h-16 flex items-center justify-center gap-2 my-1">
             {kabidSig.signatureDataUrl ? (
-              <img src={kabidSig.signatureDataUrl} alt="TTD Kabid" className="h-14 max-w-[110px] object-contain" />
-            ) : null}
-            {kabidSig.qrCodeUrl ? (
-              <img src={kabidSig.qrCodeUrl} alt="QR Kabid" className="w-12 h-12 border border-slate-300 p-0.5 bg-white" />
-            ) : (
-              <div className="text-slate-300 font-mono text-[10px]">
-                [ TANDA TANGAN ELEKTRONIK TTE ]
+              <div className="flex flex-col items-center">
+                <img src={kabidSig.signatureDataUrl} alt="TTD Kabid" className="h-14 max-w-[110px] object-contain" />
+                <span className="text-[6.5pt] text-slate-400">TTD Digital</span>
               </div>
-            )}
+            ) : null}
+            <div className="flex flex-col items-center">
+              <img src={kabidQr} alt="QR Kabid" className="w-12 h-12 border border-slate-300 p-0.5 bg-white shadow-2xs" />
+              <span className="text-[6.5pt] text-indigo-900 font-bold">TTE BSrE</span>
+            </div>
           </div>
           <div className="font-bold text-slate-900 underline">{kabidSig.name || docSchema.verifikasiDigital.penandatangan}</div>
           <div className="text-[10px] text-slate-600 font-mono">NIP. {kabidSig.nip || docSchema.verifikasiDigital.nipPenandatangan}</div>
+        </div>
+      </div>
+
+      {/* Real-time Bottom Verification Footer */}
+      <div className="mt-4 pt-2 border-t border-slate-300 flex items-center justify-between text-[7.5pt] font-mono text-slate-600 bg-slate-50 p-2 border">
+        <div className="flex items-center gap-2">
+          <img src={kabidQr} alt="QR Realtime" className="w-8 h-8 border border-slate-300 p-0.5 bg-white shrink-0" />
+          <div className="flex items-center gap-1">
+            <ShieldCheck className="w-3 h-3 text-emerald-600" />
+            <span>VERIFIKASI REAL-TIME LEMBAR PERSETUJUAN INTERNAL // DPUPR KAB. GARUT</span>
+          </div>
+        </div>
+        <div className="text-right text-[7pt] text-slate-500 font-mono">
+          <div>REGISTER: {application.registerNumber}</div>
         </div>
       </div>
 
