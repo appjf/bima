@@ -77,6 +77,7 @@ export interface Applicant {
   phone: string;
   email: string;
   address: string;
+  npwp?: string;
   village?: string; // Desa/Kel. Pemilik
   district?: string; // Kec. Pemilik
   city?: string; // Kab. Pemilik (e.g. Kab. Garut)

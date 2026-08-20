@@ -1,190 +1,402 @@
 import React from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { Application } from '../types';
 import { calculateRetribution } from '../lib/retributionEngine';
-import { ShieldCheck } from 'lucide-react';
-import { getSavedSignatures, generateSignatureQrPayload } from '../lib/signatureEngine';
-import { OfficialLetterhead } from './OfficialLetterhead';
+import { getSavedSignatures, generateSignatureVerificationUrl } from '../lib/signatureEngine';
 
 interface SKRDPrintProps {
   application: Application;
   customShst?: number;
 }
 
-export const SKRDPrint: React.FC<SKRDPrintProps> = ({ application, customShst = 3250000 }) => {
+// Terbilang function for Indonesian
+const terbilang = (n: number): string => {
+  const words = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
+  if (n < 0) return "Minus " + terbilang(Math.abs(n));
+  if (n < 12) return words[n];
+  if (n < 20) return terbilang(n - 10) + " Belas";
+  if (n < 100) return terbilang(Math.floor(n / 10)) + " Puluh " + terbilang(n % 10);
+  if (n < 200) return "Seratus " + terbilang(n - 100);
+  if (n < 1000) return terbilang(Math.floor(n / 100)) + " Ratus " + terbilang(n % 100);
+  if (n < 2000) return "Seribu " + terbilang(n - 1000);
+  if (n < 1000000) return terbilang(Math.floor(n / 1000)) + " Ribu " + terbilang(n % 1000);
+  if (n < 1000000000) return terbilang(Math.floor(n / 1000000)) + " Juta " + terbilang(n % 1000000);
+  if (n < 1000000000000) return terbilang(Math.floor(n / 1000000000)) + " Miliar " + terbilang(n % 1000000000);
+  return "Angka Terlalu Besar";
+};
+
+const formatCurrency = (amount: number) => {
+  if (amount === 0) return '-';
+  return new Intl.NumberFormat('id-ID', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount) + ' -';
+};
+
+const formatCurrencyWithPrefix = (amount: number) => {
+  if (amount === 0) return '-';
+  return 'Rp ' + new Intl.NumberFormat('id-ID', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount) + ' -';
+};
+
+export const SKRDPrint: React.FC<SKRDPrintProps> = ({ application, customShst = 3650000 }) => {
   const calc = calculateRetribution(application, customShst);
-  const currentDate = new Date().toLocaleDateString('id-ID', {
+  
+  const tanggal = new Date().toLocaleDateString('id-ID', {
     day: 'numeric',
     month: 'long',
     year: 'numeric'
   });
 
-  const savedSignatures = getSavedSignatures();
-  const pengawasSig = savedSignatures.pengawas;
-  const kabidSig = savedSignatures.kabid;
+  const jatuhTempo = new Date();
+  jatuhTempo.setMonth(jatuhTempo.getMonth() + 1);
+  const tanggalJatuhTempo = jatuhTempo.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
 
-  const skrdNumber = `SKRD/3205/DPUPR/${new Date().getFullYear()}/${application.id.slice(-5).toUpperCase()}`;
-  const pengawasQr = pengawasSig.qrCodeUrl || generateSignatureQrPayload(pengawasSig, skrdNumber);
-  const kabidQr = kabidSig.qrCodeUrl || generateSignatureQrPayload(kabidSig, skrdNumber);
+  const skrdNumber = application.id.slice(-9).toUpperCase();
+  const tahun = new Date().getFullYear();
+
+  // Signature Data & QR Generation
+  const savedSignatures = getSavedSignatures();
+  const kabidSig = savedSignatures.kabid;
+  const operatorSig = savedSignatures.operator;
+  
+  const kabidVerificationUrl = generateSignatureVerificationUrl(kabidSig, `SKRD_${skrdNumber}`);
+  const operatorVerificationUrl = generateSignatureVerificationUrl(operatorSig, `STS_${skrdNumber}`);
 
   return (
-    <div id="printable-skrd-doc" className="bg-white text-slate-900 p-8 font-mono w-full max-w-[210mm] mx-auto text-xs space-y-4 leading-relaxed border border-slate-200 shadow-sm print:border-none print:shadow-none print:p-0">
+    <div id="printable-skrd-doc" className="bg-white text-black font-serif w-[210mm] mx-auto text-[10px] leading-tight print:w-full">
       
-      {/* Kop Surat Resmi Sekretariat SIMBG DPUPR Garut */}
-      <OfficialLetterhead />
-
-      {/* Document Title & Number */}
-      <div className="text-center space-y-1 pt-2">
-        <h1 className="font-extrabold text-sm uppercase tracking-wider underline">
-          SURAT KETETAPAN RETRIBUSI DAERAH (SKRD)
-        </h1>
-        <div className="text-xs font-bold text-indigo-900">
-          RETRIBUSI PERSETUJUAN BANGUNAN GEDUNG (PBG) // PP NO. 16 TAHUN 2021
-        </div>
-        <div className="text-[11px] font-bold text-slate-700">
-          NOMOR: {skrdNumber}
-        </div>
-      </div>
-
-      {/* Identitas Wajib Retribusi */}
-      <div className="border border-slate-300 p-3 space-y-2 bg-slate-50/50">
-        <h2 className="font-bold border-b border-slate-300 pb-1 text-indigo-900 uppercase">
-          I. DATA WAJIB RETRIBUSI & PERMOHONAN
-        </h2>
-        <div className="grid grid-cols-[180px_10px_1fr] gap-y-1 text-xs">
-          <div className="text-slate-600">Nama Wajib Retribusi</div><div>:</div><div className="font-bold text-slate-900">{application.applicant.name}</div>
-          <div className="text-slate-600">Nomor Registrasi SIMBG</div><div>:</div><div className="font-bold font-mono text-indigo-800">{application.registerNumber}</div>
-          <div className="text-slate-600">Nomor HP / Kontak</div><div>:</div><div>{application.applicant.phone}</div>
-          <div className="text-slate-600">Nama Bangunan Gedung</div><div>:</div><div className="font-semibold">{application.building.name}</div>
-          <div className="text-slate-600">Lokasi Bangunan</div><div>:</div>
-          <div>
-            {application.building.address}, Desa/Kel. {application.building.village}, Kec. {application.building.district}, Kab. Garut
-          </div>
-          <div className="text-slate-600">Fungsi Bangunan</div><div>:</div><div>{application.building.functionType} ({application.building.subFunction || 'Standar'})</div>
-          <div className="text-slate-600">Luas Bangunan Total</div><div>:</div><div className="font-bold">{application.building.buildingArea} m²</div>
-        </div>
-      </div>
-
-      {/* Rincian Perhitungan Retribusi */}
-      <div className="border border-slate-300 p-3 space-y-2">
-        <h2 className="font-bold border-b border-slate-300 pb-1 text-indigo-900 uppercase">
-          II. RINCIAN KALKULASI RETRIBUSI MATEMATIS (PP 16/2021)
-        </h2>
-        <table className="w-full text-xs border-collapse border border-slate-300 mt-2">
-          <thead>
-            <tr className="bg-slate-100 text-slate-800">
-              <th className="border border-slate-300 p-2 text-left">Parameter Kalkulasi</th>
-              <th className="border border-slate-300 p-2 text-center">Nilai / Koefisien</th>
-              <th className="border border-slate-300 p-2 text-right">Keterangan Formula</th>
-            </tr>
-          </thead>
+      {/* SECTION 1: SKRD */}
+      <div className="border-[1.5px] border-black p-0 mb-2">
+        {/* Header Table */}
+        <table className="w-full border-collapse">
           <tbody>
             <tr>
-              <td className="border border-slate-300 p-2">Luas Bangunan Gedung (L)</td>
-              <td className="border border-slate-300 p-2 text-center font-bold">{application.building.buildingArea} m²</td>
-              <td className="border border-slate-300 p-2 text-right">Luas lantai fisik</td>
-            </tr>
-            <tr>
-              <td className="border border-slate-300 p-2">Standard Harga Satuan Tertinggi (SHST Garut)</td>
-              <td className="border border-slate-300 p-2 text-center font-bold">Rp {customShst.toLocaleString('id-ID')} /m²</td>
-              <td className="border border-slate-300 p-2 text-right">SK Bupati Garut 2026</td>
-            </tr>
-            <tr>
-              <td className="border border-slate-300 p-2">Indeks Terhitung Kompleksitas (I_k)</td>
-              <td className="border border-slate-300 p-2 text-center font-bold">{((calc.indexFungsi || 0.15) * (calc.indexKompleksitas || 0.1)).toFixed(4)}</td>
-              <td className="border border-slate-300 p-2 text-right">Metode Cross-Check Valid</td>
-            </tr>
-            <tr>
-              <td className="border border-slate-300 p-2">Indeks Pokok Retribusi (I_p)</td>
-              <td className="border border-slate-300 p-2 text-center font-bold">{(calc.indeksLokalitas || 0.5).toFixed(2)}</td>
-              <td className="border border-slate-300 p-2 text-right">Parameter Wilayah & SHST</td>
-            </tr>
-            <tr className="bg-indigo-50/60 font-bold text-indigo-950">
-              <td className="border border-slate-300 p-2.5 text-sm">TOTAL RETRIBUSI TERHUTANG (RP)</td>
-              <td className="border border-slate-300 p-2.5 text-center text-sm font-extrabold text-indigo-700" colSpan={2}>
-                Rp {calc.finalRetribution.toLocaleString('id-ID')},-
+              <td className="w-[15%] text-center border-r-[1.5px] border-black py-2">
+                <img src="/public/logo_garut.png" alt="Logo Garut" className="h-16 mx-auto object-contain" />
+              </td>
+              <td className="w-[45%] text-center border-r-[1.5px] border-black py-1">
+                <div className="font-bold text-[11px] leading-tight">
+                  PEMERINTAH KABUPATEN GARUT<br />
+                  DINAS PEKERJAAN UMUM DAN<br />
+                  PENATAAN RUANG
+                </div>
+                <div className="text-[8px] mt-1 italic">
+                  Jalan Raya K.H. Cecep Syarifuddin - Tarogong Kidul<br />
+                  Kode Pos 44151 - Garut
+                </div>
+              </td>
+              <td className="w-[25%] text-center border-r-[1.5px] border-black py-1">
+                <div className="font-bold text-[10px]">SURAT KETETAPAN RETRIBUSI DAERAH</div>
+                <div className="font-bold text-[12px] mt-1">( S K R D )</div>
+                <div className="text-left mt-2 px-2 space-y-0.5 text-[9px]">
+                  <div className="grid grid-cols-[80px_5px_1fr]">
+                    <span>Tanggal</span><span>:</span><span className="font-bold">{tanggal}</span>
+                  </div>
+                  <div className="grid grid-cols-[80px_5px_1fr]">
+                    <span>Masa Retribusi</span><span>:</span><span className="font-bold">{tanggalJatuhTempo}</span>
+                  </div>
+                  <div className="grid grid-cols-[80px_5px_1fr]">
+                    <span>Tahun</span><span>:</span><span className="font-bold">{tahun}</span>
+                  </div>
+                </div>
+              </td>
+              <td className="w-[15%] text-center py-1">
+                <div className="font-bold text-[11px] mb-2 border-b border-black pb-1">Nomor</div>
+                <div className="font-bold text-[14px] py-2">{skrdNumber}</div>
               </td>
             </tr>
           </tbody>
         </table>
-        <div className="text-[10px] text-slate-500 italic pt-1">
-          Nominal Resmi Terbilang: <span className="font-bold text-slate-800">Rp {calc.finalRetribution.toLocaleString('id-ID')} (Lunas Saat Dibayar ke Kasda bjb)</span>
+
+        {/* Identity Section */}
+        <div className="border-t-[1.5px] border-black p-2 space-y-1">
+          <div className="grid grid-cols-[160px_10px_1fr]">
+            <span>NAMA</span><span>:</span><span className="font-bold uppercase">{application.applicant.name}</span>
+          </div>
+          <div className="grid grid-cols-[160px_10px_1fr]">
+            <span>ALAMAT</span><span>:</span><span className="uppercase">{application.applicant.address || '-'}</span>
+          </div>
+          <div className="grid grid-cols-[160px_10px_1fr] mt-2">
+            <span>NOMOR POKOK WAJIB PAJAK</span><span>:</span><span className="font-bold">{application.applicant.npwp || '-'}</span>
+          </div>
+          <div className="grid grid-cols-[160px_10px_1fr]">
+            <span>TANGGAL JATUH TEMPO</span><span>:</span><span className="font-bold">{tanggalJatuhTempo}</span>
+          </div>
         </div>
-      </div>
 
-      {/* Catatan Ketentuan & Petunjuk Pembayaran */}
-      <div className="border border-slate-300 p-3 space-y-1.5 bg-amber-50/30 text-[11px]">
-        <h3 className="font-bold text-amber-900 uppercase">III. PETUNJUK PEMBAYARAN KAS DAERAH</h3>
-        <ol className="list-decimal list-inside space-y-1 text-slate-700">
-          <li>Pembayaran dilakukan melalui **Kas Daerah Kabupaten Garut** di Seluruh Cabang **Bank bjb**.</li>
-          <li>Gunakan Nomor SKRD: <strong className="font-mono text-indigo-900">{skrdNumber}</strong> sebagai kode bayar/rekening tujuan.</li>
-          <li>Harap melakukan konfirmasi/upload bukti setoran ke SIMBG DPUPR Garut setelah pembayaran berhasil.</li>
-        </ol>
-      </div>
+        {/* Main Table */}
+        <table className="w-full border-collapse border-t-[1.5px] border-black">
+          <thead>
+            <tr className="bg-white">
+              <th className="border-[1px] border-black w-[5%] py-1 text-center">NO</th>
+              <th className="border-[1px] border-black w-[15%] py-1 text-center">KODE REKENING</th>
+              <th className="border-[1px] border-black w-[60%] py-1 text-center uppercase">URAIAN</th>
+              <th className="border-[1px] border-black w-[15%] py-1 text-center" colSpan={2}>JUMLAH (Rp)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="align-top">
+              <td className="border-x border-black text-center py-1">1</td>
+              <td className="border-x border-black py-1 px-1">
+                <div className="flex justify-between font-mono text-[11px] tracking-widest border border-black px-1 py-0.5">
+                  <span>4</span><span>1</span><span>2</span><span>2</span><span>6</span><span>0</span><span>1</span>
+                </div>
+              </td>
+              <td className="border-x border-black py-1 px-2">
+                <div className="font-bold uppercase">PBG {application.building.name}</div>
+                <div className="mt-1 space-y-0.5 text-[9px]">
+                  <div className="font-bold">Luas Total Bangunan : {application.building.buildingArea} m²</div>
+                  <div>* Total Biaya Retribusi Bangunan Gedung</div>
+                  <div>* Total Biaya Retribusi Prasarana Gedung</div>
+                  <div>* Biaya Petikan</div>
+                  <div className="flex justify-between w-full">
+                    <span>* Administrasi</span>
+                    <span>Administrasi</span>
+                  </div>
+                </div>
+              </td>
+              <td className="border-l border-black py-1 px-1 text-left w-6">Rp</td>
+              <td className="border-r border-black py-1 px-1 text-right">{formatCurrency(calc.finalRetribution)}</td>
+            </tr>
+            {/* Fillers to keep height consistent */}
+            <tr className="h-4">
+              <td className="border-x border-black"></td>
+              <td className="border-x border-black"></td>
+              <td className="border-x border-black"></td>
+              <td className="border-l border-black">Rp</td>
+              <td className="border-r border-black text-right">-</td>
+            </tr>
+            <tr className="h-4">
+              <td className="border-x border-black"></td>
+              <td className="border-x border-black"></td>
+              <td className="border-x border-black"></td>
+              <td className="border-l border-black">Rp</td>
+              <td className="border-r border-black text-right">-</td>
+            </tr>
+            {/* Totals Section */}
+            <tr className="font-bold">
+              <td className="border border-black" colSpan={2}></td>
+              <td className="border border-black px-2 py-1">Jumlah Ketetapan Pokok Retribusi</td>
+              <td className="border-l border-black py-1 px-1 text-left">Rp</td>
+              <td className="border-r border-black border-y py-1 px-1 text-right">{formatCurrency(calc.finalRetribution)}</td>
+            </tr>
+            <tr>
+              <td className="border-x border-black" colSpan={2}></td>
+              <td className="border-x border-black px-2 py-0.5">
+                <div className="grid grid-cols-[20px_1fr]">
+                  <span>:</span>
+                  <div className="space-y-0.5 text-[9px]">
+                    <div>a. Bunga</div>
+                    <div>b. Kenaikan</div>
+                  </div>
+                </div>
+              </td>
+              <td className="border-l border-black py-1 px-1 text-left">Rp</td>
+              <td className="border-r border-black py-1 px-1 text-right">-</td>
+            </tr>
+            <tr className="font-bold bg-white">
+              <td className="border border-black" colSpan={2}></td>
+              <td className="border border-black px-2 py-1 uppercase italic">Jumlah keseluruhan setelah dibulatkan</td>
+              <td className="border-l border-black py-1 px-1 text-left border-y border-black">Rp</td>
+              <td className="border-r border-black border-y py-1 px-1 text-right border-black">{formatCurrency(calc.finalRetribution)}</td>
+            </tr>
+          </tbody>
+        </table>
 
-      {/* Pengesahan & Tanda Tangan Ganda (Pengawas SIMBG & Kabid Bangunan) */}
-      <div className="pt-4 grid grid-cols-2 gap-6 items-end break-inside-avoid text-xs font-mono">
-        {/* Signatory 1: Pengawas SIMBG */}
-        <div className="text-center space-y-1 border border-slate-200 bg-slate-50/50 p-3">
-          <div className="font-bold text-slate-800 uppercase text-[11px]">PENGAWAS PERHITUNGAN RETRIBUSI</div>
-          <div className="font-bold text-indigo-950 uppercase text-[11px]">PENGAWAS SIMBG DPUPR GARUT</div>
-          <div className="h-16 flex items-center justify-center gap-2 my-1">
-            {pengawasSig.signatureDataUrl ? (
-              <div className="flex flex-col items-center">
-                <img src={pengawasSig.signatureDataUrl} alt="TTD Pengawas" className="h-14 max-w-[100px] object-contain" />
-                <span className="text-[6.5pt] text-slate-400">TTD Digital</span>
+        {/* Footer SKRD */}
+        <div className="p-2 space-y-2">
+          <div className="flex gap-2 text-[10px]">
+            <span className="font-bold italic">Dengan Huruf :</span>
+            <span className="font-bold uppercase italic font-serif">({terbilang(calc.finalRetribution)} Rupiah)</span>
+          </div>
+
+          <div className="text-[8px] space-y-0.5">
+            <div className="font-bold underline">PERHATIAN</div>
+            <ol className="list-decimal list-outside ml-4 space-y-0">
+              <li>Harap penyetoran dilakukan melalui Kasda Umum pada Bank JABAR BANTEN</li>
+              <li>Apabila pembayaran retribusi melebihi jatuh tempo, maka dikenakan denda sebesar 1% setiap bulannya berdasarkan PERBUP No. 45 Tahun 2024</li>
+              <li>Perhitungan Pembayaran retribusi berdasarkan PERDA NO. 1 TAHUN 2025 TENTANG PERUBAHAN PERDA KABUPATEN GARUT NO. 8 TAHUN 2023 tentang Pajak Daerah dan Retribusi Daerah</li>
+              <li>Pembebasan Pembayaran retribusi berdasarkan PERBUP NO. 66 TAHUN 2024 Tentang Pembebasan Retribusi PBG bagi MBR</li>
+            </ol>
+          </div>
+
+          {/* Signature SKRD */}
+          <div className="grid grid-cols-2 mt-4 text-[10px]">
+            <div className="space-y-1 text-[8px] pl-2">
+              <div className="font-bold">CATATAN</div>
+              <div>NOP : -</div>
+              <div>A.N. : -</div>
+            </div>
+            <div className="text-center space-y-0 relative flex flex-col items-center">
+              <div className="mb-1 text-[9px] w-full text-center">Garut, {tanggal}</div>
+              <div className="font-bold uppercase text-[9px] w-full text-center">a.n.Kepala Dinas PUPR Kab. Garut</div>
+              <div className="font-bold uppercase text-[9px] w-full text-center">Kepala Bidang Bangunan</div>
+              <div className="h-16 flex items-center justify-center my-1 relative">
+                {kabidSig.signatureDataUrl ? (
+                  <img src={kabidSig.signatureDataUrl} alt="TTD Kabid" className="h-12 object-contain absolute z-10" />
+                ) : null}
+                <QRCodeSVG value={kabidVerificationUrl} size={50} level="M" />
               </div>
-            ) : null}
-            <div className="flex flex-col items-center">
-              <img src={pengawasQr} alt="QR Pengawas" className="w-12 h-12 border border-slate-300 p-0.5 bg-white shadow-2xs" />
-              <span className="text-[6.5pt] text-indigo-900 font-bold">TTE PENGAWAS</span>
+              <div className="font-bold uppercase underline text-[10px] w-full text-center">{kabidSig.name || 'DEDI KOMARA, ST. M,SI'}</div>
+              <div className="text-[9px] w-full text-center">NIP. {kabidSig.nip || '19760527 201001 1 002'}</div>
             </div>
           </div>
-          <div className="font-bold text-slate-900 underline">{pengawasSig.name || 'DEDI KURNIAWAN, S.ST, MT'}</div>
-          <div className="text-[10px] text-slate-600">NIP. {pengawasSig.nip || '19820315 200801 1 009'}</div>
         </div>
 
-        {/* Signatory 2: Kepala Bidang Bangunan */}
-        <div className="text-center space-y-1 border border-slate-200 bg-slate-50/50 p-3">
-          <div className="text-[10px] text-slate-600 whitespace-nowrap">Garut, {currentDate}</div>
-          <div className="font-bold text-slate-800 uppercase text-[11px]">a.n. KEPALA DINAS PUPR KAB. GARUT</div>
-          <div className="font-bold text-indigo-950 uppercase text-[11px]">KEPALA BIDANG BANGUNAN</div>
-          <div className="h-16 flex items-center justify-center gap-2 my-1">
-            {kabidSig.signatureDataUrl ? (
-              <div className="flex flex-col items-center">
-                <img src={kabidSig.signatureDataUrl} alt="TTD Kabid" className="h-14 max-w-[100px] object-contain" />
-                <span className="text-[6.5pt] text-slate-400">TTD Digital</span>
+        {/* Receipt Section */}
+        <div className="border-t border-black p-2 mt-2">
+          <div className="flex justify-between items-end border-t border-dashed border-black pt-2">
+            <div className="text-[9px] italic">........................................................................... potong disini ...........................................................................</div>
+          </div>
+          <div className="grid grid-cols-[1fr_1fr] mt-2 text-[9px]">
+            <div className="space-y-0.5">
+              <div className="grid grid-cols-[80px_5px_1fr]">
+                <span>Tanda Terima</span><span>:</span><span className="border-b border-dotted border-black w-32"></span>
               </div>
-            ) : null}
-            <div className="flex flex-col items-center">
-              <img src={kabidQr} alt="QR Kabid" className="w-12 h-12 border border-slate-300 p-0.5 bg-white shadow-2xs" />
-              <span className="text-[6.5pt] text-indigo-900 font-bold">TTE KABID</span>
+              <div className="grid grid-cols-[80px_5px_1fr]">
+                <span>Nama</span><span>:</span><span className="font-bold uppercase">{application.applicant.name}</span>
+              </div>
+              <div className="grid grid-cols-[80px_5px_1fr]">
+                <span>Alamat</span><span>:</span><span>{application.building.address || '-'}</span>
+              </div>
+              <div className="grid grid-cols-[80px_5px_1fr] mt-2">
+                <span>NPWP</span><span>:</span><span>-</span>
+              </div>
+            </div>
+            <div className="text-right space-y-1">
+              <div>No. Urut : <span className="font-bold">{skrdNumber}</span></div>
+              <div className="pr-12">Garut, .............................</div>
+              <div className="pr-16">Yang Menerima</div>
+              <div className="h-8"></div>
+              <div className="pr-4">( ............................................................ )</div>
             </div>
           </div>
-          <div className="font-bold text-slate-900 underline">{kabidSig.name || 'JUJU EKA UTAMA, S.T., M.T.'}</div>
-          <div className="text-[10px] text-slate-600">NIP. {kabidSig.nip || '19780512 200501 1 008'}</div>
         </div>
       </div>
 
-      {/* Real-time Verification Footer SKRD */}
-      <div className="mt-6 pt-3 border-t border-slate-300 flex items-center justify-between text-[7.5pt] font-mono text-slate-600 bg-slate-50 p-2.5 border">
-        <div className="flex items-center gap-2.5">
-          <img src={kabidQr} alt="QR Verifikasi SKRD" className="w-8 h-8 border border-slate-300 p-0.5 bg-white shrink-0" />
-          <div>
-            <div className="font-bold text-slate-900 flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3 text-emerald-600" />
-              <span>DOKUMEN KETETAPAN RETRIBUSI RESMI DPUPR KABUPATEN GARUT</span>
+      {/* SECTION 2: STS */}
+      <div className="border-[1.5px] border-black p-0 mt-4 break-inside-avoid">
+        <div className="text-center py-2 border-b-[1.5px] border-black bg-white">
+          <div className="font-bold text-[12px] uppercase">PEMERINTAH KABUPATEN GARUT</div>
+          <div className="font-bold text-[12px] uppercase">SURAT TANDA SETORAN</div>
+          <div className="font-bold text-[12px] uppercase">( STS )</div>
+        </div>
+
+        <div className="p-3 space-y-2 text-[10px]">
+          <div className="grid grid-cols-2">
+            <div className="space-y-1">
+              <div className="grid grid-cols-[80px_5px_1fr]">
+                <span>STS No</span><span>:</span><span className="border-b border-dotted border-black">............................</span>
+              </div>
             </div>
-            <div className="text-[7pt] text-slate-500 font-sans">
-              Sah secara elektronik berdasarkan PP 16/2021. Pindai QR Code untuk validasi keaslian SKRD ini.
+            <div className="space-y-1">
+              <div className="grid grid-cols-[80px_5px_1fr]">
+                <span>Bank</span><span>:</span><span className="font-bold">JABAR BANTEN Cab. Garut</span>
+              </div>
+              <div className="grid grid-cols-[80px_5px_1fr]">
+                <span>No. Rekening</span><span>:</span><span className="font-bold">0170239201008</span>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="text-right text-[7pt] text-slate-500 shrink-0 font-mono">
-          <div>SKRD: {skrdNumber}</div>
-          <div>REG: {application.registerNumber}</div>
+
+          <div className="mt-4 space-y-1">
+            <div className="grid grid-cols-[140px_10px_1fr]">
+              <span>Harap diterima uang sebesar</span><span>:</span><span className="font-bold">Rp {formatCurrency(calc.finalRetribution)}</span>
+            </div>
+            <div className="grid grid-cols-[140px_10px_1fr]">
+              <span>( dengan huruf )</span><span>:</span><span className="font-bold italic uppercase font-serif">({terbilang(calc.finalRetribution)} Rupiah)</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-[140px_10px_1fr] mt-2">
+            <span>Untuk Pembayaran</span><span>:</span><span className="font-bold uppercase">Retribusi PBG {application.building.name}</span>
+          </div>
+
+          <div className="mt-2 text-[9px]">Dengan rincian penerimaan sebagai berikut :</div>
+
+          <table className="w-full border-collapse border border-black mt-1">
+            <thead>
+              <tr className="bg-white">
+                <th className="border border-black py-1 w-[5%]">No</th>
+                <th className="border border-black py-1 w-[20%]">Kode Rekening</th>
+                <th className="border border-black py-1 w-[55%]">Uraian Rincian</th>
+                <th className="border border-black py-1 w-[20%]">Jumlah (Rp)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="align-top">
+                <td className="border border-black text-center py-2">1</td>
+                <td className="border border-black py-2 px-2 text-center font-mono">4.1.2.26.01</td>
+                <td className="border border-black py-2 px-2 uppercase leading-normal">
+                  <div className="font-bold">{skrdNumber}</div>
+                  <div>{application.applicant.name}</div>
+                  <div>{application.building.name}</div>
+                  <div className="text-[8px]">{application.building.address}, {application.building.village}, {application.building.district}</div>
+                </td>
+                <td className="border border-black py-2 px-2 text-right">
+                   {formatCurrencyWithPrefix(calc.finalRetribution)}
+                </td>
+              </tr>
+              <tr className="font-bold">
+                <td className="border border-black text-right px-2 py-1" colSpan={3}>JUMLAH</td>
+                <td className="border border-black py-1 px-2 text-right">
+                  {formatCurrencyWithPrefix(calc.finalRetribution)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div className="mt-2 text-[9px]">
+            Uang tersebut diterima pada tanggal : ...............................................
+          </div>
+
+          <div className="text-[8px] mt-4 space-y-0.5">
+            <div className="font-bold underline">CATATAN</div>
+            <ol className="list-decimal list-outside ml-4 space-y-0">
+              <li>Penyetoran retribusi dilakukan melalui Kasda Umum pada Bank JABAR BANTEN</li>
+              <li>Apabila pembayaran retribusi melebihi jatuh tempo, maka dikenakan denda sebesar 1% setiap bulannya berdasarkan PERBUP No. 45 Tahun 2024</li>
+              <li>Perhitungan Pembayaran retribusi berdasarkan PERDA NO. 1 TAHUN 2025 TENTANG PERUBAHAN PERDA KABUPATEN GARUT NO. 8 TAHUN 2023 tentang Pajak Daerah dan Retribusi Daerah</li>
+              <li>Pembebasan Pembayaran retribusi berdasarkan PERBUP NO. 66 TAHUN 2024 Tentang Pembebasan Retribusi PBG bagi MBR</li>
+            </ol>
+          </div>
+
+          <div className="grid grid-cols-2 mt-6 text-center">
+            <div className="space-y-0 flex flex-col items-center">
+              <div className="font-bold uppercase text-[9px] w-full text-center">a.n.Kepala Dinas PUPR Kab. Garut</div>
+              <div className="font-bold uppercase text-[9px] w-full text-center">Kepala Bidang Bangunan</div>
+              <div className="h-14 flex items-center justify-center my-1 relative">
+                {kabidSig.signatureDataUrl ? (
+                  <img src={kabidSig.signatureDataUrl} alt="TTD Kabid" className="h-10 object-contain absolute z-10" />
+                ) : null}
+                <QRCodeSVG value={kabidVerificationUrl} size={42} level="M" />
+              </div>
+              <div className="font-bold uppercase underline text-[10px] w-full text-center">{kabidSig.name || 'DEDI KOMARA, ST. M,SI'}</div>
+              <div className="text-[9px] w-full text-center">NIP. {kabidSig.nip || '19760527 201001 1 002'}</div>
+            </div>
+            <div className="space-y-0 flex flex-col items-center">
+              <div className="font-bold uppercase text-[9px] w-full text-center">&nbsp;</div>
+              <div className="font-bold uppercase text-[9px] w-full text-center">Bendahara Penerimaan,</div>
+              <div className="h-14 flex items-center justify-center my-1 relative">
+                {operatorSig.signatureDataUrl ? (
+                  <img src={operatorSig.signatureDataUrl} alt="TTD Bendahara" className="h-10 object-contain absolute z-10" />
+                ) : null}
+                <QRCodeSVG value={operatorVerificationUrl} size={42} level="M" />
+              </div>
+              <div className="font-bold uppercase underline text-[10px] w-full text-center">{operatorSig.name || 'AI PUPUN SUMIATI, SE'}</div>
+              <div className="text-[9px] w-full text-center">NIP. {operatorSig.nip || '19740531 200701 2 005'}</div>
+            </div>
+          </div>
         </div>
       </div>
 
     </div>
   );
 };
+

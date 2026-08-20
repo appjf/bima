@@ -15,8 +15,10 @@ import {
 } from 'lucide-react';
 import { Application } from '../types';
 import { calculateRetribution, DEFAULT_SHST_GARUT } from '../lib/retributionEngine';
-import { SKRDPrint } from './SKRDPrint';
-import { triggerPdfPrint } from '../lib/pdfPrintEngine';
+import { SKRDPrintPreviewModal } from './SKRDPrintPreviewModal';
+import { exportToPdf } from '../lib/pdfPrintEngine';
+import { getSavedSignatures } from '../lib/signatureEngine';
+import { logPrintAction } from '../lib/auditLogEngine';
 
 interface RetributionViewProps {
   applications: Application[];
@@ -31,16 +33,22 @@ export const RetributionView: React.FC<RetributionViewProps> = ({
 }) => {
   const [selectedAppId, setSelectedAppId] = useState<string>(applications[0]?.id || '');
   const [customShst, setCustomShst] = useState<number>(DEFAULT_SHST_GARUT);
-  const [isDualModalOpen, setIsDualModalOpen] = useState(false);
+  const [isSKRDPreviewOpen, setIsSKRDPreviewOpen] = useState(false);
 
   const selectedApp = applications.find(a => a.id === selectedAppId) || applications[0];
   const retribution = selectedApp ? calculateRetribution(selectedApp, customShst) : null;
 
   const handlePrintSKRD = () => {
     if (selectedApp) {
-      triggerPdfPrint('printable-skrd-area', `SKRD_${selectedApp.registerNumber}`);
-    } else {
-      window.print();
+      setIsSKRDPreviewOpen(true);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (selectedApp) {
+      const operator = getSavedSignatures().operator;
+      logPrintAction('SKRD_EXPORT_PDF', selectedApp.registerNumber, operator.name, operator.nip);
+      await exportToPdf('skrd-print-preview-content', `SKRD_${selectedApp.registerNumber}.pdf`);
     }
   };
 
@@ -67,6 +75,13 @@ export const RetributionView: React.FC<RetributionViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5">
+          <button
+            onClick={handleExportPDF}
+            className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-400 text-xs font-mono font-bold uppercase tracking-wider px-4 py-2.5 transition border border-emerald-200 dark:border-emerald-800"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Download PDF</span>
+          </button>
           <button
             onClick={handlePrintSKRD}
             className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-mono font-bold uppercase tracking-wider px-4 py-2.5 transition border border-slate-200 dark:border-slate-700"
@@ -222,11 +237,14 @@ export const RetributionView: React.FC<RetributionViewProps> = ({
 
       </div>
 
-      {/* Printable SKRD Document */}
-      {selectedApp && (
-        <div id="printable-skrd-area" className="hidden print:block">
-          <SKRDPrint application={selectedApp} customShst={customShst} />
-        </div>
+      {/* Printable SKRD Document Modal */}
+      {isSKRDPreviewOpen && selectedApp && (
+        <SKRDPrintPreviewModal
+          application={selectedApp}
+          customShst={customShst}
+          onClose={() => setIsSKRDPreviewOpen(false)}
+          onExportPdf={handleExportPDF}
+        />
       )}
 
     </div>

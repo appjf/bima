@@ -169,7 +169,7 @@ PENTING & STRICT GUARDRAIL:
     }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.7-flash',
+      model: 'gemini-2.5-flash',
       contents: userPrompt,
       config: {
         systemInstruction,
@@ -179,15 +179,26 @@ PENTING & STRICT GUARDRAIL:
 
     res.json({
       success: true,
-      source: 'GEMINI_3_7_FLASH',
+      source: 'GEMINI_2_5_FLASH',
       reply: response.text || 'Tidak ada teks yang dihasilkan.'
     });
 
   } catch (error: any) {
     console.error('Gemini Copilot Error:', error);
+    
+    // Handle Rate Exceeded
+    const errorMsg = error?.message || '';
+    if (errorMsg.toLowerCase().includes('429') || errorMsg.toLowerCase().includes('rate') || errorMsg.toLowerCase().includes('quota')) {
+      return res.json({
+        success: true, // we can return a graceful reply
+        source: 'SYSTEM_RATE_LIMIT',
+        reply: 'Mohon maaf, sistem AI sedang menerima terlalu banyak permintaan (Rate Limit Exceeded). Mohon tunggu beberapa detik dan coba lagi.'
+      });
+    }
+
     res.status(500).json({
       success: false,
-      error: error.message || 'Terjadi kendala pada server AI Copilot.'
+      error: errorMsg || 'Terjadi kendala pada server AI Copilot.'
     });
   }
 });
@@ -269,7 +280,7 @@ Lakukan **Audit Komprehensif** dengan membahas **SATU PER SATU** poin temuan yan
    - [DIREKOMENDASIKAN TERBIT SLF] atau [DITOLAK / PERLU PERBAIKAN].`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.7-flash', // Fallback to standard if needed
+      model: 'gemini-2.5-flash', // Fallback to standard if needed
       contents: parts,
       config: {
         systemInstruction,
@@ -282,7 +293,16 @@ Lakukan **Audit Komprehensif** dengan membahas **SATU PER SATU** poin temuan yan
     res.json({ result: response.text });
   } catch (error: any) {
     console.error('Gemini Verval Error:', error);
-    res.status(500).json({ error: error.message });
+    
+    // Handle Rate Exceeded
+    const errorMsg = error?.message || '';
+    if (errorMsg.toLowerCase().includes('429') || errorMsg.toLowerCase().includes('rate') || errorMsg.toLowerCase().includes('quota')) {
+      return res.json({ 
+        result: '❌ **SISTEM SIBUK (RATE LIMIT EXCEEDED)**\n\nMohon maaf, sistem AI sedang menerima terlalu banyak permintaan saat ini. Silakan coba kembali dalam beberapa detik.'
+      });
+    }
+
+    res.status(500).json({ error: errorMsg });
   }
 });
 

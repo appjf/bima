@@ -73,7 +73,7 @@ import { Sparkles, CheckCircle2, AlertTriangle, ShieldCheck, Info, Calculator, M
 
 export default function App() {
   // Realtime Firebase State
-  const { applications, updateApplication, batchUpdateApplications, loading: appsLoading } = useApplications();
+  const { applications, updateApplication, batchUpdateApplications, deleteApplication, loading: appsLoading } = useApplications();
 
   // Persistence State
   const [notifications, setNotifications] = useState<NotificationLog[]>(() => getStoredNotifications());
@@ -249,8 +249,12 @@ export default function App() {
     showToast(`Permohonan ${newApp.registerNumber} berhasil ditambahkan ke sistem.`);
   };
 
-  const handleDeleteApplication = (appId: string) => {
-    showToast('Fungsi hapus dinonaktifkan dalam mode sinkronisasi produksi.', 'info');
+  const handleDeleteApplication = async (appId: string) => {
+    await deleteApplication(appId);
+    if (selectedApp?.id === appId) {
+      setSelectedApp(null);
+    }
+    showToast('Permohonan berhasil dihapus dari sistem.', 'success');
   };
 
   const handleUpdateApplication = (updatedApp: Application) => {

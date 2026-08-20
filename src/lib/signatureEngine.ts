@@ -69,10 +69,7 @@ export function saveSignatures(store: SignatureStore): void {
   }
 }
 
-/**
- * Generate Cryptographic TTE QR Code Payload (RFC 7515 / FIPS 180-4 compliant)
- */
-export function generateSignatureQrPayload(data: DigitalSignatureData, docNumber?: string): string {
+export function generateSignatureVerificationUrl(data: DigitalSignatureData, docNumber?: string): string {
   const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://simbg.garutkab.go.id';
   
   // Create deterministic cryptographic seed
@@ -91,7 +88,7 @@ export function generateSignatureQrPayload(data: DigitalSignatureData, docNumber
     iat: Math.floor(Date.now() / 1000)
   })).replace(/=/g, '');
   
-  // Simple deterministic hash checksum for fast synchronous rendering
+  // Simple deterministic hash checksum
   let hashVal = 0;
   for (let i = 0; i < rawData.length; i++) {
     hashVal = ((hashVal << 5) - hashVal) + rawData.charCodeAt(i);
@@ -100,9 +97,14 @@ export function generateSignatureQrPayload(data: DigitalSignatureData, docNumber
   const sig = Math.abs(hashVal).toString(36).toUpperCase() + Date.now().toString(36).substring(4).toUpperCase();
   const token = `${header}.${payload}.${sig}`;
 
-  // Dynamic Realtime Verification URL with full token & parameters
-  const verificationUrl = `${origin}/verify?token=${token}&type=TTE&role=${encodeURIComponent(data.role)}&nip=${encodeURIComponent(data.nip)}&name=${encodeURIComponent(data.name)}&std=BSRE&hash=${sig}&doc=${encodeURIComponent(docNumber || 'SIMBG_GARUT')}`;
-  
+  return `${origin}/verify?token=${token}&type=TTE&role=${encodeURIComponent(data.role)}&nip=${encodeURIComponent(data.nip)}&name=${encodeURIComponent(data.name)}&std=BSRE&hash=${sig}&doc=${encodeURIComponent(docNumber || 'SIMBG_GARUT')}`;
+}
+
+/**
+ * Generate Cryptographic TTE QR Code Payload (RFC 7515 / FIPS 180-4 compliant)
+ */
+export function generateSignatureQrPayload(data: DigitalSignatureData, docNumber?: string): string {
+  const verificationUrl = generateSignatureVerificationUrl(data, docNumber);
   return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&ecc=M&data=${encodeURIComponent(verificationUrl)}`;
 }
 

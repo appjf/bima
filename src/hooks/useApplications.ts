@@ -73,5 +73,15 @@ export function useApplications() {
     }
   };
 
-  return { applications, updateApplication, batchUpdateApplications, loading, error };
+  const deleteApplication = async (appId: string) => {
+    try {
+      const { deleteDoc } = await import('firebase/firestore');
+      const appRef = doc(db, 'applications', appId);
+      await deleteDoc(appRef);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `applications/${appId}`);
+    }
+  };
+
+  return { applications, updateApplication, batchUpdateApplications, deleteApplication, loading, error };
 }

@@ -1,5 +1,56 @@
 import { Application, ApplicationStatus, StatusAuditLog } from '../types';
 
+export interface PrintAuditLog {
+  id: string;
+  timestamp: string;
+  documentType: string; // e.g., 'SKRD_PDF', 'SKRD_PRINT'
+  registerNumber: string;
+  operatorName: string;
+  operatorNip: string;
+}
+
+const PRINT_LOGS_STORAGE_KEY = 'simbg_garut_print_audit_logs';
+
+export const logPrintAction = (
+  documentType: string,
+  registerNumber: string,
+  operatorName: string = 'H. Irwan Kurnia, S.ST',
+  operatorNip: string = '19880512 201101 1 003'
+) => {
+  try {
+    const existingRaw = localStorage.getItem(PRINT_LOGS_STORAGE_KEY);
+    const existingLogs: PrintAuditLog[] = existingRaw ? JSON.parse(existingRaw) : [];
+    
+    const newLog: PrintAuditLog = {
+      id: `prt-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      timestamp: new Date().toISOString(),
+      documentType,
+      registerNumber,
+      operatorName,
+      operatorNip
+    };
+    
+    const updatedLogs = [newLog, ...existingLogs];
+    localStorage.setItem(PRINT_LOGS_STORAGE_KEY, JSON.stringify(updatedLogs));
+    
+    // Also dispatch an event so UI can update if viewing logs
+    window.dispatchEvent(new CustomEvent('print-audit-log-updated'));
+    
+    console.log(`[AUDIT LOG] ${documentType} generated for ${registerNumber} by ${operatorName} (${operatorNip})`);
+  } catch (err) {
+    console.error('Failed to save print audit log', err);
+  }
+};
+
+export const getPrintAuditLogs = (): PrintAuditLog[] => {
+  try {
+    const raw = localStorage.getItem(PRINT_LOGS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (err) {
+    return [];
+  }
+};
+
 /**
  * Creates a status change audit log entry and appends it to the application object.
  */
