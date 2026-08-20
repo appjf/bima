@@ -2604,7 +2604,6 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
                         setPlenoArsitText(arsitNotes);
                         setPlenoStrukText(strukNotes);
                         setPlenoMepText(mepNotes);
-                        showToast('Catatan teknis berhasil ditarik dari BA Konsultasi.');
                       }}
                       className="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs uppercase flex items-center gap-1.5"
                     >

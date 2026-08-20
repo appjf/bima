@@ -39,7 +39,8 @@ export const BAPlenoPrint: React.FC<BAPlenoPrintProps> = ({
   const qrImageSrc = pengawasSig.qrCodeUrl || generateSignatureQrPayload(pengawasSig, baNumber);
 
   const isSlf = application.registerNumber.toUpperCase().includes('SLF') || 
-                (application.building?.functionType?.toUpperCase() || '').includes('SLF');
+                (application.building?.functionType?.toUpperCase() || '').includes('SLF') ||
+                application.permitType?.includes('SLF');
 
   // Load Arsitektur Notes
   const arsitNotes = arsitekturNotes || application.baPleno?.arsitekturNotes || [
@@ -88,7 +89,7 @@ export const BAPlenoPrint: React.FC<BAPlenoPrintProps> = ({
       {/* Title Berita Acara */}
       <div className="text-center space-y-1 py-2 border-b-2 border-slate-900">
         <h1 className="font-extrabold text-[12pt] uppercase tracking-wide">
-          BERITA ACARA PLENO TPA
+          {isSlf ? 'BERITA ACARA RAPAT PLENO TPT' : 'BERITA ACARA PLENO TPA'}
         </h1>
         <div className="text-[10pt] font-mono font-bold text-slate-800">
           NOMOR: {baNumber}
@@ -98,7 +99,10 @@ export const BAPlenoPrint: React.FC<BAPlenoPrintProps> = ({
       {/* Opening Statement */}
       <div className="text-[10pt] text-justify space-y-2.5">
         <p className="indent-8 mt-2">
-          Pleno Tim Profesi Ahli (TPA) / Tim Penilai Teknis (TPT) Kabupaten Garut yang memeriksa dokumen rencana teknis pada hari <strong>Kamis</strong>, Tanggal <strong>{currentDateFormatted}</strong>, atas permohonan penerbitan Persetujuan Bangunan Gedung (PBG) dengan data sebagai berikut:
+          {isSlf 
+            ? <span>Pada hari ini, Tanggal <strong>{currentDateFormatted}</strong>, telah dilaksanakan Rapat Pleno TPT Kabupaten Garut yang memeriksa dokumen kajian teknis atas permohonan Sertifikat Laik Fungsi (SLF) untuk:</span>
+            : <span>Pleno Tim Profesi Ahli (TPA) / Tim Penilai Teknis (TPT) Kabupaten Garut yang memeriksa dokumen rencana teknis pada hari <strong>Kamis</strong>, Tanggal <strong>{currentDateFormatted}</strong>, atas permohonan penerbitan Persetujuan Bangunan Gedung (PBG) dengan data sebagai berikut:</span>
+          }
         </p>
 
         {/* Identitas Permohonan */}
@@ -106,27 +110,29 @@ export const BAPlenoPrint: React.FC<BAPlenoPrintProps> = ({
           <table className="w-full">
             <tbody>
               <tr>
-                <td className="w-40 py-0.5 text-slate-600 font-semibold">Nama Bangunan</td>
+                <td className="w-40 py-0.5 text-slate-600 font-semibold">Nama Bangunan {isSlf ? 'Gedung' : ''}</td>
                 <td className="w-3 py-0.5">:</td>
                 <td className="py-0.5 font-bold text-slate-900">{application.building.name}</td>
               </tr>
-              <tr>
-                <td className="py-0.5 text-slate-600 font-semibold">Bangunan Gedung</td>
-                <td className="py-0.5">:</td>
-                <td className="py-0.5">
-                  Fungsi {application.building.functionType}, Kompleksitas {application.building.complexity} 
-                  {application.building.subFunction ? ` (${application.building.subFunction})` : ''}
-                </td>
-              </tr>
+              {!isSlf && (
+                <tr>
+                  <td className="py-0.5 text-slate-600 font-semibold">Bangunan Gedung</td>
+                  <td className="py-0.5">:</td>
+                  <td className="py-0.5">
+                    Fungsi {application.building.functionType}, Kompleksitas {application.building.complexity} 
+                    {application.building.subFunction ? ` (${application.building.subFunction})` : ''}
+                  </td>
+                </tr>
+              )}
               <tr>
                 <td className="py-0.5 text-slate-600 font-semibold">Lokasi di</td>
                 <td className="py-0.5">:</td>
                 <td className="py-0.5">
-                  {application.building.address}, Kec. {application.building.district}, Kabupaten Garut, Jawa Barat
+                  {application.building.address}, Kec. {application.building.district}, Kabupaten Garut
                 </td>
               </tr>
               <tr>
-                <td className="py-0.5 text-slate-600 font-semibold">Nomor PPBG</td>
+                <td className="py-0.5 text-slate-600 font-semibold">{isSlf ? 'Nomor SLF' : 'Nomor PPBG'}</td>
                 <td className="py-0.5">:</td>
                 <td className="py-0.5 font-mono font-bold text-indigo-950">{application.registerNumber}</td>
               </tr>
@@ -134,48 +140,97 @@ export const BAPlenoPrint: React.FC<BAPlenoPrintProps> = ({
           </table>
         </div>
 
-        <p className="font-bold underline text-slate-950 font-sans text-[9.5pt] pt-1">
-          Masukan dan saran untuk:
-        </p>
+        {isSlf ? (
+          <>
+            <div className="font-bold text-slate-950 text-[10pt] mt-3">Mempertimbangkan bahwa:</div>
+            <p className="indent-8 text-[9pt]">
+              Berdasarkan pemeriksaan substantif terhadap dokumen permohonan SLF, Laporan Kajian Teknis, data pendukung, serta hasil verifikasi dan validasi lapangan yang dilaksanakan, Tim Penilai Teknis (TPT) menyampaikan pertimbangan sebagai berikut:
+            </p>
+            <ol className="list-decimal pl-7 space-y-2 text-[9pt] text-slate-800 text-justify font-sans">
+              <li>
+                Bahwa TPT, dalam menjalankan tugasnya berdasarkan Peraturan Pemerintah No. 16 Tahun 2021, berfungsi untuk menilai kesesuaian dan keandalan teknis bangunan gedung terhadap standar yang berlaku. Penilaian ini bersifat evaluatif (memberikan pendapat kedua atau second opinion) dan tidak menggantikan atau mengambil alih tanggung jawab hukum perencana, pengkaji, maupun pelaksana konstruksi.
+              </li>
+              <li>
+                <strong>Aspek Legalitas dan Administrasi:</strong><br/>
+                Bahwa telah dilakukan verifikasi terhadap kelengkapan dan keabsahan dokumen administratif. TPT telah mencatat bahwa bangunan gedung ini menjadi dasar utama penilaian kelaikan fungsi saat ini.
+              </li>
+              <li>
+                <strong>Aspek Teknis Arsitektur dan Tata Ruang:</strong><br/>
+                Bahwa tata letak ruang, jalur sirkulasi, dan jalur evakuasi telah dievaluasi kesesuaiannya terhadap fungsi bangunan. Penilaian mencakup pemenuhan standar aksesibilitas, keselamatan pengguna saat kondisi darurat, serta pemenuhan terhadap Garis Sempadan Bangunan (GSB) dan penyediaan Ruang Terbuka Hijau (RTH) sesuai peraturan.
+              </li>
+              <li>
+                <strong>Aspek Keandalan Struktur (Pertimbangan Kritis Terkait Potensi Kegagalan Bangunan):</strong><br/>
+                <ol className="list-[lower-alpha] pl-5 space-y-1 mt-1">
+                  <li><strong>Dasar Analisis:</strong> Penilaian TPT didasarkan sepenuhnya pada data dan hasil analisis struktur yang disajikan oleh konsultan pengkaji. Akurasi data lapangan, mutu material, dan dimensi elemen struktur merupakan tanggung jawab penuh konsultan pengkaji.</li>
+                  <li><strong>Verifikasi Data Input:</strong> TPT merekomendasikan dan memeriksa pelaksanaan metode pengujian non-destruktif. Segala asumsi teknis yang digunakan akibat keterbatasan data di lapangan telah dicatat dan menjadi tanggung jawab konsultan pengkaji.</li>
+                  <li><strong>Analisis Beban Kritis:</strong> Telah diverifikasi bahwa analisis struktur yang diserahkan telah memperhitungkan beban-beban kritis sesuai standar (gempa, angin).</li>
+                  <li><strong>Evaluasi Elemen Kritis:</strong> TPT telah memberikan perhatian khusus pada hasil analisis elemen struktur yang berisiko tinggi.</li>
+                </ol>
+              </li>
+              <li>
+                <strong>Aspek Keselamatan dan Kelaikan MEP (Mekanikal, Elektrikal, Plumbing):</strong><br/>
+                <ol className="list-[lower-alpha] pl-5 space-y-1 mt-1">
+                  <li><strong>Kelistrikan dan Proteksi Kebakaran:</strong> Sistem kelistrikan dan proteksi kebakaran aktif (APAR) serta pasif telah memenuhi standar minimal.</li>
+                  <li><strong>Sistem Proteksi Petir:</strong> Telah diverifikasi kelengkapan kajian dan pemasangan instalasi sistem proteksi petir eksternal dan internal.</li>
+                  <li><strong>Pengelolaan Limbah:</strong> Telah diverifikasi bahwa sistem pengelolaan limbah domestik dan/atau B3 telah memiliki desain yang sesuai.</li>
+                </ol>
+              </li>
+              <li>
+                <strong>Adanya Komitmen Tertulis dari Pemohon:</strong><br/>
+                Bahwa TPT telah mengidentifikasi beberapa persyaratan teknis yang belum terpenuhi di lapangan. Namun, pemilik bangunan telah membuat dan menandatangani Surat Pernyataan Kesanggupan Pemenuhan Persyaratan Teknis Bangunan Gedung yang secara hukum mengikat pemilik untuk menyelesaikan semua item kekurangan.
+              </li>
+              <li>
+                <strong>Pernyataan Tanggung Jawab Mutlak oleh Tenaga Ahli Pemohon:</strong><br/>
+                Bahwa dasar utama dari seluruh pertimbangan ini adalah Surat Pernyataan Kelaikan Fungsi Bangunan yang ditandatangani oleh Tenaga Ahli/Konsultan Pengkaji. Dokumen ini secara hukum menegaskan bahwa seluruh tanggung jawab atas kebenaran data, akurasi analisis, dan kinerja bangunan gedung di kemudian hari sepenuhnya berada pada pihak pemohon dan konsultan pengkajinya.
+              </li>
+            </ol>
+          </>
+        ) : (
+          <>
+            <p className="font-bold underline text-slate-950 font-sans text-[9.5pt] pt-1">
+              Masukan dan saran untuk:
+            </p>
 
-        {/* A. Bidang Arsitektur */}
-        <div className="space-y-1 pl-2">
-          <h3 className="font-bold text-slate-950 font-sans text-[9.5pt] flex items-center gap-1.5">
-            <span className="w-5 h-5 bg-slate-900 text-white rounded-full flex items-center justify-center text-[9px] font-mono">A</span>
-            <span>Bidang Arsitektur</span>
-          </h3>
-          <ol className="list-decimal pl-7 space-y-1 text-[9pt] text-slate-800">
-            {arsitNotes.map((note, idx) => (
-              <li key={idx}>{note}</li>
-            ))}
-          </ol>
-        </div>
+            {/* A. Bidang Arsitektur */}
+            <div className="space-y-1 pl-2">
+              <h3 className="font-bold text-slate-950 font-sans text-[9.5pt] flex items-center gap-1.5">
+                <span className="w-5 h-5 bg-slate-900 text-white rounded-full flex items-center justify-center text-[9px] font-mono">A</span>
+                <span>Bidang Arsitektur</span>
+              </h3>
+              <ol className="list-decimal pl-7 space-y-1 text-[9pt] text-slate-800">
+                {arsitNotes.map((note, idx) => (
+                  <li key={idx}>{note}</li>
+                ))}
+              </ol>
+            </div>
 
-        {/* B. Bidang Struktur */}
-        <div className="space-y-1 pl-2 pt-2">
-          <h3 className="font-bold text-slate-950 font-sans text-[9.5pt] flex items-center gap-1.5">
-            <span className="w-5 h-5 bg-slate-900 text-white rounded-full flex items-center justify-center text-[9px] font-mono">B</span>
-            <span>Bidang Struktur</span>
-          </h3>
-          <ol className="list-decimal pl-7 space-y-1 text-[9pt] text-slate-800">
-            {strukNotes.map((note, idx) => (
-              <li key={idx}>{note}</li>
-            ))}
-          </ol>
-        </div>
+            {/* B. Bidang Struktur */}
+            <div className="space-y-1 pl-2 pt-2">
+              <h3 className="font-bold text-slate-950 font-sans text-[9.5pt] flex items-center gap-1.5">
+                <span className="w-5 h-5 bg-slate-900 text-white rounded-full flex items-center justify-center text-[9px] font-mono">B</span>
+                <span>Bidang Struktur</span>
+              </h3>
+              <ol className="list-decimal pl-7 space-y-1 text-[9pt] text-slate-800">
+                {strukNotes.map((note, idx) => (
+                  <li key={idx}>{note}</li>
+                ))}
+              </ol>
+            </div>
 
-        {/* C. Bidang Mekanikal, Elektrikal dan Plumbing */}
-        <div className="space-y-1 pl-2 pt-2 break-inside-avoid">
-          <h3 className="font-bold text-slate-950 font-sans text-[9.5pt] flex items-center gap-1.5">
-            <span className="w-5 h-5 bg-slate-900 text-white rounded-full flex items-center justify-center text-[9px] font-mono">C</span>
-            <span>Bidang Mekanikal, Elektrikal dan Plumbing (MEP)</span>
-          </h3>
-          <ol className="list-decimal pl-7 space-y-1 text-[9pt] text-slate-800">
-            {mechanicalNotes.map((note, idx) => (
-              <li key={idx}>{note}</li>
-            ))}
-          </ol>
-        </div>
+            {/* C. Bidang Mekanikal, Elektrikal dan Plumbing */}
+            <div className="space-y-1 pl-2 pt-2 break-inside-avoid">
+              <h3 className="font-bold text-slate-950 font-sans text-[9.5pt] flex items-center gap-1.5">
+                <span className="w-5 h-5 bg-slate-900 text-white rounded-full flex items-center justify-center text-[9px] font-mono">C</span>
+                <span>Bidang Mekanikal, Elektrikal dan Plumbing (MEP)</span>
+              </h3>
+              <ol className="list-decimal pl-7 space-y-1 text-[9pt] text-slate-800">
+                {mechanicalNotes.map((note, idx) => (
+                  <li key={idx}>{note}</li>
+                ))}
+              </ol>
+            </div>
+          </>
+        )}
 
         {/* MEMUTUSKAN UNTUK */}
         <div className="mt-4 pt-2 border-t border-slate-300 break-inside-avoid">
@@ -187,7 +242,7 @@ export const BAPlenoPrint: React.FC<BAPlenoPrintProps> = ({
               <div className="w-4 h-4 border border-slate-900 flex items-center justify-center shrink-0">
                 <span className="text-[10px] font-bold">X</span>
               </div>
-              <span className="font-bold text-slate-900">Merekomendasikan penerbitan Persetujuan Bangunan Gedung (PBG)</span>
+              <span className="font-bold text-slate-900">{isSlf ? 'Merekomendasikan Penerbitan SLF' : 'Merekomendasikan penerbitan Persetujuan Bangunan Gedung (PBG)'}</span>
             </div>
             <div className="flex items-center gap-2 text-slate-400">
               <div className="w-4 h-4 border border-slate-300 flex items-center justify-center shrink-0"></div>
@@ -200,42 +255,53 @@ export const BAPlenoPrint: React.FC<BAPlenoPrintProps> = ({
           </div>
         </div>
 
-        {/* MENGINGATKAN UNTUK */}
-        <div className="bg-slate-50 border-l-4 border-indigo-600 p-2.5 my-3 font-sans text-[8.5pt] leading-normal break-inside-avoid">
-          <p className="font-bold text-slate-900">Mengingatkan untuk:</p>
-          <p className="text-slate-700 italic">
-            "Setiap bangunan yang telah selesai konstruksinya dan telah mendapatkan Persetujuan Bangunan Gedung (PBG) <strong>wajib memiliki SLF (Sertifikat Laik Fungsi)</strong> sebelum digunakan / dimanfaatkan secara fungsional."
-          </p>
-        </div>
-
-        {/* KEHADIRAN */}
-        <div className="pt-2 break-inside-avoid">
-          <p className="font-bold text-slate-900 font-sans text-[9pt] mb-1">
-            Demikian hasil Pleno TPA yang dihadiri oleh seluruh unsur terkait:
-          </p>
-          <div className="border border-slate-300 overflow-hidden font-sans text-[8pt]">
-            <table className="w-full text-left">
-              <thead className="bg-slate-100 border-b border-slate-300 text-slate-900 font-bold">
-                <tr>
-                  <th className="p-1 text-center w-10">No</th>
-                  <th className="p-1">Nama Anggota Tim / Unsur</th>
-                  <th className="p-1">Keterangan Jabatan</th>
-                  <th className="p-1 text-center">Status Kehadiran</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {attendeesList.map((att, idx) => (
-                  <tr key={idx}>
-                    <td className="p-1 text-center font-bold">{idx + 1}</td>
-                    <td className="p-1 font-bold text-slate-900">{att.name}</td>
-                    <td className="p-1 text-slate-600">{att.role}</td>
-                    <td className="p-1 text-center font-bold text-emerald-600">✓ HADIR / PLENO</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {isSlf ? (
+          <div className="mt-4 text-[9pt] font-sans text-justify leading-relaxed break-inside-avoid">
+            <p>
+              Rekomendasi ini diberikan dengan catatan bahwa SLF yang terbit dapat ditinjau kembali, dibekukan, atau dicabut apabila pemohon tidak memenuhi komitmen yang tercantum dalam Surat Pernyataan Kesanggupan Pemenuhan Persyaratan Teknis Bangunan Gedung.
+            </p>
+            <p className="pt-2">Demikian hasil Pleno ini.</p>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* MENGINGATKAN UNTUK */}
+            <div className="bg-slate-50 border-l-4 border-indigo-600 p-2.5 my-3 font-sans text-[8.5pt] leading-normal break-inside-avoid">
+              <p className="font-bold text-slate-900">Mengingatkan untuk:</p>
+              <p className="text-slate-700 italic">
+                "Setiap bangunan yang telah selesai konstruksinya dan telah mendapatkan Persetujuan Bangunan Gedung (PBG) <strong>wajib memiliki SLF (Sertifikat Laik Fungsi)</strong> sebelum digunakan / dimanfaatkan secara fungsional."
+              </p>
+            </div>
+
+            {/* KEHADIRAN */}
+            <div className="pt-2 break-inside-avoid">
+              <p className="font-bold text-slate-900 font-sans text-[9pt] mb-1">
+                Demikian hasil Pleno TPA yang dihadiri oleh seluruh unsur terkait:
+              </p>
+              <div className="border border-slate-300 overflow-hidden font-sans text-[8pt]">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-100 border-b border-slate-300 text-slate-900 font-bold">
+                    <tr>
+                      <th className="p-1 text-center w-10">No</th>
+                      <th className="p-1">Nama Anggota Tim / Unsur</th>
+                      <th className="p-1">Keterangan Jabatan</th>
+                      <th className="p-1 text-center">Status Kehadiran</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {attendeesList.map((att, idx) => (
+                      <tr key={idx}>
+                        <td className="p-1 text-center font-bold">{idx + 1}</td>
+                        <td className="p-1 font-bold text-slate-900">{att.name}</td>
+                        <td className="p-1 text-slate-600">{att.role}</td>
+                        <td className="p-1 text-center font-bold text-emerald-600">✓ HADIR / PLENO</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Tanda Tangan */}
@@ -256,7 +322,7 @@ export const BAPlenoPrint: React.FC<BAPlenoPrintProps> = ({
             Garut, {currentDateFormatted}
           </p>
           <p className="text-[9.5pt] font-bold uppercase text-slate-900 leading-tight">
-            Ketua Pleno merangkap TPA Arsitektur
+            {isSlf ? 'Ketua Rapat Pleno' : 'Ketua Pleno merangkap TPA Arsitektur'}
           </p>
 
           <div className="py-2 flex items-center justify-center gap-3">
@@ -287,10 +353,10 @@ export const BAPlenoPrint: React.FC<BAPlenoPrintProps> = ({
 
           <div>
             <p className="text-[10pt] font-bold text-slate-950 underline leading-none">
-              Mirza Fathir, ST., MT
+              {application.baPleno?.leadExpertName || (isSlf ? 'Asep Tedi Sugianto, ST., M.Si' : 'Mirza Fathir, ST., MT')}
             </p>
             <p className="text-[8.5pt] font-mono text-slate-600 mt-0.5">
-              TPA Arsitektur Ikatan Arsitek Indonesia (IAI)
+              {isSlf ? `NIP. ${application.baPleno?.leadExpertNip || '19770525 201410 1 002'}` : 'TPA Arsitektur Ikatan Arsitek Indonesia (IAI)'}
             </p>
           </div>
         </div>

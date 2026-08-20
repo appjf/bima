@@ -42,7 +42,11 @@ export const BAKonsultasiPrint: React.FC<BAKonsultasiPrintProps> = ({
   const savedSignatures = getSavedSignatures();
   const leadSig = savedSignatures.pengawas || savedSignatures.kabid;
 
-  const docBaNumber = baNumber || application.baKonsultasi?.baNumber || `BA-KONS/3205/DPUPR/${new Date().getFullYear()}/${application.registerNumber.slice(-4)}`;
+  const isSlf = application.registerNumber.toUpperCase().includes('SLF') || 
+                (application.building?.functionType?.toUpperCase() || '').includes('SLF') ||
+                application.permitType?.includes('SLF');
+
+  const docBaNumber = baNumber || application.baKonsultasi?.baNumber || (isSlf ? `BA-KONSUL/SLF/${application.registerNumber.slice(-4)}/${new Date().getFullYear()}` : `BA-KONS/3205/DPUPR/${new Date().getFullYear()}/${application.registerNumber.slice(-4)}`);
   const docDate = baDate || application.baKonsultasi?.baDate || new Date().toLocaleDateString('id-ID', {
     day: 'numeric',
     month: 'long',
@@ -74,7 +78,7 @@ export const BAKonsultasiPrint: React.FC<BAKonsultasiPrintProps> = ({
       {/* Title Berita Acara Konsultasi */}
       <div className="text-center space-y-1 py-2 border-b-2 border-slate-900">
         <h1 className="font-extrabold text-[12pt] uppercase tracking-wide">
-          BERITA ACARA KONSULTASI TEKNIS PBG
+          {isSlf ? 'BERITA ACARA RAPAT KONSULTASI TPT' : 'BERITA ACARA KONSULTASI TEKNIS PBG'}
         </h1>
         <div className="text-[9pt] font-sans text-slate-700 uppercase font-semibold">
           {sessionLabel}
@@ -87,7 +91,10 @@ export const BAKonsultasiPrint: React.FC<BAKonsultasiPrintProps> = ({
       {/* Opening Statement */}
       <div className="text-[10pt] text-justify space-y-2.5 font-sans">
         <p className="indent-8 mt-2">
-          Pada hari ini, tanggal <strong>{docDate}</strong>, Tim Profesi Ahli (TPA) / Tim Penilai Teknis (TPT) Kabupaten Garut telah melaksanakan Sidang Konsultasi Teknis dokumen rencana arsitektur, struktur, dan MEP untuk permohonan Persetujuan Bangunan Gedung (PBG) dengan data sebagai berikut:
+          {isSlf 
+            ? <span>Pada hari ini, tanggal <strong>{docDate}</strong>, telah dilaksanakan Rapat Konsultasi TPT Kabupaten Garut yang memeriksa dokumen kajian teknis atas permohonan Sertifikat Laik Fungsi (SLF) untuk:</span>
+            : <span>Pada hari ini, tanggal <strong>{docDate}</strong>, Tim Profesi Ahli (TPA) / Tim Penilai Teknis (TPT) Kabupaten Garut telah melaksanakan Sidang Konsultasi Teknis dokumen rencana arsitektur, struktur, dan MEP untuk permohonan Persetujuan Bangunan Gedung (PBG) dengan data sebagai berikut:</span>
+          }
         </p>
 
         {/* Identitas Permohonan */}
@@ -99,37 +106,59 @@ export const BAKonsultasiPrint: React.FC<BAKonsultasiPrintProps> = ({
                 <td className="w-3 py-0.5">:</td>
                 <td className="py-0.5 font-bold text-slate-900">{application.building.name}</td>
               </tr>
+              {!isSlf && (
+                <tr>
+                  <td className="py-0.5 text-slate-600 font-semibold">Jenis / Fungsi Gedung</td>
+                  <td className="py-0.5">:</td>
+                  <td className="py-0.5">
+                    Fungsi {application.building.functionType} ({application.building.complexity})
+                  </td>
+                </tr>
+              )}
               <tr>
-                <td className="py-0.5 text-slate-600 font-semibold">Jenis / Fungsi Gedung</td>
-                <td className="py-0.5">:</td>
-                <td className="py-0.5">
-                  Fungsi {application.building.functionType} ({application.building.complexity})
-                </td>
-              </tr>
-              <tr>
-                <td className="py-0.5 text-slate-600 font-semibold">Lokasi Pembangunan</td>
+                <td className="py-0.5 text-slate-600 font-semibold">Lokasi {isSlf ? 'di' : 'Pembangunan'}</td>
                 <td className="py-0.5">:</td>
                 <td className="py-0.5">
                   {application.building.address}, Kec. {application.building.district}, Kab. Garut
                 </td>
               </tr>
-              <tr>
-                <td className="py-0.5 text-slate-600 font-semibold">Nama Pemohon</td>
-                <td className="py-0.5">:</td>
-                <td className="py-0.5 font-bold">{application.applicant.name}</td>
-              </tr>
-              <tr>
-                <td className="py-0.5 text-slate-600 font-semibold">Nomor Register SIMBG</td>
-                <td className="py-0.5">:</td>
-                <td className="py-0.5 font-mono font-bold text-indigo-950">{application.registerNumber}</td>
-              </tr>
+              {isSlf ? (
+                <tr>
+                  <td className="py-0.5 text-slate-600 font-semibold">Nomor SLF</td>
+                  <td className="py-0.5">:</td>
+                  <td className="py-0.5 font-mono font-bold text-indigo-950">{application.registerNumber}</td>
+                </tr>
+              ) : (
+                <>
+                  <tr>
+                    <td className="py-0.5 text-slate-600 font-semibold">Nama Pemohon</td>
+                    <td className="py-0.5">:</td>
+                    <td className="py-0.5 font-bold">{application.applicant.name}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-0.5 text-slate-600 font-semibold">Nomor Register SIMBG</td>
+                    <td className="py-0.5">:</td>
+                    <td className="py-0.5 font-mono font-bold text-indigo-950">{application.registerNumber}</td>
+                  </tr>
+                </>
+              )}
             </tbody>
           </table>
         </div>
 
+        {isSlf && (
+          <div className="font-bold text-slate-950 text-[10pt] mt-3">Mempertimbangkan bahwa:</div>
+        )}
+        
+        {isSlf ? (
+          <p className="indent-8 text-[9pt]">
+            Berdasarkan pemeriksaan substantif terhadap dokumen permohonan SLF, Laporan Kajian Teknis, data pendukung, serta hasil verifikasi dan validasi lapangan yang dilaksanakan, Tim Penilai Teknis (TPT) menyampaikan pertimbangan sebagai berikut:
+          </p>
+        ) : null}
+
         <div className="space-y-3 pt-2">
           <h3 className="font-bold text-slate-950 text-[10pt] uppercase border-b border-slate-300 pb-1">
-            Hasil Evaluasi Tenaga Ahli (TPA / TPT) per Bidang Keahlian:
+            {isSlf ? 'Catatan Teknis / Pertimbangan TPT:' : 'Hasil Evaluasi Tenaga Ahli (TPA / TPT) per Bidang Keahlian:'}
           </h3>
 
           {/* Bidang Arsitektur */}
@@ -197,38 +226,78 @@ export const BAKonsultasiPrint: React.FC<BAKonsultasiPrintProps> = ({
         </div>
 
         {/* Kesimpulan */}
-        <div className="bg-indigo-50/60 border border-indigo-200 p-3.5 space-y-1 my-3">
-          <div className="font-bold text-indigo-950 text-[10pt] uppercase">Kesimpulan Hasil Sidang Konsultasi Teknis:</div>
-          <div className="text-[9.5pt] font-semibold text-slate-900">
-            Status Keputusan: <span className="underline uppercase text-indigo-800">{resultState}</span>
+        {isSlf ? (
+          <div className="mt-4 pt-2 border-t border-slate-300 break-inside-avoid font-sans">
+            <p className="font-bold text-slate-950 font-sans text-[9.5pt] mb-2 uppercase tracking-wide">
+              MEMUTUSKAN UNTUK:
+            </p>
+            <div className="space-y-1.5 text-[9pt] pl-4">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border border-slate-900 flex items-center justify-center shrink-0">
+                  {resultState === 'DISETUJUI' && <span className="text-[10px] font-bold">X</span>}
+                </div>
+                <span className={resultState === 'DISETUJUI' ? 'font-bold text-slate-900' : 'text-slate-600'}>
+                  Merekomendasikan Penerbitan SLF
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border border-slate-900 flex items-center justify-center shrink-0">
+                  {resultState === 'PERBAIKAN' && <span className="text-[10px] font-bold">X</span>}
+                </div>
+                <span className={resultState === 'PERBAIKAN' ? 'font-bold text-slate-900' : 'text-slate-600'}>
+                  Memperbaiki/ Menyempurnakan Dokumen Rencana Teknis
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border border-slate-900 flex items-center justify-center shrink-0">
+                  {resultState === 'KONSULTASI_ULANG' && <span className="text-[10px] font-bold">X</span>}
+                </div>
+                <span className={resultState === 'KONSULTASI_ULANG' ? 'font-bold text-slate-900' : 'text-slate-600'}>
+                  Merubah/ Mengganti Rencana Teknis
+                </span>
+              </div>
+            </div>
           </div>
-          <p className="text-[9pt] text-slate-700">
-            {summaryNotes || application.baKonsultasi?.expertNotes || 'Seluruh catatan dan hasil evaluasi teknis telah disampaikan kepada pemohon untuk kelanjutan proses perizinan PBG.'}
-          </p>
-        </div>
+        ) : (
+          <div className="bg-indigo-50/60 border border-indigo-200 p-3.5 space-y-1 my-3">
+            <div className="font-bold text-indigo-950 text-[10pt] uppercase">Kesimpulan Hasil Sidang Konsultasi Teknis:</div>
+            <div className="text-[9.5pt] font-semibold text-slate-900">
+              Status Keputusan: <span className="underline uppercase text-indigo-800">{resultState}</span>
+            </div>
+            <p className="text-[9pt] text-slate-700">
+              {summaryNotes || application.baKonsultasi?.expertNotes || 'Seluruh catatan dan hasil evaluasi teknis telah disampaikan kepada pemohon untuk kelanjutan proses perizinan PBG.'}
+            </p>
+          </div>
+        )}
 
-        <p className="indent-8">
-          Demikian Berita Acara Konsultasi Teknis ini dibuat dengan sebenarnya dan ditandatangani oleh para pihak yang hadir untuk dipergunakan sebagaimana mestinya.
+        <p className="indent-8 pt-3">
+          {isSlf 
+            ? 'Demikian hasil Konsultasi Tim Teknis.'
+            : 'Demikian Berita Acara Konsultasi Teknis ini dibuat dengan sebenarnya dan ditandatangani oleh para pihak yang hadir untuk dipergunakan sebagaimana mestinya.'}
         </p>
       </div>
 
       {/* Signature & QR Section */}
       <div className="pt-6 grid grid-cols-2 gap-8 font-sans text-[9pt] break-inside-avoid">
-        <div className="space-y-16 text-center">
-          <div>
-            <p className="font-semibold">Mengetahui / Pemohon,</p>
-            <p className="text-[8.5pt] text-slate-500">Pemilik / Kuasa Pemohon PBG</p>
+        {isSlf ? (
+          <div></div> // SLF doesn't have the applicant signature on the left side in the example
+        ) : (
+          <div className="space-y-16 text-center">
+            <div>
+              <p className="font-semibold">Mengetahui / Pemohon,</p>
+              <p className="text-[8.5pt] text-slate-500">Pemilik / Kuasa Pemohon PBG</p>
+            </div>
+            <div className="pt-2">
+              <p className="font-bold underline">{application.applicant.name}</p>
+              <p className="text-[8pt] text-slate-500">NIK / Badan Usaha Pemohon</p>
+            </div>
           </div>
-          <div className="pt-2">
-            <p className="font-bold underline">{application.applicant.name}</p>
-            <p className="text-[8pt] text-slate-500">NIK / Badan Usaha Pemohon</p>
-          </div>
-        </div>
+        )}
 
         <div className="space-y-4 text-center">
           <div>
-            <p className="font-semibold">Kabupaten Garut, {docDate}</p>
-            <p className="font-semibold">Ketua Tim Profesi Ahli (TPA) / TPT,</p>
+            <p className="font-semibold">{isSlf ? `Garut, ${docDate}` : `Kabupaten Garut, ${docDate}`}</p>
+            <p className="font-semibold">{isSlf ? 'Ketua Rapat' : 'Ketua Tim Profesi Ahli (TPA) / TPT,'}</p>
           </div>
           <div className="flex justify-center my-2">
             <div className="p-1.5 bg-white border border-slate-300 inline-block">
@@ -242,8 +311,8 @@ export const BAKonsultasiPrint: React.FC<BAKonsultasiPrintProps> = ({
             </div>
           </div>
           <div>
-            <p className="font-bold underline">{leadSig?.name || 'Mirza Fathir, ST., MT'}</p>
-            <p className="text-[8pt] text-slate-500">NIP. {leadSig?.nip || '19820315 200801 1 009'}</p>
+            <p className="font-bold underline">{leadSig?.name || (isSlf ? 'Asep Tedi Sugianto, ST., M.Si' : 'Mirza Fathir, ST., MT')}</p>
+            <p className="text-[8pt] text-slate-500">NIP. {leadSig?.nip || (isSlf ? '19770525 201410 1 002' : '19820315 200801 1 009')}</p>
           </div>
         </div>
       </div>
