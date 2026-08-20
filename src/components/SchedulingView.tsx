@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Calendar, 
+  Calendar,
+  List,
+  LayoutGrid, 
   Clock, 
   Users, 
   QrCode, 
@@ -63,6 +65,9 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
   const [generatedQrUrl, setGeneratedQrUrl] = useState<string>('');
   const [isGeneratingQr, setIsGeneratingQr] = useState<boolean>(false);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
+
+  // View Mode
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
   // Scanner State
   const [showScannerModal, setShowScannerModal] = useState<boolean>(false);
@@ -132,6 +137,30 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
     setEditingApp(null);
   };
 
+  const handleGridDrop = (appId: string, targetTimeSlot: string, targetRoom: string) => {
+    const app = applications.find(a => a.id === appId);
+    if (!app || !app.schedule || !onUpdateApplication) return;
+    
+    // Auto-save the new time slot and room via drag-and-drop
+    const updatedSchedule: ConsultationSchedule = {
+      ...app.schedule,
+      timeSlot: targetTimeSlot,
+      room: targetRoom
+    };
+    
+    // Also sync the consultation notice letter
+    const letter = generateNoticeLetterDraft(app, updatedSchedule.scheduleDate, updatedSchedule.timeSlot, updatedSchedule.room);
+    
+    const updatedApp: Application = {
+      ...app,
+      schedule: updatedSchedule,
+      consultationNotice: letter,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    onUpdateApplication(updatedApp);
+  };
+
   const scheduledApps = applications.filter(a => a.schedule);
   const unscheduledReadyApps = applications.filter(a => (a.status === 'READY_FOR_CONSULTATION' || a.status === 'COMPLETE') && !a.schedule);
 
@@ -142,7 +171,7 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
     if (showQrModal) {
       setIsGeneratingQr(true);
       const payload = buildAttendanceQrPayload(showQrModal);
-      generateQrDataUrl(payload, { width: 320, margin: 2 })
+      generateQrDataUrl(payload.verificationUrl, { width: 320, margin: 2 })
         .then(url => {
           setGeneratedQrUrl(url);
           setIsGeneratingQr(false);
@@ -316,11 +345,111 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
             </p>
           </div>
 
-          <span className="text-[11px] font-mono text-slate-500">
-            TOTAL SESI: <span className="font-bold text-indigo-600 dark:text-indigo-400">{scheduledApps.length}</span>
-          </span>
+          <div className="flex items-center gap-4">
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded">
+              <button 
+                onClick={() => setViewMode('table')}
+                className={`px-3 py-1 text-xs font-bold uppercase flex items-center gap-1.5 rounded transition ${viewMode === 'table' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              >
+                <List className="w-3.5 h-3.5" />
+                Table
+              </button>
+              <button 
+                onClick={() => setViewMode('grid')}
+                className={`px-3 py-1 text-xs font-bold uppercase flex items-center gap-1.5 rounded transition ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                Grid Kalender
+              </button>
+            </div>
+            <span className="text-[11px] font-mono text-slate-500">
+              TOTAL SESI: <span className="font-bold text-indigo-600 dark:text-indigo-400">{scheduledApps.length}</span>
+            </span>
+          </div>
         </div>
 
+        {viewMode === 'grid' ? (
+          <div className="border border-slate-200 dark:border-slate-800 overflow-x-auto pb-4">
+            <table className="w-full text-xs font-sans table-fixed min-w-[800px]">
+              <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 font-mono text-slate-500 uppercase text-[10px] tracking-wider">
+                <tr>
+                  <th className="px-2 py-3 w-32 border-r border-slate-200 dark:border-slate-800">Waktu</th>
+                  {MASTER_ROOMS.map(room => (
+                    <th key={room} className="px-2 py-3 border-r border-slate-200 dark:border-slate-800">{room}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {TIME_SLOTS.map(timeSlot => (
+                  <tr key={timeSlot}>
+                    <td className="px-2 py-2 border-r border-slate-200 dark:border-slate-800 font-mono font-bold text-[10px] text-slate-600 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-900">
+                      {timeSlot}
+                    </td>
+                    {MASTER_ROOMS.map(room => {
+                       const appsInSlot = scheduledApps.filter(app => app.schedule?.timeSlot === timeSlot && app.schedule?.room === room);
+                       return (
+                         <td 
+                           key={room} 
+                           className="p-1 border-r border-slate-200 dark:border-slate-800 align-top transition-colors"
+                           onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('bg-indigo-50', 'dark:bg-indigo-900/30'); }}
+                           onDragLeave={(e) => { e.currentTarget.classList.remove('bg-indigo-50', 'dark:bg-indigo-900/30'); }}
+                           onDrop={(e) => { 
+                             e.preventDefault(); 
+                             e.currentTarget.classList.remove('bg-indigo-50', 'dark:bg-indigo-900/30');
+                             const appId = e.dataTransfer.getData('appId');
+                             handleGridDrop(appId, timeSlot, room);
+                           }}
+                         >
+                           <div className="min-h-[60px] space-y-1">
+                             {appsInSlot.map(app => (
+                               <div 
+                                 key={app.id} 
+                                 draggable
+                                 onDragStart={(e) => e.dataTransfer.setData('appId', app.id)}
+                                 className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm rounded cursor-move hover:border-indigo-400 hover:ring-1 hover:ring-indigo-400/50 transition relative group"
+                                 onClick={() => { 
+                                   setEditingApp(app); 
+                                   setEditDate(app.schedule!.scheduleDate); 
+                                   setEditTimeSlot(app.schedule!.timeSlot); 
+                                   setEditRoom(app.schedule!.room); 
+                                   setEditSessionType(app.schedule!.sessionType); 
+                                   setEditExperts(app.schedule!.assignedExperts || []); 
+                                 }}
+                               >
+                                 <div className="font-bold text-[10px] text-indigo-700 dark:text-indigo-400 truncate">{app.registerNumber}</div>
+                                 <div className="text-[10px] text-slate-900 dark:text-white truncate font-medium">{app.applicant.name}</div>
+                                 <div className="text-[9px] text-slate-500 truncate mt-1">
+                                  <span className={app.schedule?.sessionType === 'SIDANG_TPA' ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-amber-600 dark:text-amber-400 font-bold'}>
+                                    {app.schedule?.sessionType === 'SIDANG_TPA' ? 'TPA' : 'TPT'}
+                                  </span> • {app.building.name}
+                                 </div>
+                                 
+                                 {/* Hover tooltip hint */}
+                                 <div className="absolute inset-0 bg-indigo-600/10 dark:bg-indigo-400/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center pointer-events-none rounded">
+                                   <span className="text-[9px] font-bold text-indigo-700 dark:text-indigo-300 uppercase bg-white/90 dark:bg-slate-900/90 px-1 py-0.5 rounded shadow-sm">
+                                     Edit / Drag
+                                   </span>
+                                 </div>
+                               </div>
+                             ))}
+                             {appsInSlot.length === 0 && (
+                               <div className="h-full w-full flex items-center justify-center">
+                                 <span className="text-[9px] font-mono text-slate-300 dark:text-slate-700">Kosong</span>
+                               </div>
+                             )}
+                           </div>
+                         </td>
+                       );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-3 text-[10px] text-slate-500 font-mono italic">
+              * Tip: Drag and drop kartu jadwal ke kolom ruangan atau jam yang berbeda untuk memindahkan sesi. Klik kartu untuk mengedit tim ahli.
+            </div>
+          </div>
+        ) : (
         <div className="border border-slate-200 dark:border-slate-800 overflow-x-auto">
           <table className="w-full text-left text-xs font-sans">
             <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 font-mono text-slate-500 uppercase text-[10px] tracking-wider">
@@ -445,6 +574,7 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
       {/* MODAL 1: QR Code Digital Token Display Modal */}

@@ -16,6 +16,8 @@ import {
 } from '../lib/firebaseSettings';
 import { PrasaranaSettings } from './PrasaranaSettings';
 import { motion, AnimatePresence } from 'motion/react';
+import { RetribusiPrintPreviewModal } from './RetribusiPrintPreviewModal';
+import { exportToPdf } from '../lib/pdfPrintEngine';
 
 interface PrasaranaItem {
   id: string;
@@ -37,6 +39,7 @@ export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSav
   const INDEKS_LOKALITAS = 0.5;
 
   // State
+  const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
   const [shst, setShst] = useState<number>(5400000); // Default SHST for Garut
   const [parameterWeights, setParameterWeights] = useState<ParameterWeight[]>([]);
   const [luasLantai, setLuasLantai] = useState<number>(application?.building?.buildingArea || 0);
@@ -469,7 +472,7 @@ export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSav
         {/* Actions */}
         <div className="flex gap-4 pt-8 border-t-2 border-slate-100 no-print">
           <button 
-            onClick={() => window.print()}
+            onClick={() => setIsPrintPreviewOpen(true)}
             className="flex-1 flex items-center justify-center gap-3 bg-slate-900 text-white py-4 px-6 text-sm font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg hover:shadow-xl active:scale-[0.98]"
           >
             <Printer className="w-5 h-5" /> Cetak Rincian Retribusi
@@ -505,6 +508,48 @@ export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSav
             </div>
           )}
         </AnimatePresence>
+
+        {/* Print Preview Modal */}
+        {isPrintPreviewOpen && application && (
+          <RetribusiPrintPreviewModal
+            application={{
+              ...application,
+              retribution: {
+                id: `RET-${application.id}`,
+                formulaVersion: 'PP_16_2021',
+                calculatedAt: new Date().toISOString(),
+                calculatedBy: 'Operator',
+                indexFungsi: INDEKS_FUNGSI[indeksFungsi],
+                indexKompleksitas: paramValues['Kompleksitas'] || 0,
+                indexPermanensi: paramValues['Permanensi'] || 0,
+                indexJumlahLantai: KOEFISIEN_LANTAI[Math.min(Math.floor(paramValues['Ketinggian'] || 1), 10)] || 1,
+                indeksLokalitas: INDEKS_LOKALITAS,
+                shst,
+                totalBuildingArea: luasLantai,
+                buildingSubtotal: retribusiBangunan,
+                infrastructureItems: prasaranaList.map(p => ({
+                  id: p.id,
+                  name: p.type === 'LAINNYA' ? p.manualName! : p.type,
+                  volume: p.volume,
+                  unit: p.type === 'LAINNYA' ? p.manualUnit! : p.type.includes('Pagar') ? 'm' : 'm²',
+                  index: p.index,
+                  unitPrice: p.price,
+                  subtotal: p.volume * p.index * p.price
+                })),
+                infrastructureSubtotal: retribusiPrasarana,
+                finalRetribution: totalRetribusi,
+                variance: 0,
+                isVerified: true,
+                status: 'DRAFT'
+              }
+            }}
+            customShst={shst}
+            onClose={() => setIsPrintPreviewOpen(false)}
+            onExportPdf={async () => {
+              await exportToPdf('retribusi-print-preview-content', `Rincian_Retribusi_${application.registerNumber}.pdf`);
+            }}
+          />
+        )}
       </div>
     </div>
   );

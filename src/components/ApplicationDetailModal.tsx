@@ -78,6 +78,8 @@ import { SuratUndanganVisiteDocument } from './SuratUndanganVisiteDocument';
 import { VisiteLapanganModule } from './VisiteLapanganModule';
 import { NoticeLetterPrint } from './NoticeLetterPrint';
 import { BAPlenoPrint } from './BAPlenoPrint';
+import { SKRDPrintPreviewModal } from './SKRDPrintPreviewModal';
+import { exportToPdf } from '../lib/pdfPrintEngine';
 import { BAKonsultasiPrint } from './BAKonsultasiPrint';
 import { SchedulingAttendancePrint } from './SchedulingAttendancePrint';
 import { buildAttendanceQrPayload, generateQrDataUrl } from '../lib/qrAttendanceService';
@@ -106,6 +108,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [showDocumentHub, setShowDocumentHub] = useState(false);
   const [showInternalApprovalModal, setShowInternalApprovalModal] = useState(false);
+  const [isSKRDPreviewOpen, setIsSKRDPreviewOpen] = useState(false);
   const [templateApplyMode, setTemplateApplyMode] = useState<'APPEND' | 'REPLACE'>('APPEND');
 
   // Stage 2B Visite Lapangan state (Khusus SLF)
@@ -1566,12 +1569,22 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
                         BEBAS RETRIBUSI (SUDAH ADA IMB)
                       </span>
                     ) : (
-                      <button
-                        onClick={handleFinalizeSkrd}
-                        className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-[10px] uppercase"
-                      >
-                        Terbitkan SKRD Retribusi
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleFinalizeSkrd}
+                          className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-[10px] uppercase transition"
+                        >
+                          Terbitkan SKRD Retribusi
+                        </button>
+                        {(application.retribution?.status === 'SKRD_ISSUED' || application.retribution?.status === 'UNPAID' || application.retribution?.status === 'PAID') && (
+                          <button
+                            onClick={() => setIsSKRDPreviewOpen(true)}
+                            className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white font-mono font-bold text-[10px] uppercase flex items-center gap-1 transition"
+                          >
+                            <Printer className="w-3 h-3" /> Cetak SKRD
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -2964,14 +2977,26 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
             )}
 
             {activeTab === 'RETRIBUTION' && (
-              <button
-                type="button"
-                onClick={handleFinalizeSkrd}
-                className="flex-1 py-2 px-3 bg-emerald-600 active:bg-emerald-700 text-white font-bold text-xs uppercase flex items-center justify-center gap-1.5 shadow-md transition"
-              >
-                <Calculator className="w-4 h-4" />
-                <span>Terbitkan SKRD Retribusi</span>
-              </button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={handleFinalizeSkrd}
+                  className="flex-1 py-2 px-3 bg-emerald-600 active:bg-emerald-700 text-white font-bold text-xs uppercase flex items-center justify-center gap-1.5 shadow-md transition"
+                >
+                  <Calculator className="w-4 h-4" />
+                  <span>Terbitkan SKRD Retribusi</span>
+                </button>
+                {(application.retribution?.status === 'SKRD_ISSUED' || application.retribution?.status === 'UNPAID' || application.retribution?.status === 'PAID') && (
+                  <button
+                    type="button"
+                    onClick={() => setIsSKRDPreviewOpen(true)}
+                    className="flex-1 py-2 px-3 bg-slate-800 active:bg-slate-700 text-white font-bold text-xs uppercase flex items-center justify-center gap-1.5 shadow-md transition"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Cetak SKRD Fisik</span>
+                  </button>
+                )}
+              </div>
             )}
 
             {activeTab === 'PIPELINE' && (
@@ -3208,6 +3233,18 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
         </div>
       </div>
     </div>
+
+    {/* SKRD Print Modal */}
+    {isSKRDPreviewOpen && (
+      <SKRDPrintPreviewModal
+        application={application}
+        customShst={application.retribution?.shst || 5400000}
+        onClose={() => setIsSKRDPreviewOpen(false)}
+        onExportPdf={async () => {
+          await exportToPdf('skrd-print-preview-content', `SKRD_${application.registerNumber}.pdf`);
+        }}
+      />
+    )}
   </>
   );
 };

@@ -352,7 +352,9 @@ export interface RetributionCalculation {
   variance: number; // Math.abs(A - B)
   isVerified: boolean;
   finalRetribution: number;
-  status: 'DRAFT' | 'VERIFIED' | 'APPROVED' | 'SKRD_ISSUED' | 'UNPAID';
+  status: 'DRAFT' | 'VERIFIED' | 'APPROVED' | 'SKRD_ISSUED' | 'UNPAID' | 'PAID';
+  paymentDate?: string;
+  paymentReceipt?: string;
   notes?: string;
   components?: any[];
 }

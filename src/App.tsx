@@ -28,6 +28,7 @@ import {
 import { 
   RetributionView 
 } from './components/RetributionView';
+import { MonitoringPADView } from './components/MonitoringPADView';
 import { 
   NotificationView 
 } from './components/NotificationView';
@@ -239,6 +240,64 @@ export default function App() {
   useEffect(() => {
     saveStoredNotifications(notifications);
   }, [notifications]);
+
+  // Scheduler: Reminder Revision WhatsApp (Every day at startup/session)
+  useEffect(() => {
+    if (applications.length === 0) return;
+    
+    const lastRunDate = localStorage.getItem('simbg_last_revision_reminder');
+    const today = new Date().toISOString().split('T')[0];
+    
+    if (lastRunDate !== today) {
+      let remindersCreated = 0;
+      const updatedNotifications = [...notifications];
+      
+      applications.forEach(app => {
+        if (app.status === 'REVISION_REQUESTED' && app.lastUpdated) {
+          const lastUpdated = new Date(app.lastUpdated);
+          const now = new Date();
+          const diffTime = Math.abs(now.getTime() - lastUpdated.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          if (diffDays >= 7) {
+            // Check if we haven't already sent a reminder recently
+            const recentReminder = updatedNotifications.find(n => 
+              n.applicationId === app.id && 
+              n.templateType === 'REMINDER_REVISI' &&
+              (now.getTime() - new Date(n.createdAt).getTime()) < (5 * 24 * 60 * 60 * 1000) // Don't send more than once per 5 days
+            );
+            
+            if (!recentReminder) {
+              const reminderText = `Halo ${app.applicant.name}, ini adalah pengingat otomatis (Sistem SIMBG DPUPR Garut). Permohonan ${app.building.name} dengan Register ${app.registerNumber} masih berstatus PERLU PERBAIKAN sejak ${diffDays} hari yang lalu. Mohon segera melengkapi/revisi dokumen Anda agar proses verifikasi dapat dilanjutkan.`;
+              
+              const newNotif: NotificationLog = {
+                id: `NOTIF-${app.id}-${Date.now().toString(36)}`,
+                applicationId: app.id,
+                registerNumber: app.registerNumber,
+                recipientName: app.applicant.name,
+                recipientPhone: app.applicant.phone || '080000000',
+                templateType: 'REMINDER_REVISI',
+                message: reminderText,
+                channel: 'WHATSAPP',
+                status: 'PENDING',
+                createdAt: new Date().toISOString(),
+                retryCount: 0
+              };
+              updatedNotifications.unshift(newNotif);
+              remindersCreated++;
+            }
+          }
+        }
+      });
+      
+      if (remindersCreated > 0) {
+        setNotifications(updatedNotifications);
+        showToast(`Scheduler: Berhasil membuat ${remindersCreated} antrean pesan WA pengingat otomatis untuk pemohon (Revisi > 7 Hari).`, 'info');
+      }
+      
+      localStorage.setItem('simbg_last_revision_reminder', today);
+    }
+  }, [applications, notifications]);
 
   // Data Quality scan count
   const dataQualityIssueCount = scanDataQualityIssues(applications).length;
@@ -612,6 +671,15 @@ export default function App() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'MONITORING_PAD' && (
+            <div className="max-w-7xl mx-auto p-4 sm:p-8">
+              <MonitoringPADView
+                applications={applications}
+                onUpdateApplication={handleUpdateApplication}
+              />
             </div>
           )}
 

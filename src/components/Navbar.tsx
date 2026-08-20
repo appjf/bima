@@ -12,7 +12,8 @@ import {
   FileCheck, 
   Calendar, 
   Calculator, 
-  MessageSquare, 
+  MessageSquare,
+  TrendingUp, 
   ShieldCheck,
   Zap,
   GitMerge,
@@ -32,6 +33,7 @@ export type MainNavTab =
   | 'VERIFICATION' 
   | 'SCHEDULING' 
   | 'RETRIBUTION' 
+  | 'MONITORING_PAD'
   | 'NOTIFICATIONS' 
   | 'DATA_QUALITY'
   | 'SETTINGS';
@@ -85,9 +87,10 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'VERIFICATION', label: 'Verifikasi Dokumen', icon: FileCheck, shortcut: 'Ctrl+5' },
     { id: 'SCHEDULING', label: 'Sidang Jumat', icon: Calendar, shortcut: 'Ctrl+6' },
     { id: 'RETRIBUTION', label: 'Retribusi PP 16', icon: Calculator, shortcut: 'Ctrl+7' },
-    { id: 'NOTIFICATIONS', label: 'Notifikasi WA', icon: MessageSquare, shortcut: 'Ctrl+8' },
-    { id: 'DATA_QUALITY', label: 'Data Sanity', icon: ShieldAlert, badge: dataQualityIssueCount, shortcut: 'Ctrl+9' },
-    { id: 'SETTINGS', label: 'Pengaturan WA', icon: Settings, shortcut: 'Ctrl+0' }
+    { id: 'MONITORING_PAD', label: 'Monev PAD', icon: TrendingUp, shortcut: 'Ctrl+8' },
+    { id: 'NOTIFICATIONS', label: 'Notifikasi WA', icon: MessageSquare, shortcut: 'Ctrl+9' },
+    { id: 'DATA_QUALITY', label: 'Data Sanity', icon: ShieldAlert, badge: dataQualityIssueCount, shortcut: 'Ctrl+0' },
+    { id: 'SETTINGS', label: 'Pengaturan WA', icon: Settings }
   ];
 
   return (
