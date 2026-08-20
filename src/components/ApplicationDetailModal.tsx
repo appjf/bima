@@ -29,7 +29,8 @@ import {
   Compass,
   Camera,
   CheckCircle,
-  Layers
+  Layers,
+  Users
 } from 'lucide-react';
 import { DocumentEngineHub } from './DocumentEngineHub';
 import { 
@@ -45,7 +46,7 @@ import {
 import { runDocumentVerification, MASTER_DOCUMENT_RULES } from '../lib/ruleEngine';
 import { calculateRetribution } from '../lib/retributionEngine';
 import { triggerPdfPrint } from '../lib/pdfPrintEngine';
-import { generateSmartSchedule } from '../lib/schedulingEngine';
+import { generateSmartSchedule, MASTER_EXPERTS } from '../lib/schedulingEngine';
 import { useAutoSaveForm } from '../hooks/useAutoSaveForm';
 import { AutoSaveIndicator } from './AutoSaveIndicator';
 import { 
@@ -118,6 +119,29 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
   const [noticeDate, setNoticeDate] = useState(application.schedule?.scheduleDate || application.consultationNotice?.scheduledDate || '2026-08-22');
   const [noticeTime, setNoticeTime] = useState(application.schedule?.timeSlot || application.consultationNotice?.timeSlot || '08:30 - 09:15 WIB');
   const [noticeRoom, setNoticeRoom] = useState(application.schedule?.room || application.consultationNotice?.room || 'Ruang Sidang TPA Utama (Gedung DPUPR Garut Lt. 2)');
+  const [assignedExperts, setAssignedExperts] = useState<{ name: string; expertise: string; role: 'KETUA' | 'ANGGOTA' | 'SEKRETARIAT' }[]>(() => {
+    if (application.schedule?.assignedExperts) {
+      return application.schedule.assignedExperts;
+    }
+    return [
+      { name: 'Dr. Ir. H. Hendra Setiawan, MT, IAI', expertise: 'Arsitektur', role: 'KETUA' as const },
+      { name: 'Ir. Ahmad Fauzi, ST, MT, IPM', expertise: 'Struktur', role: 'ANGGOTA' as const },
+      { name: 'Rian Pratama, ST, M.Eng', expertise: 'MEP & Damkar', role: 'ANGGOTA' as const },
+      { name: 'Dedi Kurniawan, S.AP', expertise: 'Sekretariat SIMBG Garut', role: 'SEKRETARIAT' as const }
+    ];
+  });
+
+  const toggleExpertAssignment = (expert: typeof MASTER_EXPERTS[0]) => {
+    const exists = assignedExperts.some(e => e.name === expert.name);
+    if (exists) {
+      setAssignedExperts(prev => prev.filter(e => e.name !== expert.name));
+    } else {
+      let role: 'KETUA' | 'ANGGOTA' | 'SEKRETARIAT' = 'ANGGOTA';
+      if (expert.role === 'KETUA') role = 'KETUA';
+      if (expert.role === 'SEKRETARIAT') role = 'SEKRETARIAT';
+      setAssignedExperts(prev => [...prev, { name: expert.name, expertise: expert.expertise, role }]);
+    }
+  };
 
   // Stage 4 BA Konsultasi state
   const [baResult, setBaResult] = useState<'DISETUJUI' | 'PERBAIKAN' | 'KONSULTASI_ULANG'>(
@@ -620,24 +644,21 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
       ...application.schedule,
       scheduleDate: noticeDate,
       timeSlot: noticeTime,
-      room: noticeRoom
+      room: noticeRoom,
+      assignedExperts: assignedExperts
     } : (scheduledItem ? {
       ...scheduledItem.schedule,
       scheduleDate: noticeDate,
       timeSlot: noticeTime,
-      room: noticeRoom
+      room: noticeRoom,
+      assignedExperts: assignedExperts
     } : {
       id: `SCH-${application.id}`,
       scheduleDate: noticeDate,
       timeSlot: noticeTime,
       room: noticeRoom,
       sessionType: 'SIDANG_TPA' as const,
-      assignedExperts: [
-        { name: 'Dr. Ir. H. Hendra Setiawan, MT, IAI', expertise: 'Arsitektur', role: 'KETUA' as const },
-        { name: 'Ir. Ahmad Fauzi, ST, MT, IPM', expertise: 'Struktur', role: 'ANGGOTA' as const },
-        { name: 'Rian Pratama, ST, M.Eng', expertise: 'MEP & Damkar', role: 'ANGGOTA' as const },
-        { name: 'Dedi Kurniawan, S.AP', expertise: 'Sekretariat SIMBG Garut', role: 'SEKRETARIAT' as const }
-      ],
+      assignedExperts: assignedExperts,
       attendanceToken: `QR-ATT-${application.id.slice(-4)}-99`,
       applicantAttended: false
     });
@@ -801,6 +822,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
           noticeDate={noticeDate} 
           noticeTime={noticeTime} 
           noticeRoom={noticeRoom} 
+          assignedExperts={assignedExperts}
         />
       </div>
 
@@ -1927,6 +1949,62 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
                   </div>
                 </div>
 
+                {/* Interactive TPA/TPT Assignment Checklist Section */}
+                <div className="border border-slate-200 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-950/40 rounded-sm space-y-3">
+                  <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2">
+                    <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <span className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide text-xs">
+                      Penugasan Tim Penilai Teknis / Tim Profesi Ahli (TPA)
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[180px] overflow-y-auto pr-1">
+                    {MASTER_EXPERTS.map((expert) => {
+                      const isAssigned = assignedExperts.some(e => e.name === expert.name);
+                      return (
+                        <label
+                          key={expert.name}
+                          className={`flex items-start gap-2.5 p-2 border cursor-pointer transition ${
+                            isAssigned 
+                              ? 'bg-indigo-50/60 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-800' 
+                              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isAssigned}
+                            onChange={() => toggleExpertAssignment(expert)}
+                            className="mt-1 h-3.5 w-3.5 rounded-xs border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <div className="text-[11px] leading-tight">
+                            <span className="font-bold block text-slate-900 dark:text-slate-100">{expert.name}</span>
+                            <span className="text-slate-500 dark:text-slate-400 block text-[10px] mt-0.5">
+                              {expert.expertise} • <span className="font-semibold text-indigo-600 dark:text-indigo-400">({expert.role})</span>
+                            </span>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  {/* Active Panel Members Badge Summary */}
+                  <div className="flex flex-wrap gap-1.5 items-center pt-1">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase mr-1">Anggota Terpilih:</span>
+                    {assignedExperts.length === 0 ? (
+                      <span className="text-[10px] font-bold text-amber-600 uppercase">Belum ada tim yang ditugaskan</span>
+                    ) : (
+                      assignedExperts.map((exp) => (
+                        <span 
+                          key={exp.name} 
+                          className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-200 rounded-sm font-bold text-[9px] uppercase border border-indigo-200 dark:border-indigo-900"
+                        >
+                          {exp.name.split(',')[0]} ({exp.role})
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
+
                 {/* Formal Letter Preview */}
                 <div className="bg-slate-50 dark:bg-slate-950 p-4 border border-slate-200 dark:border-slate-800 text-[11px] font-mono leading-relaxed space-y-2">
                   <div className="text-center font-bold pb-2 border-b border-slate-200 dark:border-slate-800">
@@ -1948,6 +2026,9 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
                     <div>• Hari / Tanggal: <strong>Jumat, {noticeDate}</strong></div>
                     <div>• Waktu: <strong>{noticeTime}</strong></div>
                     <div>• Tempat: <strong>{noticeRoom}</strong></div>
+                    {assignedExperts.length > 0 && (
+                      <div>• Tim Ahli / TPA: <strong>{assignedExperts.map(e => e.name.split(',')[0]).join(', ')}</strong></div>
+                    )}
                   </div>
                   <p>
                     Demikian surat pemberitahuan ini disampaikan untuk diketahui dan dihadiri tepat pada waktunya.

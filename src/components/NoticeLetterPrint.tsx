@@ -9,13 +9,15 @@ interface NoticeLetterPrintProps {
   noticeDate: string;
   noticeTime: string;
   noticeRoom: string;
+  assignedExperts?: { name: string; expertise: string; role: 'KETUA' | 'ANGGOTA' | 'SEKRETARIAT' }[];
 }
 
 export const NoticeLetterPrint: React.FC<NoticeLetterPrintProps> = ({
   application,
   noticeDate,
   noticeTime,
-  noticeRoom
+  noticeRoom,
+  assignedExperts: liveExperts
 }) => {
   const savedSignatures = getSavedSignatures();
   const pengawasSig = savedSignatures.pengawas;
@@ -26,7 +28,7 @@ export const NoticeLetterPrint: React.FC<NoticeLetterPrintProps> = ({
   const isSlf = application.registerNumber.toUpperCase().includes('SLF') || 
                 (application.building?.functionType?.toUpperCase() || '').includes('SLF');
 
-  const assignedExperts = application.schedule?.assignedExperts || [
+  const assignedExperts = liveExperts || application.schedule?.assignedExperts || [
     { name: 'Dr. Ir. H. Hendra Setiawan, MT, IAI', expertise: 'Arsitektur', role: 'KETUA' as const },
     { name: 'Ir. Ahmad Fauzi, ST, MT, IPM', expertise: 'Struktur', role: 'ANGGOTA' as const },
     { name: 'Rian Pratama, ST, M.Eng', expertise: 'MEP & Damkar', role: 'ANGGOTA' as const },
