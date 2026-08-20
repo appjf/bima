@@ -27,6 +27,7 @@ import {
 import { Application, ConsultationSchedule } from '../types';
 import { getNextFridayDate, MASTER_EXPERTS, MASTER_ROOMS, TIME_SLOTS } from '../lib/schedulingEngine';
 import { SchedulingAttendancePrint } from './SchedulingAttendancePrint';
+import { PublicAttendanceSheet } from './PublicAttendanceSheet';
 import { triggerPdfPrint } from '../lib/pdfPrintEngine';
 import { InternalQrScannerModal } from './InternalQrScannerModal';
 import { generateNoticeLetterDraft } from '../lib/workflowEngine';
@@ -239,6 +240,14 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
           >
             <Printer className="w-3.5 h-3.5" />
             <span>Cetak Daftar Hadir</span>
+          </button>
+
+          <button
+            onClick={() => triggerPdfPrint('printable-public-attendance-area', `Daftar_Hadir_Publik_${nextFriday.replace(/\s/g, '_')}`)}
+            className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-mono font-bold uppercase tracking-wider px-4 py-2.5 transition border border-slate-200 dark:border-slate-700"
+          >
+            <QrCode className="w-3.5 h-3.5" />
+            <span>Cetak QR Publik</span>
           </button>
 
           <button
@@ -879,6 +888,17 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
       {/* Printable Attendance Sheet */}
       <div id="printable-attendance-area" className="hidden print:block">
         <SchedulingAttendancePrint scheduledApps={scheduledApps} nextFridayDate={nextFriday} />
+      </div>
+
+      {/* Printable Public Attendance Sheet */}
+      <div id="printable-public-attendance-area" className="hidden print:block">
+        <PublicAttendanceSheet 
+          meetingTitle="Rapat Konsultasi SLF BG Komersial Penginapan"
+          meetingDate={nextFriday}
+          meetingTime="12.30 - 13.30 WIB"
+          meetingLocation="R. Rapat SDA Dinas PUPR Kab. Garut"
+          qrCodeUrl={generatedQrUrl || ''}
+        />
       </div>
 
     </div>

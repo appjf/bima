@@ -558,7 +558,7 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
               </span>
             </div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight uppercase font-mono">
-              Pemeriksaan Lapangan & Berita Acara Kesesuaian Fisik (SLF & PBG)
+              Pemeriksaan Lapangan & Berita Acara Kesesuaian Fisik {singleApplication && isSlfApplication(selectedApp || ({} as any)) ? '(SLF)' : '(PBG & SLF)'}
             </h2>
             <p className="text-xs text-slate-500 max-w-3xl mt-0.5">
               Inspeksi fisik langsung ke lokasi gedung, dokumentasi foto real-time via kamera, verifikasi as-built drawing vs laporan kelaikan, dan penerbitan Berita Acara (BA) Lapangan resmi DPUPR Garut.
@@ -805,7 +805,7 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
 
               {/* Sub-Tab 2: Input Laporan & Checklist */}
               {activeSubTab === 'FORM' && (() => {
-                const ba = selectedApp?.baLapangan || {};
+                const ba = selectedApp?.baLapangan || ({} as any);
                 return (
                   <div className="p-6 space-y-6 font-mono text-xs">
                   

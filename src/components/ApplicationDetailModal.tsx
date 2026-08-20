@@ -202,7 +202,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
     application.baKonsultasi?.baNumber || `BA-KONS/${regClean}/DPUPR-GRT/${currentYear}`
   );
   const [noticeLetterNumber, setNoticeLetterNumber] = useState(
-    application.noticeLetter?.letterNumber || `600.1.15/${regClean}/DPUPR-PBG/${currentYear}`
+    application.consultationNotice?.letterNumber || `600.1.15/${regClean}/DPUPR-PBG/${currentYear}`
   );
   const [rekomtekNumber, setRekomtekNumber] = useState(
     application.baPleno?.rekomtekNumber || `REKOMTEK/${regClean}/DPUPR-PBG/${currentYear}`
@@ -211,7 +211,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
     application.baLapangan?.baLapanganNumber || `BA-VISITE/${regClean}/DPUPR-GRT/${currentYear}`
   );
   const [skrdNumber, setSkrdNumber] = useState(
-    application.retribution?.skrdNumber || `SKRD/3205/DPUPR/${currentYear}/${regClean}`
+    application.retribution?.id || `SKRD/3205/DPUPR/${currentYear}/${regClean}`
   );
 
   const handleAutoGenerateNumbers = () => {
@@ -371,6 +371,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
           name: rule.name,
           category: rule.category,
           status: newStatus,
+          isMandatory: rule.isMandatory,
           notes: getTemplateForDoc(rule.code)
         });
       }
@@ -409,6 +410,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
           name: rule.name,
           category: rule.category,
           status: 'BELUM_ADA',
+          isMandatory: rule.isMandatory,
           notes
         });
       }
@@ -471,6 +473,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
         category: rule.category,
         isMandatory: rule.isRequired(application),
         status: newStatus,
+          isMandatory: rule.isMandatory,
         notes: newNotes,
         includedInDaftarSimak: true
       });
@@ -603,6 +606,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
           category: rule.category,
           isMandatory: rule.isRequired(application),
           status: 'BELUM_ADA',
+          isMandatory: rule.isMandatory,
           notes: getTemplateForDoc(rule.code),
           includedInDaftarSimak: included
         });
@@ -633,6 +637,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
           category: rule.category,
           isMandatory: rule.isRequired(application),
           status: 'BELUM_ADA',
+          isMandatory: rule.isMandatory,
           notes: getTemplateForDoc(rule.code),
           includedInDaftarSimak: included
         });
@@ -1422,7 +1427,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
                         4
                       </span>
                       <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase font-mono">
-                        Tahap 4: Berita Acara (BA) Konsultasi Teknis TPA/TPT
+                        Tahap 4: Berita Acara (BA) Konsultasi Teknis {isSlf ? 'SLF' : 'PBG'}
                       </h4>
                     </div>
                     {application.baKonsultasi?.isFinalized ? (

@@ -265,7 +265,7 @@ export const BAKonsultasiPrint: React.FC<BAKonsultasiPrintProps> = ({
               Status Keputusan: <span className="underline uppercase text-indigo-800">{resultState}</span>
             </div>
             <p className="text-[9pt] text-slate-700">
-              {summaryNotes || application.baKonsultasi?.expertNotes || 'Seluruh catatan dan hasil evaluasi teknis telah disampaikan kepada pemohon untuk kelanjutan proses perizinan PBG.'}
+              {summaryNotes || application.baKonsultasi?.expertNotes || (isSlf ? 'Seluruh catatan dan hasil evaluasi teknis telah disampaikan kepada pemohon untuk kelanjutan proses perizinan SLF.' : 'Seluruh catatan dan hasil evaluasi teknis telah disampaikan kepada pemohon untuk kelanjutan proses perizinan PBG.')}
             </p>
           </div>
         )}

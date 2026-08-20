@@ -247,7 +247,7 @@ export const SuratUndanganVisiteDocument: React.FC<SuratUndanganVisiteDocumentPr
           </div>
           <h3 className="text-sm sm:text-base font-bold font-sans mt-0.5 text-white flex items-center gap-2">
             <FileText className="w-4 h-4 text-amber-400" />
-            <span>Surat Undangan Pemeriksaan / Visite Lapangan</span>
+            <span>Surat Undangan Pemeriksaan / Visite Lapangan {isSlfApplication(application) ? '(SLF)' : '(PBG)'}</span>
           </h3>
         </div>
 
