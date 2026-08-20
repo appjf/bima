@@ -144,16 +144,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Right Status & Actions */}
           <div className="flex items-center gap-1 sm:gap-2 md:gap-3 shrink-0">
             
-            {/* Database Hub Trigger (Desktop Only) */}
+            {/* Database Hub Trigger (Visible across desktop, tablet, and mobile) */}
             {onOpenDatabaseManager && (
               <button
                 onClick={onOpenDatabaseManager}
-                className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-xs font-mono font-bold transition shadow-2xs"
-                title="Pusat Database Supabase & Efisiensi Kuota Egress"
+                className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-xs font-mono font-bold transition shadow-2xs shrink-0"
+                title="Pusat Database Supabase, Migrasi & Schema SQL"
               >
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                <Database className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Supabase DB</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></div>
+                <Database className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span className="hidden sm:inline">Supabase DB</span>
+                <span className="sm:hidden text-[11px]">DB</span>
               </button>
             )}
 

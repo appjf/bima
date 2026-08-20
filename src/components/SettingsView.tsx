@@ -35,7 +35,8 @@ import {
   GripVertical,
   ArrowUp,
   ArrowDown,
-  Coins
+  Coins,
+  Database
 } from 'lucide-react';
 import { Application, WhatsAppSettings, WhatsAppTemplate } from '../types';
 import { 
@@ -56,6 +57,7 @@ interface SettingsViewProps {
   onSaveSettings: (newSettings: WhatsAppSettings) => void;
   onResetSettings: () => void;
   onOpenWhatsApp: (phone: string, text: string) => void;
+  onOpenDatabaseManager?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -63,7 +65,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   settings,
   onSaveSettings,
   onResetSettings,
-  onOpenWhatsApp
+  onOpenWhatsApp,
+  onOpenDatabaseManager
 }) => {
   // Local active settings state
   const [currentSettings, setCurrentSettings] = useState<WhatsAppSettings>(settings);
@@ -72,7 +75,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   );
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [activeSubTab, setActiveSubTab] = useState<'TEMPLATES' | 'SIMULATOR' | 'ASN' | 'SIGNATURE' | 'PRICES' | 'GENERAL' | 'BACKUP'>('TEMPLATES');
+  const [activeSubTab, setActiveSubTab] = useState<'TEMPLATES' | 'SIMULATOR' | 'ASN' | 'SIGNATURE' | 'PRICES' | 'GENERAL' | 'BACKUP' | 'DATABASE'>('TEMPLATES');
   
   // Digital Signatures Store
   const [signaturesStore, setSignaturesStore] = useState<SignatureStore>(() => getSavedSignatures());
@@ -519,6 +522,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         >
           <Download className="w-4 h-4 text-indigo-600" />
           <span>Cadangan & Impor JSON</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('DATABASE')}
+          className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+            activeSubTab === 'DATABASE'
+              ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400 bg-slate-50 dark:bg-slate-800/40 -mb-[1px]'
+              : 'border-transparent text-emerald-600/80 hover:text-emerald-700 dark:hover:text-emerald-300'
+          }`}
+        >
+          <Database className="w-4 h-4 text-emerald-600" />
+          <span>Database Supabase & SQL</span>
         </button>
       </div>
 
@@ -1275,6 +1290,71 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             >
               Reset Semua Template ke Bawaan
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 8: DATABASE SUPABASE HUB */}
+      {activeSubTab === 'DATABASE' && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-6 font-mono">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 border border-emerald-200 dark:border-emerald-800">
+                  <Database className="w-5 h-5" />
+                </span>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                    Pusat Database Supabase PostgreSQL
+                  </h3>
+                  <p className="text-xs text-slate-500 font-sans">
+                    Integrasi Cloud Database PostgreSQL dengan arsitektur Zero-Egress, skrip DDL SQL otomatis, dan migrasi sinkronisasi menyeluruh.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {onOpenDatabaseManager && (
+              <button
+                onClick={onOpenDatabaseManager}
+                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-wider transition shadow-sm flex items-center justify-center gap-2 shrink-0"
+              >
+                <Database className="w-4 h-4" />
+                <span>Buka Manajer Database & Schema SQL</span>
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+              <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>1. Schema SQL & RLS</span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-sans">
+                Salin skrip DDL SQL 5 tabel (<code>applications</code>, <code>user_accounts</code>, <code>notification_logs</code>, dll) lalu jalankan di Supabase SQL Editor.
+              </p>
+            </div>
+
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+              <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                <span>2. Migrasi Menyeluruh</span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-sans">
+                Sinkronisasikan seluruh data berkas SIMBG, riwayat verifikasi teknis, presensi sidang, dan akun pengguna ke Supabase.
+              </p>
+            </div>
+
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+              <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                <span>3. Zero-Egress Protection</span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-sans">
+                Aplikasi dirancang dengan delta-sync dan metadata hashing agar hemat kuota kuota network (egress) dan tahan terhadap koneksi lambat.
+              </p>
+            </div>
           </div>
         </div>
       )}

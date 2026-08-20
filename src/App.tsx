@@ -769,6 +769,7 @@ export default function App() {
               onSaveSettings={handleSaveWaSettings}
               onResetSettings={handleResetWaSettings}
               onOpenWhatsApp={handleOpenWhatsAppWeb}
+              onOpenDatabaseManager={() => setIsDatabaseManagerOpen(true)}
             />
           )}
         </motion.div>
