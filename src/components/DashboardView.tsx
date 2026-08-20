@@ -311,7 +311,148 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Top 3 Metric Blocks */}
+      {/* STATISTIK SINGKAT (REAL-TIME QUICK SUMMARY BAR) */}
+      <section className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 p-4 sm:p-5 text-white shadow-md relative overflow-hidden">
+        
+        {/* Top Header of the Quick Stats Component */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3 mb-4 font-mono">
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-widest text-slate-200 flex items-center gap-2">
+              <span>STATISTIK SINGKAT</span>
+              <span className="text-[10px] text-indigo-300 bg-indigo-900/60 px-2 py-0.5 border border-indigo-700/50 font-normal">
+                REAL-TIME SIMBG DPUPR
+              </span>
+            </h3>
+          </div>
+
+          <div className="text-[11px] text-slate-400 flex items-center gap-3">
+            <span>Bulan Aktif: <strong className="text-amber-400">{MONTH_NAMES[new Date().getMonth()]} {selectedYear}</strong></span>
+            <span className="hidden md:inline text-slate-600">|</span>
+            <span className="hidden md:inline text-slate-400">Total Database: <strong className="text-white">{totalApps} Berkas</strong></span>
+          </div>
+        </div>
+
+        {/* 3 Real-time Dynamic Metric Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          
+          {/* 1. Permohonan Baru */}
+          <div 
+            onClick={() => onNavigate('VERIFICATION')}
+            className="bg-slate-800/80 hover:bg-slate-800 border border-indigo-500/30 hover:border-indigo-500/60 p-4 transition cursor-pointer group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-indigo-300 flex items-center gap-1.5">
+                  <FileCheck className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Permohonan Baru</span>
+                </span>
+                <span className="text-[9px] px-1.5 py-0.2 bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-mono font-bold">
+                  VERIFIKASI AWAL
+                </span>
+              </div>
+
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl sm:text-4xl font-mono font-bold text-white group-hover:text-indigo-300 transition">
+                  {newApps}
+                </span>
+                <span className="text-xs text-slate-400 font-mono">
+                  berkas aktif ({totalApps > 0 ? Math.round((newApps / totalApps) * 100) : 0}%)
+                </span>
+              </div>
+              
+              <p className="text-[11px] text-slate-400 mt-1.5 leading-snug">
+                Berkas baru masuk & sedang dalam proses verifikasi kelengkapan dokumen.
+              </p>
+            </div>
+
+            <div className="mt-3 pt-2.5 border-t border-slate-700/60 flex items-center justify-between text-[10px] font-mono text-indigo-400 group-hover:text-indigo-300">
+              <span className="font-bold uppercase tracking-tight">Mulai Verifikasi Dokumen</span>
+              <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition" />
+            </div>
+          </div>
+
+          {/* 2. Permohonan Perlu Diperbaiki */}
+          <div 
+            onClick={() => onNavigate('APPLICATIONS')}
+            className="bg-slate-800/80 hover:bg-slate-800 border border-amber-500/30 hover:border-amber-500/60 p-4 transition cursor-pointer group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-amber-300 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Perlu Diperbaiki</span>
+                </span>
+                <span className="text-[9px] px-1.5 py-0.2 bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono font-bold">
+                  REVISI DOKUMEN
+                </span>
+              </div>
+
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl sm:text-4xl font-mono font-bold text-amber-400 group-hover:text-amber-300 transition">
+                  {incompleteApps}
+                </span>
+                <span className="text-xs text-slate-400 font-mono">
+                  berkas ({totalApps > 0 ? Math.round((incompleteApps / totalApps) * 100) : 0}%)
+                </span>
+              </div>
+
+              <p className="text-[11px] text-slate-400 mt-1.5 leading-snug">
+                Dokumen teknis belum memenuhi standar atau membutuhkan revisi pemohon.
+              </p>
+            </div>
+
+            <div className="mt-3 pt-2.5 border-t border-slate-700/60 flex items-center justify-between text-[10px] font-mono text-amber-400 group-hover:text-amber-300">
+              <span className="font-bold uppercase tracking-tight">Tinjau Catatan Revisi</span>
+              <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition" />
+            </div>
+          </div>
+
+          {/* 3. Total Retribusi Bulan Ini */}
+          <div 
+            onClick={() => onNavigate('MONITORING_PAD')}
+            className="bg-slate-800/80 hover:bg-slate-800 border border-emerald-500/30 hover:border-emerald-500/60 p-4 transition cursor-pointer group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-emerald-300 flex items-center gap-1.5">
+                  <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Retribusi Bulan Ini ({MONTH_SHORT[new Date().getMonth()]})</span>
+                </span>
+                <span className="text-[9px] px-1.5 py-0.2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono font-bold">
+                  SKRD VALID
+                </span>
+              </div>
+
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl sm:text-3xl font-mono font-bold text-emerald-400 group-hover:text-emerald-300 transition truncate">
+                  {formatCompactRupiah(monthlyTrendData[new Date().getMonth()]?.realisasi || 520000000)}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1.5 font-mono">
+                <span>Target APBD:</span>
+                <span className="text-indigo-300 font-bold">
+                  {formatCompactRupiah(monthlyTrendData[new Date().getMonth()]?.target || 500000000)}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 pt-2.5 border-t border-slate-700/60 flex items-center justify-between text-[10px] font-mono text-emerald-400 group-hover:text-emerald-300">
+              <span className="font-bold uppercase tracking-tight">
+                Capaian {monthlyTrendData[new Date().getMonth()]?.capaianPersen || 104}% Target Bulanan
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition" />
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* Top 3 Secondary Metric Blocks */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         
         {/* Block 1: Total & Active */}

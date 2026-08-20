@@ -25,6 +25,11 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Health & connection testing
+    match /test/{document=**} {
+      allow read, write: if true;
+    }
+
     // Other collections
     match /notifications/{notificationId} {
       allow read, write: if true;
