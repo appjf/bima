@@ -101,20 +101,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <div className="flex items-center gap-1.5 shrink-0">
               <img 
-                src="/logo_garut.png" 
-                alt="Logo Pemkab Garut" 
-                className="w-7 h-9 sm:w-8 sm:h-10 object-contain"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
-              <img 
-                src="/logo_pupr.svg" 
-                alt="Logo PUPR" 
-                className="w-7 h-7 sm:w-8 sm:h-8 object-contain hidden sm:block"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
+                src="/src/assets/images/simbg_garut_logo_1787203176158.jpg" 
+                alt="Logo SIMBG Garut" 
+                className="w-10 h-10 sm:w-12 sm:h-12 object-contain rounded-md shadow-sm border border-slate-200 dark:border-slate-800"
               />
             </div>
             <div className="min-w-0 flex flex-col justify-center">

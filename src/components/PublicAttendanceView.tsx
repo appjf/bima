@@ -10,21 +10,26 @@ import {
   Building2, 
   ShieldCheck,
   ArrowRight,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 import { Application } from '../types';
 
 interface PublicAttendanceViewProps {
   application: Application;
   onConfirmAttendance: (appId: string) => void;
+  verificationToken?: string;
 }
 
 export const PublicAttendanceView: React.FC<PublicAttendanceViewProps> = ({
   application,
-  onConfirmAttendance
+  onConfirmAttendance,
+  verificationToken
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(application.schedule?.applicantAttended || false);
+
+  const isTokenValid = !verificationToken || application.schedule?.attendanceToken === verificationToken;
 
   const handleCheckIn = () => {
     setIsSubmitting(true);
@@ -93,6 +98,14 @@ export const PublicAttendanceView: React.FC<PublicAttendanceViewProps> = ({
         className="max-w-lg w-full bg-white border-t-4 border-t-indigo-600 shadow-xl overflow-hidden"
       >
         <div className="p-6 space-y-6">
+          {/* Token Security Badge */}
+          {!isTokenValid && (
+            <div className="bg-amber-50 border border-amber-200 p-3 flex items-center gap-2 text-amber-800 text-[10px] font-bold uppercase">
+              <AlertTriangle className="w-4 h-4" />
+              Peringatan: Token Verifikasi Tidak Cocok
+            </div>
+          )}
+
           {/* Building Info */}
           <div className="flex items-start gap-4 p-4 bg-slate-50 border border-slate-200">
             <div className="w-12 h-12 bg-indigo-100 flex items-center justify-center shrink-0">

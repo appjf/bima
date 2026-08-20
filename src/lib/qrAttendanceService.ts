@@ -132,8 +132,37 @@ export function parseAndVerifyAttendanceQr(scannedString: string): AttendanceVer
   try {
     // Check if JSON
     let parsed: any;
-    if (scannedString.startsWith('{') && scannedString.endsWith('}')) {
+    if (scannedString.trim().startsWith('{') && scannedString.trim().endsWith('}')) {
       parsed = JSON.parse(scannedString);
+    } else if (scannedString.includes('reg=') && scannedString.includes('tok=')) {
+      // It's a dynamic URL, extract data
+      const url = new URL(scannedString);
+      const reg = url.searchParams.get('reg');
+      const tok = url.searchParams.get('tok');
+      
+      if (reg && tok) {
+        return {
+          isValid: true,
+          message: `Token Presensi URL Valid: ${reg}`,
+          payload: {
+            registerNumber: reg,
+            token: tok,
+            // Add placeholder fields for safety since it's from URL
+            appId: '',
+            applicantName: 'Pemohon SIMBG',
+            buildingName: '',
+            scheduleDate: '',
+            timeSlot: '',
+            room: '',
+            version: '1.0-URL',
+            type: 'PRESENSI_SIDANG_TPA_TPT',
+            verificationUrl: scannedString,
+            generatedAt: nowISO,
+            hashSignature: `GARUT-PRESENSI-URL-${reg}`
+          } as AttendanceQrPayload,
+          scannedAt: nowISO
+        };
+      }
     } else {
       // Check if URL or plain token string
       if (scannedString.includes('simbg.garutkab.go.id') || scannedString.startsWith('TOK-') || scannedString.startsWith('GARUT-')) {

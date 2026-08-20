@@ -233,8 +233,8 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
     const generateQr = async () => {
       try {
         const payload = buildAttendanceQrPayload(application);
-        // Use the full payload object for deep verification (JSON QR)
-        const url = await generateQrDataUrl(payload, { width: 600, margin: 1 });
+        // Use the verification URL string for participant accessibility (clickable link)
+        const url = await generateQrDataUrl(payload.verificationUrl, { width: 600, margin: 1 });
         setBaAttendanceQrUrl(url);
       } catch (err) {
         console.error('Failed to generate attendance QR:', err);

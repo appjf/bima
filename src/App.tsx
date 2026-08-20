@@ -120,11 +120,13 @@ export default function App() {
       const token = params.get('token');
       const mode = params.get('mode');
       const regNum = params.get('reg');
+      const tok = params.get('tok');
       
       if (mode === 'attendance' && regNum) {
         const matched = applications.find(a => a.registerNumber === regNum);
         if (matched) {
           setAttendanceApp(matched);
+          if (tok) setVerificationToken(tok);
         }
       }
 
@@ -396,6 +398,7 @@ export default function App() {
       <PublicAttendanceView 
         application={attendanceApp} 
         onConfirmAttendance={(id) => handleToggleAttendance(id)} 
+        verificationToken={verificationToken}
       />
     );
   }
