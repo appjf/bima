@@ -1,0 +1,77 @@
+{
+  "entities": {
+    "Application": {
+      "title": "Application",
+      "description": "Represents a building permit or SLF application in the SIMBG system.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "registerNumber": { "type": "string" },
+        "applicant": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "phone": { "type": "string" }
+          }
+        },
+        "status": { "type": "string" },
+        "schedule": {
+          "type": "object",
+          "properties": {
+            "applicantAttended": { "type": "boolean" },
+            "attendanceToken": { "type": "string" }
+          }
+        }
+      }
+    },
+    "NotificationLog": {
+      "title": "NotificationLog",
+      "description": "Logs of sent notifications.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "recipient": { "type": "string" },
+        "message": { "type": "string" },
+        "timestamp": { "type": "string" }
+      }
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Logs of administrative actions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "action": { "type": "string" },
+        "targetRegister": { "type": "string" },
+        "timestamp": { "type": "string" }
+      }
+    },
+    "WhatsAppSettings": {
+      "title": "WhatsAppSettings",
+      "description": "Configuration for WhatsApp notifications.",
+      "type": "object",
+      "properties": {
+        "apiKey": { "type": "string" },
+        "senderNumber": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/applications/{applicationId}": {
+      "schema": "Application",
+      "description": "Core building permit applications."
+    },
+    "/notifications/{notificationId}": {
+      "schema": "NotificationLog",
+      "description": "History of sent notifications."
+    },
+    "/auditLogs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Audit trail for system actions."
+    },
+    "/settings/whatsapp": {
+      "schema": "WhatsAppSettings",
+      "description": "System-wide WhatsApp configuration."
+    }
+  }
+}

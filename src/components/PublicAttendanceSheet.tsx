@@ -1,21 +1,18 @@
 import React from 'react';
 import { OfficialLetterhead } from './OfficialLetterhead';
+import { Application } from '../types';
 
 interface AttendanceSheetProps {
-  meetingTitle: string;
-  meetingDate: string;
-  meetingTime: string;
-  meetingLocation: string;
+  application: Application;
   qrCodeUrl: string; // The URL for public attendance
 }
 
 export const PublicAttendanceSheet: React.FC<AttendanceSheetProps> = ({
-  meetingTitle,
-  meetingDate,
-  meetingTime,
-  meetingLocation,
+  application,
   qrCodeUrl
 }) => {
+  const schedule = application.schedule;
+  
   return (
     <div id="printable-attendance-doc" className="bg-white text-slate-900 p-8 font-mono w-full max-w-[210mm] mx-auto text-xs space-y-4 border border-slate-200 shadow-sm print:border-none print:shadow-none print:p-0">
       
@@ -28,10 +25,10 @@ export const PublicAttendanceSheet: React.FC<AttendanceSheetProps> = ({
           DAFTAR HADIR
         </h1>
         <div className="grid grid-cols-[150px_1fr] text-left mx-auto max-w-lg mt-4 gap-y-1 text-sm">
-          <div className="font-bold">JUDUL RAPAT</div><div>: {meetingTitle}</div>
-          <div className="font-bold">HARI/ TANGGAL</div><div>: {meetingDate}</div>
-          <div className="font-bold">WAKTU</div><div>: {meetingTime}</div>
-          <div className="font-bold">TEMPAT</div><div>: {meetingLocation}</div>
+          <div className="font-bold">JUDUL RAPAT</div><div>: Rapat Konsultasi {application.permitType?.includes('SLF') ? 'SLF' : 'PBG'} {application.building.name}</div>
+          <div className="font-bold">HARI/ TANGGAL</div><div>: {schedule?.scheduleDate || '-'}</div>
+          <div className="font-bold">WAKTU</div><div>: {schedule?.timeSlot || '-'} WIB</div>
+          <div className="font-bold">TEMPAT</div><div>: {schedule?.room || '-'}</div>
         </div>
       </div>
 
@@ -39,7 +36,11 @@ export const PublicAttendanceSheet: React.FC<AttendanceSheetProps> = ({
       <div className="flex justify-center my-6">
         <div className="text-center border p-4 bg-slate-50">
           <div className="font-bold mb-2">SCAN UNTUK ABSENSI</div>
-          <img src={qrCodeUrl} alt="QR Absensi" className="w-40 h-40" />
+          {qrCodeUrl ? (
+            <img src={qrCodeUrl} alt="QR Absensi" className="w-40 h-40" />
+          ) : (
+            <div className="w-40 h-40 flex items-center justify-center border border-dashed border-slate-300 text-slate-400">QR Kosong</div>
+          )}
         </div>
       </div>
 

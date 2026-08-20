@@ -890,15 +890,14 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
         <SchedulingAttendancePrint scheduledApps={scheduledApps} nextFridayDate={nextFriday} />
       </div>
 
-      {/* Printable Public Attendance Sheet */}
+      {/* Printable Public Attendance Sheet (Tersinkronisasi dengan Permohonan) */}
       <div id="printable-public-attendance-area" className="hidden print:block">
-        <PublicAttendanceSheet 
-          meetingTitle="Rapat Konsultasi SLF BG Komersial Penginapan"
-          meetingDate={nextFriday}
-          meetingTime="12.30 - 13.30 WIB"
-          meetingLocation="R. Rapat SDA Dinas PUPR Kab. Garut"
-          qrCodeUrl={generatedQrUrl || ''}
-        />
+        {scheduledApps.length > 0 && (
+          <PublicAttendanceSheet 
+            application={scheduledApps[0]}
+            qrCodeUrl={generatedQrUrl || ''}
+          />
+        )}
       </div>
 
     </div>

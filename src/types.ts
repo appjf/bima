@@ -161,6 +161,7 @@ export interface BeritaAcaraLapangan {
   recommendations: string;
   isCompleted: boolean;
   completedAt?: string;
+  perwakilanTtdUrl?: string;
 
   // TTE (Tanda Tangan Elektronik) Verification fields
   isTteSigned?: boolean;

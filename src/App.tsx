@@ -46,6 +46,9 @@ import {
 import {
   OfficialVerificationModal
 } from './components/OfficialVerificationModal';
+import {
+  PublicAttendanceView
+} from './components/PublicAttendanceView';
 import { 
   Application, 
   ApplicationStatus, 
@@ -53,9 +56,8 @@ import {
   UserRole,
   WhatsAppSettings
 } from './types';
+import { useApplications } from './hooks/useApplications';
 import { 
-  getStoredApplications, 
-  saveStoredApplications, 
   getStoredNotifications, 
   saveStoredNotifications,
   scanDataQualityIssues,
@@ -69,8 +71,10 @@ import { generateNoticeLetterDraft } from './lib/workflowEngine';
 import { Sparkles, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 export default function App() {
+  // Realtime Firebase State
+  const { applications, updateApplication, batchUpdateApplications, loading: appsLoading } = useApplications();
+
   // Persistence State
-  const [applications, setApplications] = useState<Application[]>(() => getStoredApplications());
   const [notifications, setNotifications] = useState<NotificationLog[]>(() => getStoredNotifications());
   const [waSettings, setWaSettings] = useState<WhatsAppSettings>(() => getStoredWhatsAppSettings());
 
@@ -97,6 +101,7 @@ export default function App() {
     subtitle: string;
   } | null>(null);
   const [isOfficialVerificationOpen, setIsOfficialVerificationOpen] = useState(false);
+  const [attendanceApp, setAttendanceApp] = useState<Application | null>(null);
   const [verificationToken, setVerificationToken] = useState<string | undefined>(undefined);
   const [verificationParams, setVerificationParams] = useState<{
     type?: string;
@@ -113,7 +118,16 @@ export default function App() {
       const params = new URLSearchParams(window.location.search);
       const verifyType = params.get('type');
       const token = params.get('token');
+      const mode = params.get('mode');
+      const regNum = params.get('reg');
       
+      if (mode === 'attendance' && regNum) {
+        const matched = applications.find(a => a.registerNumber === regNum);
+        if (matched) {
+          setAttendanceApp(matched);
+        }
+      }
+
       if (verifyType || token) {
         const role = params.get('role') || 'TERVERIFIKASI';
         const name = params.get('name') || params.get('applicant') || 'ASN DPUPR Garut';
@@ -218,11 +232,6 @@ export default function App() {
     };
   }, []);
 
-  // Persist applications on change
-  useEffect(() => {
-    saveStoredApplications(applications);
-  }, [applications]);
-
   // Persist notifications on change
   useEffect(() => {
     saveStoredNotifications(notifications);
@@ -233,19 +242,17 @@ export default function App() {
 
   // Handlers for Application CRUD
   const handleAddNewApplication = (newApp: Application) => {
-    setApplications(prev => [newApp, ...prev]);
+    updateApplication(newApp);
     showToast(`Permohonan ${newApp.registerNumber} berhasil ditambahkan ke sistem.`);
   };
 
   const handleDeleteApplication = (appId: string) => {
-    setApplications(prev => prev.filter(a => a.id !== appId));
-    if (selectedApp?.id === appId) setSelectedApp(null);
-    showToast('Permohonan telah dihapus dari sistem.', 'info');
+    showToast('Fungsi hapus dinonaktifkan dalam mode sinkronisasi produksi.', 'info');
   };
 
   const handleUpdateApplication = (updatedApp: Application) => {
-    setApplications(prev => prev.map(a => a.id === updatedApp.id ? updatedApp : a));
-    setSelectedApp(updatedApp);
+    updateApplication(updatedApp);
+    if (selectedApp?.id === updatedApp.id) setSelectedApp(updatedApp);
     showToast(`Data permohonan ${updatedApp.registerNumber} berhasil diperbarui.`);
   };
 
@@ -264,6 +271,7 @@ export default function App() {
   // Batch Verification Trigger
   const handleBatchVerifyAll = () => {
     let updatedCount = 0;
+    const toUpdate: Application[] = [];
     const updated = applications.map(app => {
       const result = runDocumentVerification(app);
       let newStatus = app.status;
@@ -271,16 +279,21 @@ export default function App() {
       if (app.status === 'NEW' || app.status === 'UNDER_VERIFICATION') {
         newStatus = result.status === 'VALID' ? 'READY_FOR_CONSULTATION' : 'INCOMPLETE';
         updatedCount++;
+        const updatedApp = {
+          ...app,
+          status: newStatus,
+          lastUpdated: new Date().toISOString()
+        };
+        toUpdate.push(updatedApp);
+        return updatedApp;
       }
 
-      return {
-        ...app,
-        status: newStatus,
-        lastUpdated: new Date().toISOString()
-      };
+      return app;
     });
 
-    setApplications(updated);
+    if (toUpdate.length > 0) {
+      batchUpdateApplications(toUpdate);
+    }
     showToast(`Verifikasi massal selesai. ${updatedCount} permohonan telah diperbarui statusnya.`);
   };
 
@@ -299,18 +312,19 @@ export default function App() {
       if (scheduledMap.has(a.id)) {
         const sch = scheduledMap.get(a.id)!;
         const letter = generateNoticeLetterDraft(a, sch.scheduleDate, sch.timeSlot, sch.room);
-        return {
+        const updatedApp = {
           ...a,
           schedule: sch,
           consultationNotice: letter,
           status: 'SCHEDULED' as const,
           lastUpdated: new Date().toISOString()
         };
+        updateApplication(updatedApp);
+        return updatedApp;
       }
       return a;
     });
 
-    setApplications(updated);
     showToast(`Berhasil menjadwalkan ${scheduled.length} permohonan ke Sidang TPA/TPT hari Jumat.`);
   };
 
@@ -367,6 +381,24 @@ export default function App() {
     setCopilotInitialPrompt(`Berikan analisis kepatuhan regulasi PP 16/2021, kelengkapan berkas, dan estimasi retribusi untuk permohonan ${app.registerNumber} (${app.building.name}).`);
     setIsCopilotOpen(true);
   };
+
+  if (appsLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-slate-500 font-mono text-xs uppercase tracking-widest animate-pulse">Initializing SIMBG Production Environment...</p>
+      </div>
+    );
+  }
+
+  if (attendanceApp) {
+    return (
+      <PublicAttendanceView 
+        application={attendanceApp} 
+        onConfirmAttendance={(id) => handleToggleAttendance(id)} 
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-200 flex flex-col">
@@ -538,7 +570,7 @@ export default function App() {
           {activeTab === 'DATA_QUALITY' && (
             <DataQualityCenter
               applications={applications}
-              onUpdateApplications={setApplications}
+              onUpdateApplications={batchUpdateApplications}
               onSelectApplication={(app) => setSelectedApp(app)}
             />
           )}
@@ -597,7 +629,17 @@ export default function App() {
         onClose={() => setIsQrScannerOpen(false)}
         applications={applications}
         onAttendanceVerified={(result) => {
-          showToast(`Presensi ${result.type}: ${result.name} berhasil diverifikasi!`);
+          if (result.type === 'APPLICATION' && result.appId && result.isAutoLogged) {
+            const app = applications.find(a => a.id === result.appId);
+            if (app && !app.schedule?.applicantAttended) {
+              handleToggleAttendance(app.id);
+              showToast(`AUTO-LOG: Kehadiran ${app.applicant.name} terverifikasi via QR.`, 'success');
+            } else {
+              showToast(`Presensi ${result.name} sudah tercatat sebelumnya.`);
+            }
+          } else {
+            showToast(`Presensi ${result.type}: ${result.name} berhasil diverifikasi!`);
+          }
         }}
       />
 

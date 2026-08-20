@@ -13,11 +13,13 @@ import {
   Volume2,
   VolumeX,
   Keyboard,
-  Upload
+  Upload,
+  User
 } from 'lucide-react';
 import jsQR from 'jsqr';
 import { ASNPersonnel, Application } from '../types';
 import { getASNPersonnelList } from '../lib/asnPersonnelEngine';
+import { parseAndVerifyAttendanceQr } from '../lib/qrAttendanceService';
 
 interface InternalQrScannerModalProps {
   isOpen: boolean;
@@ -29,6 +31,8 @@ interface InternalQrScannerModalProps {
     details: string;
     timestamp: string;
     rawPayload: string;
+    appId?: string;
+    isAutoLogged?: boolean;
   }) => void;
 }
 
@@ -51,6 +55,7 @@ export const InternalQrScannerModal: React.FC<InternalQrScannerModalProps> = ({
     details: string;
     timestamp: string;
     rawPayload: string;
+    isAutoLogged?: boolean;
   } | null>(null);
 
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -58,14 +63,14 @@ export const InternalQrScannerModal: React.FC<InternalQrScannerModalProps> = ({
   const [isManualMode, setIsManualMode] = useState(false);
 
   // Play audio beep upon successful QR scan
-  const playBeep = () => {
+  const playBeep = (type: 'SUCCESS' | 'ERROR' = 'SUCCESS') => {
     if (!soundEnabled) return;
     try {
       const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, ctx.currentTime); // 880 Hz (A5 note)
+      osc.frequency.setValueAtTime(type === 'SUCCESS' ? 880 : 440, ctx.currentTime); 
       gain.gain.setValueAtTime(0.1, ctx.currentTime);
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -161,16 +166,17 @@ export const InternalQrScannerModal: React.FC<InternalQrScannerModalProps> = ({
 
   // Process & Verify Scanned Payload
   const handleQrPayload = (raw: string) => {
-    playBeep();
     const timestamp = new Date().toLocaleTimeString('id-ID', {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit'
     }) + ' WIB';
 
-    const asnList = getASNPersonnelList();
+    // 1. Deep Verification using SIMBG QR Service
+    const verification = parseAndVerifyAttendanceQr(raw);
     
     // Check 1: Is Payload an ASN Personnel QR?
+    const asnList = getASNPersonnelList();
     const matchedAsn = asnList.find(asn => 
       raw.includes(asn.nip) || 
       raw.includes(asn.name) ||
@@ -178,8 +184,10 @@ export const InternalQrScannerModal: React.FC<InternalQrScannerModalProps> = ({
     );
 
     if (matchedAsn) {
+      playBeep('SUCCESS');
       const result = {
         type: 'ASN' as const,
+        name: matchedAsn.name,
         title: matchedAsn.name,
         subtitle: `NIP. ${matchedAsn.nip} • ${matchedAsn.roleCategory}`,
         details: `Presensi ASN Pejabat/Operator: ${matchedAsn.positionTitle} (${matchedAsn.subSpecialty || 'DPUPR Garut'}) - TERVERIFIKASI`,
@@ -191,35 +199,66 @@ export const InternalQrScannerModal: React.FC<InternalQrScannerModalProps> = ({
       return;
     }
 
-    // Check 2: Is Payload an Application / No. Register?
-    const matchedApp = applications.find(app => 
+    // Check 2: Is it a Valid SIMBG Attendance QR?
+    if (verification.isValid && verification.payload) {
+      const payload = verification.payload;
+      const matchedApp = applications.find(app => 
+        app.id === payload.appId || 
+        app.registerNumber === payload.registerNumber
+      );
+
+      if (matchedApp) {
+        playBeep('SUCCESS');
+        const result = {
+          type: 'APPLICATION' as const,
+          name: matchedApp.registerNumber,
+          title: matchedApp.registerNumber,
+          subtitle: `${matchedApp.applicant.name} • ${matchedApp.building.name}`,
+          details: `AUTO-LOG: Kehadiran Peserta Sidang berhasil diverifikasi secara otomatis melalui SIMBG Secure Attendance. Status: HADIR SIDANG.`,
+          timestamp,
+          rawPayload: raw,
+          appId: matchedApp.id,
+          isAutoLogged: true
+        };
+        setScannedResult(result);
+        if (onAttendanceVerified) onAttendanceVerified(result);
+        return;
+      }
+    }
+
+    // Check 3: Fallback match by Register Number (Plain Text Scans)
+    const matchedAppFallback = applications.find(app => 
       raw.includes(app.registerNumber) || 
       (app.applicationNumber && raw.includes(app.applicationNumber)) ||
       raw.includes(app.id)
     );
 
-    if (matchedApp) {
+    if (matchedAppFallback) {
+      playBeep('SUCCESS');
       const result = {
         type: 'APPLICATION' as const,
-        name: matchedApp.registerNumber,
-        title: matchedApp.registerNumber,
-        subtitle: `${matchedApp.applicant.name} • ${matchedApp.building.name}`,
-        details: `Presensi Peserta Sidang Pemohon SIMBG: ${matchedApp.building.district} (${matchedApp.building.functionType}) - HADIR SIDANG`,
+        name: matchedAppFallback.registerNumber,
+        title: matchedAppFallback.registerNumber,
+        subtitle: `${matchedAppFallback.applicant.name} • ${matchedAppFallback.building.name}`,
+        details: `Presensi Peserta Sidang: Pemindaian manual/teks berhasil mencocokkan data permohonan. Status: HADIR SIDANG.`,
         timestamp,
-        rawPayload: raw
+        rawPayload: raw,
+        appId: matchedAppFallback.id,
+        isAutoLogged: true
       };
       setScannedResult(result);
       if (onAttendanceVerified) onAttendanceVerified(result);
       return;
     }
 
-    // Fallback: Generic Payload
+    // Fallback: Generic/Unknown Payload
+    playBeep('ERROR');
     const genericResult = {
       type: 'UNKNOWN' as const,
       name: 'QR Code Terdeteksi',
       title: 'QR Code Terdeteksi',
       subtitle: raw.slice(0, 60) + (raw.length > 60 ? '...' : ''),
-      details: 'Payload QR berhasil dibaca oleh sistem. Data tidak langsung terikat pada database ASN/Permohonan.',
+      details: 'Payload QR berhasil dibaca namun tidak cocok dengan data ASN atau Jadwal Sidang aktif hari ini.',
       timestamp,
       rawPayload: raw
     };

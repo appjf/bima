@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isSignedIn() { return request.auth != null; }
+    
+    // Application validation
+    function isValidApplication(data) {
+      return data.keys().hasAll(['id', 'registerNumber', 'status']) &&
+             data.id is string &&
+             data.registerNumber is string &&
+             data.status is string;
+    }
+
+    // Applications collection
+    match /applications/{applicationId} {
+      allow read: if true; // Public can read for attendance scan
+      allow create, update: if true; // Temporary: Allow everyone to write for demo
+      allow delete: if false;
+    }
+
+    // Other collections
+    match /notifications/{notificationId} {
+      allow read, write: if true;
+    }
+    match /auditLogs/{logId} {
+      allow read, write: if true;
+    }
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
+  }
+}

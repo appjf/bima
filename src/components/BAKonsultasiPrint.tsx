@@ -20,6 +20,8 @@ interface BAKonsultasiPrintProps {
   mepResult?: string;
   overallResult?: string;
   summaryNotes?: string;
+  includeAttendance?: boolean;
+  attendees?: { name: string; role: string; present: boolean }[];
 }
 
 export const BAKonsultasiPrint: React.FC<BAKonsultasiPrintProps> = ({
@@ -37,8 +39,11 @@ export const BAKonsultasiPrint: React.FC<BAKonsultasiPrintProps> = ({
   strukturResult,
   mepResult,
   overallResult,
-  summaryNotes
+  summaryNotes,
+  includeAttendance = true,
+  attendees
 }) => {
+  const effectiveAttendees = attendees || application.baKonsultasi?.attendees || [];
   const savedSignatures = getSavedSignatures();
   const leadSig = savedSignatures.pengawas || savedSignatures.kabid;
 
@@ -316,6 +321,103 @@ export const BAKonsultasiPrint: React.FC<BAKonsultasiPrintProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Page Break for Attendance Sheet */}
+      {includeAttendance && (
+        <div className="print:break-before-page pt-12 space-y-6">
+          {/* Header */}
+          <OfficialLetterhead />
+          
+          <div className="text-center space-y-1 py-2 border-b-2 border-slate-900">
+            <h1 className="font-extrabold text-[12pt] uppercase tracking-wide">
+              DAFTAR HADIR SIDANG KONSULTASI TEKNIS
+            </h1>
+            <div className="text-[10pt] font-mono font-bold text-slate-900">
+              NOMOR BA: {docBaNumber}
+            </div>
+            <div className="text-[9pt] font-sans text-slate-600">
+              Tanggal: {docDate}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="text-[10pt]">
+              <table className="w-full">
+                <tbody>
+                  <tr>
+                    <td className="w-32 py-0.5 font-semibold">Nama Bangunan</td>
+                    <td className="w-3 py-0.5">:</td>
+                    <td className="py-0.5">{application.building.name}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-0.5 font-semibold">Nama Pemohon</td>
+                    <td className="py-0.5">:</td>
+                    <td className="py-0.5">{application.applicant.name}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-0.5 font-semibold">No. Register</td>
+                    <td className="py-0.5">:</td>
+                    <td className="py-0.5 font-mono">{application.registerNumber}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <table className="w-full border-collapse border border-slate-400 text-[9pt]">
+              <thead>
+                <tr className="bg-slate-50">
+                  <th className="border border-slate-400 p-2 text-center w-10">NO</th>
+                  <th className="border border-slate-400 p-2 text-left">NAMA / NIP</th>
+                  <th className="border border-slate-400 p-2 text-left w-40">JABATAN / UNSUR</th>
+                  <th className="border border-slate-400 p-2 text-center w-32">TANDA TANGAN</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* TPA Experts */}
+                {effectiveAttendees.map((attendee, idx) => (
+                  <tr key={idx} className="h-10">
+                    <td className="border border-slate-400 p-2 text-center">{idx + 1}</td>
+                    <td className="border border-slate-400 p-2 font-bold">{attendee.name}</td>
+                    <td className="border border-slate-400 p-2">{attendee.role}</td>
+                    <td className="border border-slate-400 p-2 text-[8pt] text-slate-400 italic">
+                      {attendee.present ? 'Hadir (TTE)' : '....................'}
+                    </td>
+                  </tr>
+                ))}
+                
+                {/* Applicant / Consultant */}
+                <tr className="h-10">
+                  <td className="border border-slate-400 p-2 text-center">{effectiveAttendees.length + 1}</td>
+                  <td className="border border-slate-400 p-2 font-bold">{application.applicant.name}</td>
+                  <td className="border border-slate-400 p-2">Pemohon / Pemilik</td>
+                  <td className="border border-slate-400 p-2 text-[8pt] text-slate-400 italic">....................</td>
+                </tr>
+
+                {/* Additional rows if needed */}
+                {[...Array(3)].map((_, i) => (
+                  <tr key={i} className="h-10">
+                    <td className="border border-slate-400 p-2 text-center">{effectiveAttendees.length + 2 + i}</td>
+                    <td className="border border-slate-400 p-2"></td>
+                    <td className="border border-slate-400 p-2"></td>
+                    <td className="border border-slate-400 p-2"></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="pt-8 grid grid-cols-2 gap-8 text-[9pt]">
+            <div className="text-center space-y-12">
+              <p>Mengetahui,<br/>Pemilik / Pemohon</p>
+              <p className="font-bold underline">{application.applicant.name}</p>
+            </div>
+            <div className="text-center space-y-12">
+              <p>Ketua Tim Profesi Ahli / TPT,<br/>Kabupaten Garut</p>
+              <p className="font-bold underline">{leadSig?.name || 'Asep Tedi Sugianto, ST., M.Si'}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -43,32 +43,50 @@ export const BAPlenoPrint: React.FC<BAPlenoPrintProps> = ({
                 application.permitType?.includes('SLF');
 
   // Load Arsitektur Notes
-  const arsitNotes = arsitekturNotes || application.baPleno?.arsitekturNotes || [
+  const arsitNotes = arsitekturNotes || application.baPleno?.arsitekturNotes || (isSlf ? [
+    'Lahan diperbolehkan untuk Fungsi Bangunan Usaha / Kegiatan sesuai dengan KRK.',
+    'Tenaga Ahli Arsitektur / Tim Penilai Teknis Arsitektur sudah memvalidasi kesesuaian fasad bangunan eksisting.',
+    'Telah memverifikasi gambar as-built drawing arsitektur yang lengkap.',
+    'Jalur sirkulasi, aksesibilitas difabel, dan jalur evakuasi darurat telah tersedia dan sesuai standar.',
+    'Dokumen administratif dan gambar Arsitektur dinilai laik fungsi.'
+  ] : [
     'Lahan diperbolehkan untuk Fungsi Bangunan Usaha, sub fungsi Bangunan Wisata dan Rekreasi; Bangunan Gedung Perhotelan berdasarkan KRK.',
     'Tenaga Ahli Arsitektur sudah sesuai.',
     'Sudah melampirkan gambar detail arsitektur lengkap.',
     'Sudah melampirkan gambar jalur evakuasi pada rencana tata ruang dalam dan luar.',
     'Gambar Arsitektur sudah lengkap dan memenuhi syarat.'
-  ];
+  ]);
 
   // Load Struktur Notes
-  const strukNotes = strukturNotes || application.baPleno?.strukturNotes || [
+  const strukNotes = strukturNotes || application.baPleno?.strukturNotes || (isSlf ? [
+    'Kondisi fisik bangunan eksisting laik fungsi dan struktur dalam kondisi aman serta kokoh.',
+    'Telah dilampirkan laporan pemeriksaan kelaikan fungsi struktur dari pengkaji teknis ber-SKK.',
+    'Mutu beton, tulangan, dan elemen struktur eksisting memenuhi kriteria kelaikan struktur.',
+    'Hasil pengujian non-destruktif (Hammer Test / Covermeter) menunjukkan hasil yang andal.',
+    'Analisis kapasitas struktur menunjukkan ketahanan yang memadai terhadap beban gempa.'
+  ] : [
     'Pemohon menginformasikan bangunan belum dibangun / dibangun setelah PBG terbit.',
     'Tenaga ahli struktur sudah tersedia bersertifikat kompetensi kerja (SKK).',
     'Lokasi/lahan telah diperbolehkan untuk dibangun menurut KRK.',
     'Perhitungan struktur atas dan struktur bawah sudah ada.',
     'Legalitas tandatangan dokumen perhitungan struktur oleh tenaga ahli yang kompeten ber-SKK.'
-  ];
+  ]);
 
   // Load MEP Notes
-  const mechanicalNotes = mepNotes || application.baPleno?.mepNotes || [
+  const mechanicalNotes = mepNotes || application.baPleno?.mepNotes || (isSlf ? [
+    'Seluruh utilitas bangunan dan sistem MEP terpasang dan berfungsi penuh.',
+    'Instalasi listrik memiliki sertifikat laik operasi (SLO) yang sah.',
+    'Sistem proteksi kebakaran (APAR, detektor asap, hidran) telah diuji coba dan siap pakai.',
+    'Sistem air bersih, penyaluran air kotor, dan drainase memenuhi standar kesehatan lingkungan.',
+    'Sistem tata udara dan pencahayaan alami/buatan berfungsi dengan baik.'
+  ] : [
     'Perencanaan pembangunan sudah memiliki tenaga ahli MEP.',
     'Peruntukan lahan sudah sesuai dengan KRK.',
     'Bangunan belum terbangun 100%.',
     'Spesifikasi dan desain Mekanikal, Elektrikal dan Plambing lengkap.',
     'Sudah menghitung kebutuhan sesuai luasan dan kapasitas.',
     'Sudah melengkapi SLD atau diagram pengawatan.'
-  ];
+  ]);
 
   const attendeesList = [
     { name: 'Mirza Fathir, ST., MT', role: 'Ketua Pleno merangkap TPA Arsitektur' },

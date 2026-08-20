@@ -41,7 +41,7 @@ export function buildAttendanceQrPayload(app: Application): AttendanceQrPayload 
 
   const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://simbg.garutkab.go.id';
   const token = schedule.attendanceToken || `TOK-${app.registerNumber}-${Date.now().toString(36).toUpperCase()}`;
-  const verificationUrl = `${origin}/verify?type=PRESENSI&reg=${encodeURIComponent(app.registerNumber)}&applicant=${encodeURIComponent(app.applicant.name)}&building=${encodeURIComponent(app.building.name)}&tok=${token}`;
+  const verificationUrl = `${origin}/?mode=attendance&reg=${encodeURIComponent(app.registerNumber)}&tok=${token}`;
   
   // Simple checksum for authenticity check
   const hashSignature = `GARUT-PRESENSI-${app.registerNumber}-${token.slice(-6)}`;

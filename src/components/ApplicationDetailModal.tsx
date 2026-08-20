@@ -48,7 +48,7 @@ import {
 import { runDocumentVerification, MASTER_DOCUMENT_RULES } from '../lib/ruleEngine';
 import { calculateRetribution } from '../lib/retributionEngine';
 import { triggerPdfPrint } from '../lib/pdfPrintEngine';
-import { generateSmartSchedule, MASTER_EXPERTS } from '../lib/schedulingEngine';
+import { getNextFridayDate, generateSmartSchedule, MASTER_EXPERTS } from '../lib/schedulingEngine';
 import { useAutoSaveForm } from '../hooks/useAutoSaveForm';
 import { AutoSaveIndicator } from './AutoSaveIndicator';
 import { 
@@ -78,6 +78,8 @@ import { VisiteLapanganModule } from './VisiteLapanganModule';
 import { NoticeLetterPrint } from './NoticeLetterPrint';
 import { BAPlenoPrint } from './BAPlenoPrint';
 import { BAKonsultasiPrint } from './BAKonsultasiPrint';
+import { SchedulingAttendancePrint } from './SchedulingAttendancePrint';
+import { buildAttendanceQrPayload, generateQrDataUrl } from '../lib/qrAttendanceService';
 
 interface ApplicationDetailModalProps {
   application: Application;
@@ -148,8 +150,20 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
   };
 
   // Stage 4 BA Konsultasi state (Multi-Field TPA/TPT & History)
-  const [baActiveField, setBaActiveField] = useState<'OVERVIEW' | 'ARSITEKTUR' | 'STRUKTUR' | 'MEP'>('OVERVIEW');
+  const [baActiveField, setBaActiveField] = useState<'OVERVIEW' | 'ARSITEKTUR' | 'STRUKTUR' | 'MEP' | 'ATTENDANCE'>('OVERVIEW');
   const [sessionTitle, setSessionTitle] = useState('Sidang Konsultasi Teknis Sesi 1');
+
+  const [baAttendees, setBaAttendees] = useState<{ name: string; role: string; present: boolean }[]>(() => {
+    if (application.baKonsultasi?.attendees && application.baKonsultasi.attendees.length > 0) {
+      return application.baKonsultasi.attendees;
+    }
+    // Default to assigned experts if no attendees record yet
+    return (application.schedule?.assignedExperts || assignedExperts).map(e => ({
+      name: e.name,
+      role: `${e.expertise} (${e.role})`,
+      present: true
+    }));
+  });
 
   // Arsitektur
   const [arsitResult, setArsitResult] = useState<'DISETUJUI' | 'PERBAIKAN' | 'KONSULTASI_ULANG'>(
@@ -213,6 +227,21 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
   const [skrdNumber, setSkrdNumber] = useState(
     application.retribution?.id || `SKRD/3205/DPUPR/${currentYear}/${regClean}`
   );
+  const [baAttendanceQrUrl, setBaAttendanceQrUrl] = useState<string>('');
+
+  useEffect(() => {
+    const generateQr = async () => {
+      try {
+        const payload = buildAttendanceQrPayload(application);
+        // Use the full payload object for deep verification (JSON QR)
+        const url = await generateQrDataUrl(payload, { width: 600, margin: 1 });
+        setBaAttendanceQrUrl(url);
+      } catch (err) {
+        console.error('Failed to generate attendance QR:', err);
+      }
+    };
+    generateQr();
+  }, [application.id, application.registerNumber]);
 
   const handleAutoGenerateNumbers = () => {
     const rc = application.registerNumber.replace(/[^a-zA-Z0-9]/g, '').slice(-4);
@@ -371,7 +400,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
           name: rule.name,
           category: rule.category,
           status: newStatus,
-          isMandatory: rule.isMandatory,
+          isMandatory: rule.isRequired(application),
           notes: getTemplateForDoc(rule.code)
         });
       }
@@ -410,7 +439,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
           name: rule.name,
           category: rule.category,
           status: 'BELUM_ADA',
-          isMandatory: rule.isMandatory,
+          isMandatory: rule.isRequired(application),
           notes
         });
       }
@@ -473,7 +502,6 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
         category: rule.category,
         isMandatory: rule.isRequired(application),
         status: newStatus,
-          isMandatory: rule.isMandatory,
         notes: newNotes,
         includedInDaftarSimak: true
       });
@@ -606,7 +634,6 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
           category: rule.category,
           isMandatory: rule.isRequired(application),
           status: 'BELUM_ADA',
-          isMandatory: rule.isMandatory,
           notes: getTemplateForDoc(rule.code),
           includedInDaftarSimak: included
         });
@@ -637,7 +664,6 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
           category: rule.category,
           isMandatory: rule.isRequired(application),
           status: 'BELUM_ADA',
-          isMandatory: rule.isMandatory,
           notes: getTemplateForDoc(rule.code),
           includedInDaftarSimak: included
         });
@@ -710,7 +736,8 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
         code: rule.code,
         name: rule.name,
         category: rule.category,
-        status: 'VALID' as const
+        status: 'VALID' as const,
+        isMandatory: rule.isRequired(application)
       };
     });
 
@@ -854,7 +881,8 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
       fieldEvaluations,
       history: updatedHistory,
       expertNotes: baNotes,
-      revisionItems: allRevisions
+      revisionItems: allRevisions,
+      attendees: baAttendees
     };
     
     let nextStage: WorkflowStage = 'STAGE_6_BA_PLENO';
@@ -1009,7 +1037,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
       </div>
 
       {/* Printable BA Konsultasi Teknis */}
-      <div id="printable-ba-konsultasi-wrapper" className="hidden print:block">
+      <div id="printable-ba-konsultasi-area" className="hidden print:block">
         <BAKonsultasiPrint 
           application={application}
           baNumber={baKonsultasiNumber}
@@ -1026,6 +1054,8 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
           mepResult={mepResult}
           overallResult={baResult}
           summaryNotes={baNotes}
+          attendees={baAttendees}
+          includeAttendance={true}
         />
       </div>
 
@@ -1414,6 +1444,13 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
                         className="text-indigo-600 font-bold hover:underline"
                       >
                         Lihat Draf Surat →
+                      </button>
+                      <button
+                        onClick={() => triggerPdfPrint('printable-public-attendance-area', `QR_Presensi_${application.registerNumber}`)}
+                        className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold uppercase border border-slate-300"
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                        Lihat QR Presensi
                       </button>
                     </div>
                   )}
@@ -2263,13 +2300,27 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
                    <div>
                      <h3 className="font-bold text-slate-900 dark:text-white uppercase text-sm">
-                       Berita Acara (BA) Konsultasi Teknis PBG — Bidang Keahlian TPA/TPT
+                       Berita Acara (BA) Konsultasi Teknis {isSlf ? 'SLF' : 'PBG'} — Bidang Keahlian TPA/TPT
                      </h3>
                      <p className="text-[11px] text-slate-500 mt-0.5">
                        Evaluasi terpisah oleh Tenaga Ahli Arsitektur, Struktur, dan MEP dengan peninjauan Ketua TPA
                      </p>
                    </div>
                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => triggerPdfPrint("printable-public-attendance-area", `QR_Presensi_${application.registerNumber}`)}
+                        className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-900 shadow-sm"
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                        QR Presensi
+                      </button>
+                      <button
+                        onClick={() => triggerPdfPrint("printable-ba-attendance-area", `Daftar_Hadir_${application.registerNumber}`)}
+                        className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase shadow-sm border border-slate-300 dark:border-slate-700 flex items-center gap-1.5"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        Daftar Hadir
+                      </button>
                      <button
                        onClick={handleSubmitBaKonsultasi}
                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase shadow-sm"
@@ -2349,6 +2400,14 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
                    >
                      C. Bidang MEP
                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBaActiveField("ATTENDANCE")}
+                      className={`px-3 py-1.5 font-bold text-xs uppercase transition flex items-center gap-1.5 ${baActiveField === "ATTENDANCE" ? "bg-emerald-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"}`}
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>D. Presensi / Daftar Hadir</span>
+                    </button>
                  </div>
 
                  {/* TAB 1: OVERVIEW KETUA TPA */}
@@ -3102,6 +3161,48 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
         </div>
       </div>
     )}
+    {/* Hidden Printable Areas for BA */}
+    <div id="printable-ba-attendance-area" className="hidden print:block">
+      <SchedulingAttendancePrint 
+        scheduledApps={[application]} 
+        nextFridayDate={application.schedule?.scheduleDate || new Date().toISOString()} 
+      />
+    </div>
+
+    <div id="printable-public-attendance-area" className="hidden print:block">
+      <div className="p-12 text-center space-y-8 bg-white min-h-screen flex flex-col items-center justify-center border-4 border-double border-slate-900">
+        <div className="space-y-4">
+          <h1 className="text-3xl font-extrabold tracking-tighter uppercase text-slate-900">PRESENSI DIGITAL SIDANG TPA</h1>
+          <p className="text-slate-600 font-medium text-sm">Scan QR Code ini untuk melakukan pengisian daftar hadir secara mandiri</p>
+        </div>
+        
+        <div className="p-8 border-4 border-slate-900 rounded-2xl bg-white shadow-2xl">
+          {baAttendanceQrUrl ? (
+            <img src={baAttendanceQrUrl} alt="Attendance QR" className="w-80 h-80" />
+          ) : (
+            <QrCode className="w-80 h-80 text-slate-300 animate-pulse" strokeWidth={1} />
+          )}
+        </div>
+
+        <div className="space-y-2 border-t-2 border-slate-900 pt-8 w-full max-w-md">
+          <h2 className="text-xl font-bold uppercase tracking-tight leading-tight text-slate-900">{application.building.name}</h2>
+          <div className="grid grid-cols-2 gap-4 text-left text-sm mt-4">
+            <div>
+              <p className="text-slate-500 uppercase text-[10px] font-bold tracking-widest">No. Register</p>
+              <p className="font-mono font-bold text-lg text-slate-900">{application.registerNumber}</p>
+            </div>
+            <div>
+              <p className="text-slate-500 uppercase text-[10px] font-bold tracking-widest">Pemohon</p>
+              <p className="font-bold text-lg text-slate-900">{application.applicant.name}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-12 text-[10px] text-slate-400 font-mono italic">
+          Generated automatically by SIMBG Garut System • {new Date().toLocaleString('id-ID')}
+        </div>
+      </div>
+    </div>
   </>
   );
 };
