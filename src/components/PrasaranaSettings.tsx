@@ -9,6 +9,7 @@ import {
   subscribeToGlobalSettings,
   updateSHST,
   updateParameterWeights,
+  resetPrasaranaToDefaults,
   GlobalSettings,
   ParameterWeight
 } from '../lib/firebaseSettings';
@@ -20,7 +21,8 @@ import {
   CheckCircle2,
   X,
   Coins,
-  Scale
+  Scale,
+  RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 

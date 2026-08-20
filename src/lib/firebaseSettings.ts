@@ -33,18 +33,22 @@ export interface GlobalSettings {
 export async function initializePrasaranaPrices() {
   // Initialize Prasarana Prices
   const snapshot = await getDocs(collection(db, SETTINGS_COLLECTION));
-  if (snapshot.empty) {
-    console.log('Seeding initial prasarana prices...');
-    for (const item of PRASARANA_TYPES) {
+  const existingIds = new Set(snapshot.docs.map(doc => doc.id));
+
+  console.log('Checking for missing prasarana prices...');
+  for (const item of PRASARANA_TYPES) {
+    const id = sanitizeId(item.label);
+    if (!existingIds.has(id)) {
+      console.log(`Adding missing item: ${item.label}`);
       const config: PrasaranaPriceConfig = {
-        id: sanitizeId(item.label),
+        id,
         label: item.label,
         unit: item.unit,
         price: item.price,
         updatedAt: new Date().toISOString(),
         updatedBy: 'SYSTEM_INITIAL'
       };
-      await setDoc(doc(db, SETTINGS_COLLECTION, config.id), config);
+      await setDoc(doc(db, SETTINGS_COLLECTION, id), config);
     }
   }
 
@@ -111,4 +115,20 @@ export async function updatePrasaranaPrice(id: string, price: number, user: stri
     updatedAt: new Date().toISOString(),
     updatedBy: user
   }, { merge: true });
+}
+
+export async function resetPrasaranaToDefaults(user: string) {
+  console.log('Resetting prasarana prices to defaults...');
+  for (const item of PRASARANA_TYPES) {
+    const id = sanitizeId(item.label);
+    const config: PrasaranaPriceConfig = {
+      id,
+      label: item.label,
+      unit: item.unit,
+      price: item.price,
+      updatedAt: new Date().toISOString(),
+      updatedBy: user
+    };
+    await setDoc(doc(db, SETTINGS_COLLECTION, id), config);
+  }
 }
