@@ -566,3 +566,16 @@ export interface CopilotMessage {
   content: string;
   timestamp: string;
 }
+
+export type MainNavTab = 
+  | 'DASHBOARD' 
+  | 'PIPELINE' 
+  | 'APPLICATIONS' 
+  | 'VISITE_LAPANGAN' 
+  | 'VERIFICATION' 
+  | 'SCHEDULING' 
+  | 'RETRIBUTION' 
+  | 'MONITORING_PAD'
+  | 'NOTIFICATIONS' 
+  | 'DATA_QUALITY'
+  | 'SETTINGS';

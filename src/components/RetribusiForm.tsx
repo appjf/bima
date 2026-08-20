@@ -17,6 +17,7 @@ import {
 import { PrasaranaSettings } from './PrasaranaSettings';
 import { motion, AnimatePresence } from 'motion/react';
 import { RetribusiPrintPreviewModal } from './RetribusiPrintPreviewModal';
+import { SKRDPrintPreviewModal } from './SKRDPrintPreviewModal';
 import { exportToPdf } from '../lib/pdfPrintEngine';
 
 interface PrasaranaItem {
@@ -40,6 +41,7 @@ export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSav
 
   // State
   const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
+  const [isSKRDPreviewOpen, setIsSKRDPreviewOpen] = useState(false);
   const [shst, setShst] = useState<number>(5400000); // Default SHST for Garut
   const [parameterWeights, setParameterWeights] = useState<ParameterWeight[]>([]);
   const [luasLantai, setLuasLantai] = useState<number>(application?.building?.buildingArea || 0);
@@ -477,6 +479,15 @@ export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSav
           >
             <Printer className="w-5 h-5" /> Cetak Rincian Retribusi
           </button>
+          {application && (
+            <button 
+              type="button"
+              onClick={() => setIsSKRDPreviewOpen(true)}
+              className="flex-1 flex items-center justify-center gap-3 bg-slate-800 text-white py-4 px-6 text-sm font-black uppercase tracking-widest hover:bg-slate-700 transition-all shadow-lg hover:shadow-xl active:scale-[0.98]"
+            >
+              <Printer className="w-5 h-5 text-indigo-400" /> Cetak SKRD
+            </button>
+          )}
           <button 
             onClick={() => onSave?.({ 
               retribusiBangunan, 
@@ -549,6 +560,18 @@ export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSav
             onClose={() => setIsPrintPreviewOpen(false)}
             onExportPdf={async () => {
               await exportToPdf('retribusi-print-preview-content', `Rincian_Retribusi_${application.registerNumber}.pdf`);
+            }}
+          />
+        )}
+
+        {/* SKRD Print Preview Modal */}
+        {isSKRDPreviewOpen && application && (
+          <SKRDPrintPreviewModal
+            application={application}
+            customShst={shst}
+            onClose={() => setIsSKRDPreviewOpen(false)}
+            onExportPdf={async () => {
+              await exportToPdf('printable-skrd-doc', `SKRD_${application.registerNumber}.pdf`);
             }}
           />
         )}

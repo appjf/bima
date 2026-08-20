@@ -4,6 +4,7 @@ import { Application } from '../types';
 import { RetributionAttachmentPrint } from './RetributionAttachmentPrint';
 import { logPrintAction } from '../lib/auditLogEngine';
 import { getSavedSignatures } from '../lib/signatureEngine';
+import { triggerPdfPrint } from '../lib/pdfPrintEngine';
 
 interface RetribusiPrintPreviewModalProps {
   application: Application;
@@ -60,7 +61,7 @@ export const RetribusiPrintPreviewModal: React.FC<RetribusiPrintPreviewModalProp
   const handlePrint = () => {
     const operator = getSavedSignatures().operator;
     logPrintAction('CETAK_RINCIAN_RETRIBUSI', application.registerNumber, operator.name, operator.nip);
-    window.print();
+    triggerPdfPrint('retribusi-print-preview-content', `Rincian_Retribusi_${application.registerNumber}`);
   };
   
   const handleExport = () => {

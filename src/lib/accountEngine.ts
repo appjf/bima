@@ -1,4 +1,4 @@
-import { UserRole, UserAccount, RolePermissions } from '../types';
+import { UserRole, UserAccount, RolePermissions, MainNavTab } from '../types';
 
 export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
   SUPER_ADMIN: {
@@ -249,4 +249,33 @@ export function updateUserAccount(updated: UserAccount): UserAccount[] {
   }
   saveStoredUserAccounts(accounts);
   return accounts;
+}
+
+const ALLOWED_TABS: Record<UserRole, MainNavTab[]> = {
+  SUPER_ADMIN: [
+    'DASHBOARD', 'PIPELINE', 'APPLICATIONS', 'VISITE_LAPANGAN', 'VERIFICATION', 
+    'SCHEDULING', 'RETRIBUTION', 'MONITORING_PAD', 'NOTIFICATIONS', 'DATA_QUALITY', 'SETTINGS'
+  ],
+  OPERATOR_SIMBG: [
+    'DASHBOARD', 'PIPELINE', 'APPLICATIONS', 'VISITE_LAPANGAN', 'VERIFICATION', 
+    'SCHEDULING', 'RETRIBUTION', 'NOTIFICATIONS'
+  ],
+  TPA_TPT: [
+    'DASHBOARD', 'PIPELINE', 'APPLICATIONS', 'VISITE_LAPANGAN', 'VERIFICATION', 'SCHEDULING'
+  ],
+  PIMPINAN: [
+    'DASHBOARD', 'PIPELINE', 'APPLICATIONS', 'MONITORING_PAD'
+  ],
+  AUDITOR: [
+    'DASHBOARD', 'PIPELINE', 'APPLICATIONS', 'MONITORING_PAD'
+  ]
+};
+
+export function getAllowedTabsForRole(role: UserRole): MainNavTab[] {
+  return ALLOWED_TABS[role] || ALLOWED_TABS.OPERATOR_SIMBG;
+}
+
+export function isTabAllowedForRole(tab: MainNavTab, role: UserRole): boolean {
+  const allowed = getAllowedTabsForRole(role);
+  return allowed.includes(tab);
 }

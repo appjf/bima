@@ -26,20 +26,8 @@ import {
   User,
   ChevronDown
 } from 'lucide-react';
-import { UserRole, UserAccount } from '../types';
-
-export type MainNavTab = 
-  | 'DASHBOARD' 
-  | 'PIPELINE' 
-  | 'APPLICATIONS' 
-  | 'VISITE_LAPANGAN' 
-  | 'VERIFICATION' 
-  | 'SCHEDULING' 
-  | 'RETRIBUTION' 
-  | 'MONITORING_PAD'
-  | 'NOTIFICATIONS' 
-  | 'DATA_QUALITY'
-  | 'SETTINGS';
+import { UserRole, UserAccount, MainNavTab } from '../types';
+import { isTabAllowedForRole } from '../lib/accountEngine';
 
 interface NavbarProps {
   activeTab: MainNavTab;
@@ -295,7 +283,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             PILIH MODUL SIMBG
           </div>
           <div className="grid grid-cols-1 gap-1 max-h-[60vh] overflow-y-auto pr-1">
-            {navTabs.map((tab) => {
+            {navTabs.filter(t => isTabAllowedForRole(t.id, currentRole)).map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               return (
@@ -332,7 +320,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Desktop Main Navigation Tabs Bar */}
       <div className="hidden md:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-100 dark:border-slate-800">
         <div className="flex items-center space-x-1 overflow-x-auto py-2 scrollbar-none font-mono">
-          {navTabs.map((tab) => {
+          {navTabs.filter(t => isTabAllowedForRole(t.id, currentRole)).map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (

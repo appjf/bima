@@ -4,6 +4,7 @@ import { Application } from '../types';
 import { SKRDPrint } from './SKRDPrint';
 import { logPrintAction } from '../lib/auditLogEngine';
 import { getSavedSignatures } from '../lib/signatureEngine';
+import { triggerPdfPrint } from '../lib/pdfPrintEngine';
 
 interface SKRDPrintPreviewModalProps {
   application: Application;
@@ -61,7 +62,7 @@ export const SKRDPrintPreviewModal: React.FC<SKRDPrintPreviewModalProps> = ({
   const handlePrint = () => {
     const operator = getSavedSignatures().operator;
     logPrintAction('SKRD_CETAK_FISIK', application.registerNumber, operator.name, operator.nip);
-    window.print();
+    triggerPdfPrint('printable-skrd-doc', `SKRD_${application.registerNumber}`);
   };
   
   const handleExport = () => {

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { 
-  Navbar, 
-  MainNavTab 
+  Navbar
 } from './components/Navbar';
 import { 
   DashboardView 
@@ -56,7 +55,8 @@ import {
   NotificationLog, 
   UserRole,
   UserAccount,
-  WhatsAppSettings
+  WhatsAppSettings,
+  MainNavTab
 } from './types';
 import { RetribusiForm } from './components/RetribusiForm';
 import { useApplications } from './hooks/useApplications';
@@ -68,13 +68,13 @@ import {
   saveStoredWhatsAppSettings,
   resetStoredWhatsAppSettings
 } from './lib/storage';
-import { getActiveUser, switchUserRole } from './lib/accountEngine';
+import { getActiveUser, switchUserRole, isTabAllowedForRole, getAllowedTabsForRole } from './lib/accountEngine';
 import { UserAccountModal } from './components/UserAccountModal';
 import { DatabaseManagerModal } from './components/DatabaseManagerModal';
 import { runDocumentVerification } from './lib/ruleEngine';
 import { generateSmartSchedule } from './lib/schedulingEngine';
 import { generateNoticeLetterDraft } from './lib/workflowEngine';
-import { Sparkles, CheckCircle2, AlertTriangle, ShieldCheck, Info, Calculator, MessageSquare } from 'lucide-react';
+import { Sparkles, CheckCircle2, AlertTriangle, ShieldCheck, Info, Calculator, MessageSquare, ShieldAlert } from 'lucide-react';
 
 export default function App() {
   // Realtime Supabase & Dual Persistence State with Egress Optimizer
@@ -362,6 +362,14 @@ export default function App() {
     setCurrentUser(newUser);
     setCurrentRole(newUser.role);
     showToast(`Sesi login aktif: ${newUser.name} (${newUser.role})`, 'info');
+
+    // Auto-fallback if the current tab is restricted for the new role
+    if (!isTabAllowedForRole(activeTab, newUser.role)) {
+      const allowed = getAllowedTabsForRole(newUser.role);
+      if (allowed.length > 0) {
+        setActiveTab(allowed[0]);
+      }
+    }
   };
 
   const handleRoleChanged = (role: UserRole) => {
@@ -369,6 +377,14 @@ export default function App() {
     setCurrentUser(updated);
     setCurrentRole(role);
     showToast(`Peran operasional diubah ke: ${role}`, 'info');
+
+    // Auto-fallback if the current tab is restricted for the new role
+    if (!isTabAllowedForRole(activeTab, role)) {
+      const allowed = getAllowedTabsForRole(role);
+      if (allowed.length > 0) {
+        setActiveTab(allowed[0]);
+      }
+    }
   };
 
   const handleSaveWaSettings = (newSettings: WhatsAppSettings) => {
@@ -592,187 +608,207 @@ export default function App() {
           transition={{ duration: 0.25, ease: 'easeOut' }}
           className="space-y-6"
         >
-          {activeTab === 'PIPELINE' && (
-            <WorkflowPipelineView
-              applications={applications}
-              onSelectApplication={(app) => setSelectedApp(app)}
-              onUpdateApplication={handleUpdateApplication}
-              onOpenNewApplicationModal={() => {
-                setActiveTab('APPLICATIONS');
-              }}
-              onOpenWhatsApp={handleOpenWhatsAppWeb}
-            />
-          )}
-
-          {activeTab === 'DASHBOARD' && (
-            <DashboardView
-              applications={applications}
-              onSelectApplication={(app) => setSelectedApp(app)}
-              onNavigate={(tab) => setActiveTab(tab as any)}
-              onRunBatchVerification={handleBatchVerifyAll}
-              onOpenCopilot={() => {
-                setCopilotInitialPrompt(undefined);
-                setIsCopilotOpen(true);
-              }}
-            />
-          )}
-
-          {activeTab === 'APPLICATIONS' && (
-            <ApplicationsView
-              applications={applications}
-              onSelectApplication={(app) => setSelectedApp(app)}
-              onQuickVerify={(app) => {
-                setSelectedApp(app);
-              }}
-              onAddNewApplication={handleAddNewApplication}
-              onDeleteApplication={handleDeleteApplication}
-              onToggleArchive={handleToggleArchive}
-              initialStatusFilter={statusFilterForApps}
-            />
-          )}
-
-          {activeTab === 'VISITE_LAPANGAN' && (
-            <VisiteLapanganModule
-              applications={applications}
-              onUpdateApplication={handleUpdateApplication}
-              onSelectApplication={(app) => setSelectedApp(app)}
-              onSendWhatsApp={(phone, text) => handleOpenWhatsAppWeb(phone, text)}
-              currentRole={currentRole}
-            />
-          )}
-
-          {activeTab === 'VERIFICATION' && (
-            <VerificationView
-              applications={applications}
-              onBatchVerifyAll={handleBatchVerifyAll}
-              onSelectApplication={(app) => setSelectedApp(app)}
-              onOpenWhatsApp={handleOpenWhatsAppWeb}
-            />
-          )}
-
-          {activeTab === 'SCHEDULING' && (
-            <SchedulingView
-              applications={applications}
-              onAutoGenerateFridaySchedule={handleAutoGenerateFridaySchedule}
-              onSelectApplication={(app) => setSelectedApp(app)}
-              onToggleAttendance={handleToggleAttendance}
-              onUpdateConsultationResult={handleUpdateConsultationResult}
-              onUpdateApplication={handleUpdateApplication}
-            />
-          )}
-
-          {activeTab === 'RETRIBUTION' && (
-            <div className="max-w-5xl mx-auto p-4 sm:p-8">
-              <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Kalkulator Retribusi Digital</h2>
-                  <p className="text-slate-500 font-medium">Hitung rincian retribusi bangunan gedung & prasarana sesuai PP 16/2021.</p>
-                </div>
-                <div className="flex gap-2">
-                  <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800 px-4 py-2 rounded-sm flex items-center gap-2">
-                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></div>
-                    <span className="text-[10px] font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Indeks Lokalitas Garut: 0,5</span>
-                  </div>
-                </div>
+          {!isTabAllowedForRole(activeTab, currentRole) ? (
+            <div className="max-w-md mx-auto my-12 p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center shadow-lg">
+              <div className="w-16 h-16 bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900 flex items-center justify-center mx-auto mb-6">
+                <ShieldAlert className="w-8 h-8 text-rose-600 dark:text-rose-400" />
               </div>
+              <h2 className="text-lg font-black text-slate-950 dark:text-white uppercase tracking-tight mb-2">Akses Terbatas</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed mb-6 font-mono">
+                Peran operasional Anda ({currentRole}) tidak memiliki hak akses untuk membuka modul <strong className="text-indigo-600 dark:text-indigo-400">"{activeTab}"</strong> berdasarkan peraturan internal DPUPR Kabupaten Garut.
+              </p>
+              <button
+                onClick={() => setActiveTab('DASHBOARD')}
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-mono font-bold uppercase transition"
+              >
+                Kembali ke Dashboard Utama
+              </button>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'PIPELINE' && (
+                <WorkflowPipelineView
+                  applications={applications}
+                  onSelectApplication={(app) => setSelectedApp(app)}
+                  onUpdateApplication={handleUpdateApplication}
+                  onOpenNewApplicationModal={() => {
+                    setActiveTab('APPLICATIONS');
+                  }}
+                  onOpenWhatsApp={handleOpenWhatsAppWeb}
+                />
+              )}
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2">
-                  <RetribusiForm 
-                    application={selectedApp || undefined} 
-                    onSave={(data) => {
-                      showToast('Hasil perhitungan retribusi berhasil disimpan ke database.', 'success');
-                    }}
-                  />
-                </div>
-                
-                <div className="space-y-6">
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-                    <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase mb-4 tracking-widest border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center gap-2">
-                      <Info className="w-4 h-4 text-indigo-600" /> Panduan Perhitungan
-                    </h3>
-                    <div className="space-y-4">
-                      <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-sm">
-                        <p className="text-[10px] font-black text-slate-900 dark:text-white uppercase mb-1">Rumus Utama (BG)</p>
-                        <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed italic">
-                          L_Lt × (I_lo × SHST) × I_t × I_bg
-                        </p>
+              {activeTab === 'DASHBOARD' && (
+                <DashboardView
+                  applications={applications}
+                  onSelectApplication={(app) => setSelectedApp(app)}
+                  onNavigate={(tab) => setActiveTab(tab as any)}
+                  onRunBatchVerification={handleBatchVerifyAll}
+                  onOpenCopilot={() => {
+                    setCopilotInitialPrompt(undefined);
+                    setIsCopilotOpen(true);
+                  }}
+                />
+              )}
+
+              {activeTab === 'APPLICATIONS' && (
+                <ApplicationsView
+                  applications={applications}
+                  onSelectApplication={(app) => setSelectedApp(app)}
+                  onQuickVerify={(app) => {
+                    setSelectedApp(app);
+                  }}
+                  onAddNewApplication={handleAddNewApplication}
+                  onDeleteApplication={handleDeleteApplication}
+                  onToggleArchive={handleToggleArchive}
+                  initialStatusFilter={statusFilterForApps}
+                />
+              )}
+
+              {activeTab === 'VISITE_LAPANGAN' && (
+                <VisiteLapanganModule
+                  applications={applications}
+                  onUpdateApplication={handleUpdateApplication}
+                  onSelectApplication={(app) => setSelectedApp(app)}
+                  onSendWhatsApp={(phone, text) => handleOpenWhatsAppWeb(phone, text)}
+                  currentRole={currentRole}
+                />
+              )}
+
+              {activeTab === 'VERIFICATION' && (
+                <VerificationView
+                  applications={applications}
+                  onBatchVerifyAll={handleBatchVerifyAll}
+                  onSelectApplication={(app) => setSelectedApp(app)}
+                  onOpenWhatsApp={handleOpenWhatsAppWeb}
+                />
+              )}
+
+              {activeTab === 'SCHEDULING' && (
+                <SchedulingView
+                  applications={applications}
+                  onAutoGenerateFridaySchedule={handleAutoGenerateFridaySchedule}
+                  onSelectApplication={(app) => setSelectedApp(app)}
+                  onToggleAttendance={handleToggleAttendance}
+                  onUpdateConsultationResult={handleUpdateConsultationResult}
+                  onUpdateApplication={handleUpdateApplication}
+                />
+              )}
+
+              {activeTab === 'RETRIBUTION' && (
+                <div className="max-w-5xl mx-auto p-4 sm:p-8">
+                  <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                      <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Kalkulator Retribusi Digital</h2>
+                      <p className="text-slate-500 font-medium">Hitung rincian retribusi bangunan gedung & prasarana sesuai PP 16/2021.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800 px-4 py-2 rounded-sm flex items-center gap-2">
+                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></div>
+                        <span className="text-[10px] font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Indeks Lokalitas Garut: 0,5</span>
                       </div>
-                      <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-sm">
-                        <p className="text-[10px] font-black text-slate-900 dark:text-white uppercase mb-1">Rumus Prasarana</p>
-                        <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed italic">
-                          V × I × I_bg × HSpbg
-                        </p>
-                      </div>
-                      <ul className="text-[10px] text-slate-500 space-y-2 list-disc pl-4">
-                        <li><strong>L_Lt</strong>: Luas Lantai Total (m²)</li>
-                        <li><strong>I_lo</strong>: Indeks Lokalitas (Garut = 0,5)</li>
-                        <li><strong>SHST</strong>: Standar Harga Satuan Tertinggi</li>
-                        <li><strong>I_t</strong>: Indeks Terintegrasi (Fungsi & Klasifikasi)</li>
-                        <li><strong>I_bg</strong>: Indeks Bangunan Gedung Terbangun</li>
-                      </ul>
                     </div>
                   </div>
 
-                  <div className="bg-indigo-600 p-6 text-white shadow-lg">
-                    <h3 className="text-xs font-black uppercase mb-3 tracking-widest flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4" /> Validasi PP 16/2021
-                    </h3>
-                    <p className="text-[11px] text-indigo-100 leading-relaxed">
-                      Kalkulator ini menggunakan parameter indeks yang mengacu pada Lampiran II Peraturan Pemerintah No. 16 Tahun 2021 tentang Peraturan Pelaksanaan UU No. 28 Tahun 2002 tentang Bangunan Gedung.
-                    </p>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2">
+                      <RetribusiForm 
+                        application={selectedApp || undefined} 
+                        onSave={(data) => {
+                          showToast('Hasil perhitungan retribusi berhasil disimpan ke database.', 'success');
+                        }}
+                      />
+                    </div>
+                    
+                    <div className="space-y-6">
+                      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                        <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase mb-4 tracking-widest border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center gap-2">
+                          <Info className="w-4 h-4 text-indigo-600" /> Panduan Perhitungan
+                        </h3>
+                        <div className="space-y-4">
+                          <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-sm">
+                            <p className="text-[10px] font-black text-slate-900 dark:text-white uppercase mb-1">Rumus Utama (BG)</p>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed italic">
+                              L_Lt × (I_lo × SHST) × I_t × I_bg
+                            </p>
+                          </div>
+                          <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-sm">
+                            <p className="text-[10px] font-black text-slate-900 dark:text-white uppercase mb-1">Rumus Prasarana</p>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed italic">
+                              V × I × I_bg × HSpbg
+                            </p>
+                          </div>
+                          <ul className="text-[10px] text-slate-500 space-y-2 list-disc pl-4">
+                            <li><strong>L_Lt</strong>: Luas Lantai Total (m²)</li>
+                            <li><strong>I_lo</strong>: Indeks Lokalitas (Garut = 0,5)</li>
+                            <li><strong>SHST</strong>: Standar Harga Satuan Tertinggi</li>
+                            <li><strong>I_t</strong>: Indeks Terintegrasi (Fungsi & Klasifikasi)</li>
+                            <li><strong>I_bg</strong>: Indeks Bangunan Gedung Terbangun</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="bg-indigo-600 p-6 text-white shadow-lg">
+                        <h3 className="text-xs font-black uppercase mb-3 tracking-widest flex items-center gap-2">
+                          <ShieldCheck className="w-4 h-4" /> Validasi PP 16/2021
+                        </h3>
+                        <p className="text-[11px] text-indigo-100 leading-relaxed">
+                          Kalkulator ini menggunakan parameter indeks yang mengacu pada Lampiran II Peraturan Pemerintah No. 16 Tahun 2021 tentang Peraturan Pelaksanaan UU No. 28 Tahun 2002 tentang Bangunan Gedung.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {activeTab === 'MONITORING_PAD' && (
-            <div className="max-w-7xl mx-auto p-4 sm:p-8">
-              <MonitoringPADView
-                applications={applications}
-                onUpdateApplication={handleUpdateApplication}
-              />
-            </div>
-          )}
+              {activeTab === 'MONITORING_PAD' && (
+                <div className="max-w-7xl mx-auto p-4 sm:p-8">
+                  <MonitoringPADView
+                    applications={applications}
+                    onUpdateApplication={handleUpdateApplication}
+                  />
+                </div>
+              )}
 
-          {activeTab === 'NOTIFICATIONS' && (
-            <NotificationView
-              notifications={notifications}
-              applications={applications}
-              onResendNotification={(id) => {
-                setNotifications(prev => prev.map(n => n.id === id ? { ...n, status: 'SENT', errorMessage: undefined } : n));
-                showToast('Notifikasi berhasil dikirim ulang.');
-              }}
-              onAddNotifications={(newNotifs) => {
-                setNotifications(prev => [...newNotifs, ...prev]);
-                saveStoredNotifications([...newNotifs, ...notifications]);
-                showToast(`${newNotifs.length} notifikasi siaran massal berhasil ditambahkan ke Outbox.`);
-              }}
-              onOpenWhatsApp={handleOpenWhatsAppWeb}
-              onNavigateToSettings={() => setActiveTab('SETTINGS')}
-            />
-          )}
+              {activeTab === 'NOTIFICATIONS' && (
+                <NotificationView
+                  notifications={notifications}
+                  applications={applications}
+                  onResendNotification={(id) => {
+                    setNotifications(prev => prev.map(n => n.id === id ? { ...n, status: 'SENT', errorMessage: undefined } : n));
+                    showToast('Notifikasi berhasil dikirim ulang.');
+                  }}
+                  onAddNotifications={(newNotifs) => {
+                    setNotifications(prev => [...newNotifs, ...prev]);
+                    saveStoredNotifications([...newNotifs, ...notifications]);
+                    showToast(`${newNotifs.length} notifikasi siaran massal berhasil ditambahkan ke Outbox.`);
+                  }}
+                  onOpenWhatsApp={handleOpenWhatsAppWeb}
+                  onNavigateToSettings={() => setActiveTab('SETTINGS')}
+                />
+              )}
 
-          {activeTab === 'DATA_QUALITY' && (
-            <DataQualityCenter
-              applications={applications}
-              onUpdateApplications={batchUpdateApplications}
-              onSelectApplication={(app) => setSelectedApp(app)}
-            />
-          )}
+              {activeTab === 'DATA_QUALITY' && (
+                <DataQualityCenter
+                  applications={applications}
+                  onUpdateApplications={batchUpdateApplications}
+                  onSelectApplication={(app) => setSelectedApp(app)}
+                />
+              )}
 
-          {activeTab === 'SETTINGS' && (
-            <SettingsView
-              applications={applications}
-              settings={waSettings}
-              onSaveSettings={handleSaveWaSettings}
-              onResetSettings={handleResetWaSettings}
-              onOpenWhatsApp={handleOpenWhatsAppWeb}
-              onOpenDatabaseManager={() => setIsDatabaseManagerOpen(true)}
-              onApplicationsImported={(apps) => batchUpdateApplications(apps)}
-              onRefreshApplications={refreshApplications}
-            />
+              {activeTab === 'SETTINGS' && (
+                <SettingsView
+                  applications={applications}
+                  settings={waSettings}
+                  onSaveSettings={handleSaveWaSettings}
+                  onResetSettings={handleResetWaSettings}
+                  onOpenWhatsApp={handleOpenWhatsAppWeb}
+                  onOpenDatabaseManager={() => setIsDatabaseManagerOpen(true)}
+                  onApplicationsImported={(apps) => batchUpdateApplications(apps)}
+                  onRefreshApplications={refreshApplications}
+                />
+              )}
+            </>
           )}
         </motion.div>
 
