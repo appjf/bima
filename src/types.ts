@@ -9,6 +9,39 @@ export type UserRole =
   | 'PIMPINAN'
   | 'AUDITOR';
 
+export interface RolePermissions {
+  canVerifyDocuments: boolean;
+  canConductVisite: boolean;
+  canScheduleSidang: boolean;
+  canInputBAKonsultasi: boolean;
+  canApproveBAPleno: boolean;
+  canCalculateRetribution: boolean;
+  canIssueSKRD: boolean;
+  canSendWhatsApp: boolean;
+  canArchiveApplications: boolean;
+  canManageUsers: boolean;
+  canConfigureSystem: boolean;
+  canExportAuditLogs: boolean;
+}
+
+export interface UserAccount {
+  id: string;
+  username: string;
+  name: string;
+  email: string;
+  nip?: string;
+  role: UserRole;
+  positionTitle: string;
+  subSpecialty?: string;
+  phone?: string;
+  avatarUrl?: string;
+  isActive: boolean;
+  permissions: RolePermissions;
+  signatureDataUrl?: string;
+  lastLoginAt?: string;
+  createdAt: string;
+}
+
 export type ApplicationStatus =
   | 'NEW'
   | 'UNDER_VERIFICATION'
@@ -451,6 +484,10 @@ export interface Application {
   dataErrors: string[];
   assignedOperator: string;
   internalNotes: string;
+  isArchived?: boolean;
+  archivedAt?: string;
+  archiveNotes?: string;
+  archivedBy?: string;
   lastUpdated: string;
 }
 

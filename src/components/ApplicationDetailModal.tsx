@@ -1560,31 +1560,29 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
                         Tahap 7: Perhitungan SKRD Retribusi (Kondisional IMB/PBG)
                       </h4>
                     </div>
-                    {application.retribution?.status === 'SKRD_ISSUED' ? (
-                      <span className="bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[10px] font-mono px-2 py-0.5 border border-emerald-300">
-                        ✓ SKRD TERBIT (Rp {application.retribution.finalRetribution.toLocaleString('id-ID')})
-                      </span>
+                    {['SKRD_ISSUED', 'UNPAID', 'PAID'].includes(application.retribution?.status || '') ? (
+                      <div className="flex items-center gap-2">
+                        <span className="bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[10px] font-mono px-2 py-0.5 border border-emerald-300">
+                          ✓ SKRD TERBIT (Rp {application.retribution?.finalRetribution.toLocaleString('id-ID')}) {application.retribution?.status === 'PAID' && ' - LUNAS'}
+                        </span>
+                        <button
+                          onClick={() => setIsSKRDPreviewOpen(true)}
+                          className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white font-mono font-bold text-[10px] uppercase flex items-center gap-1 transition"
+                        >
+                          <Printer className="w-3 h-3" /> Cetak SKRD
+                        </button>
+                      </div>
                     ) : application.building.existingImbStatus === 'SUDAH_MEMILIKI_IMB' ? (
                       <span className="bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 text-[10px] font-mono px-2 py-0.5 border border-blue-300">
                         BEBAS RETRIBUSI (SUDAH ADA IMB)
                       </span>
                     ) : (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={handleFinalizeSkrd}
-                          className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-[10px] uppercase transition"
-                        >
-                          Terbitkan SKRD Retribusi
-                        </button>
-                        {(application.retribution?.status === 'SKRD_ISSUED' || application.retribution?.status === 'UNPAID' || application.retribution?.status === 'PAID') && (
-                          <button
-                            onClick={() => setIsSKRDPreviewOpen(true)}
-                            className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white font-mono font-bold text-[10px] uppercase flex items-center gap-1 transition"
-                          >
-                            <Printer className="w-3 h-3" /> Cetak SKRD
-                          </button>
-                        )}
-                      </div>
+                      <button
+                        onClick={handleFinalizeSkrd}
+                        className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-[10px] uppercase transition"
+                      >
+                        Terbitkan SKRD Retribusi
+                      </button>
                     )}
                   </div>
                 </div>

@@ -21,9 +21,12 @@ import {
   Settings,
   Menu,
   X,
-  QrCode
+  QrCode,
+  Database,
+  User,
+  ChevronDown
 } from 'lucide-react';
-import { UserRole } from '../types';
+import { UserRole, UserAccount } from '../types';
 
 export type MainNavTab = 
   | 'DASHBOARD' 
@@ -43,6 +46,9 @@ interface NavbarProps {
   setActiveTab: (tab: MainNavTab) => void;
   currentRole: UserRole;
   setCurrentRole: (role: UserRole) => void;
+  currentUser?: UserAccount;
+  onOpenUserModal?: () => void;
+  onOpenDatabaseManager?: () => void;
   isDarkMode: boolean;
   setIsDarkMode: (val: boolean | ((prev: boolean) => boolean)) => void;
   onOpenCopilot: () => void;
@@ -55,6 +61,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   currentRole,
   setCurrentRole,
+  currentUser,
+  onOpenUserModal,
+  onOpenDatabaseManager,
   isDarkMode,
   setIsDarkMode,
   onOpenCopilot,
@@ -90,7 +99,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'MONITORING_PAD', label: 'Monev PAD', icon: TrendingUp, shortcut: 'Ctrl+8' },
     { id: 'NOTIFICATIONS', label: 'Notifikasi WA', icon: MessageSquare, shortcut: 'Ctrl+9' },
     { id: 'DATA_QUALITY', label: 'Data Sanity', icon: ShieldAlert, badge: dataQualityIssueCount, shortcut: 'Ctrl+0' },
-    { id: 'SETTINGS', label: 'Pengaturan WA', icon: Settings }
+    { id: 'SETTINGS', label: 'Pengaturan WA & DB', icon: Settings }
   ];
 
   return (
@@ -135,35 +144,57 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Right Status & Actions */}
           <div className="flex items-center gap-1 sm:gap-2 md:gap-3 shrink-0">
             
-            {/* System Status Indicator (Desktop Only) */}
-            <div className="hidden lg:flex flex-col items-end font-mono">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>SYSTEM_STATUS: STABLE</span>
-              </div>
-              <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                ENGINE v2026.08 // LATENCY 18ms
-              </span>
-            </div>
-
-            <div className="hidden lg:block h-7 w-[1px] bg-slate-200 dark:bg-slate-800"></div>
-
-            {/* Role Switcher (Desktop / Tablet) */}
-            <div className="hidden sm:flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1.5">
-              <UserCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 hidden md:inline">Role:</span>
-              <select
-                value={currentRole}
-                onChange={(e) => setCurrentRole(e.target.value as UserRole)}
-                className="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer font-sans"
+            {/* Database Hub Trigger (Desktop Only) */}
+            {onOpenDatabaseManager && (
+              <button
+                onClick={onOpenDatabaseManager}
+                className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-xs font-mono font-bold transition"
+                title="Buka Pusat Database Supabase & Schema SQL"
               >
-                {(Object.keys(roleNames) as UserRole[]).map((role) => (
-                  <option key={role} value={role} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                    {roleNames[role]}
-                  </option>
-                ))}
-              </select>
-            </div>
+                <Database className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Supabase DB</span>
+              </button>
+            )}
+
+            {/* User Account & Role Profile Button */}
+            {onOpenUserModal ? (
+              <button
+                onClick={onOpenUserModal}
+                className="flex items-center gap-2 p-1.5 sm:px-2.5 sm:py-1.5 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 text-left transition"
+                title="Kelola Akun & Hak Akses Pengguna"
+              >
+                <img
+                  src={currentUser?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80'}
+                  alt={currentUser?.name || 'User'}
+                  className="w-6 h-6 rounded-none object-cover border border-indigo-500 shrink-0"
+                />
+                <div className="hidden sm:flex flex-col">
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate max-w-[120px] leading-tight">
+                    {currentUser?.name || 'Petugas SIMBG'}
+                  </span>
+                  <span className="text-[9.5px] font-mono text-indigo-600 dark:text-indigo-400 font-bold uppercase leading-none">
+                    {currentUser?.role || currentRole}
+                  </span>
+                </div>
+                <ChevronDown className="w-3 h-3 text-slate-400 hidden sm:block" />
+              </button>
+            ) : (
+              <div className="hidden sm:flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1.5">
+                <UserCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 hidden md:inline">Role:</span>
+                <select
+                  value={currentRole}
+                  onChange={(e) => setCurrentRole(e.target.value as UserRole)}
+                  className="bg-transparent text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer font-sans"
+                >
+                  {(Object.keys(roleNames) as UserRole[]).map((role) => (
+                    <option key={role} value={role} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
+                      {roleNames[role]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Dark Mode Toggle */}
             <button
@@ -215,27 +246,48 @@ export const Navbar: React.FC<NavbarProps> = ({
       {isMobileMenuOpen && (
         <div className="md:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3.5 shadow-xl font-mono animate-in slide-in-from-top-2 duration-150">
           
-          {/* Mobile Role Switcher */}
-          <div className="mb-3.5 p-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
-            <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">
-              <span className="flex items-center gap-1">
-                <UserCheck className="w-3 h-3 text-indigo-500" />
-                <span>PERAN AKTIF (ROLE)</span>
-              </span>
-              <span className="text-indigo-600 dark:text-indigo-400 font-bold">DPUPR GARUT</span>
-            </div>
-            <select
-              value={currentRole}
-              onChange={(e) => setCurrentRole(e.target.value as UserRole)}
-              className="w-full p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-900 dark:text-white font-sans focus:outline-none focus:border-indigo-500"
+          {/* Mobile User Profile Trigger */}
+          {onOpenUserModal && (
+            <div 
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                onOpenUserModal();
+              }}
+              className="mb-3.5 p-3 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-between cursor-pointer"
             >
-              {(Object.keys(roleNames) as UserRole[]).map((role) => (
-                <option key={role} value={role} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                  {roleNames[role]}
-                </option>
-              ))}
-            </select>
-          </div>
+              <div className="flex items-center gap-2.5">
+                <img
+                  src={currentUser?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80'}
+                  alt={currentUser?.name || 'User'}
+                  className="w-8 h-8 object-cover border border-indigo-500"
+                />
+                <div>
+                  <div className="text-xs font-bold text-slate-900 dark:text-white">
+                    {currentUser?.name || 'Petugas'}
+                  </div>
+                  <div className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">
+                    Peran: {currentUser?.role || currentRole}
+                  </div>
+                </div>
+              </div>
+              <span className="text-[10px] bg-indigo-600 text-white px-2 py-1 uppercase font-bold">
+                Kelola Akun
+              </span>
+            </div>
+          )}
+
+          {onOpenDatabaseManager && (
+            <button
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                onOpenDatabaseManager();
+              }}
+              className="w-full mb-3 py-2 px-3 bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 text-xs font-mono font-bold flex items-center justify-center gap-2"
+            >
+              <Database className="w-4 h-4 text-emerald-600" />
+              <span>Database Supabase Hub & Schema SQL</span>
+            </button>
+          )}
 
           <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">
             PILIH MODUL SIMBG
@@ -248,24 +300,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   key={tab.id}
                   onClick={() => {
-                    setActiveTab(tab.id as any);
+                    setActiveTab(tab.id);
                     setIsMobileMenuOpen(false);
                   }}
-                  className={`flex items-center justify-between px-3 py-2.5 text-xs font-bold uppercase tracking-wide transition ${
+                  className={`w-full flex items-center justify-between p-2.5 text-xs font-bold transition text-left min-h-[44px] ${
                     isActive
-                      ? 'bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-300 border-l-4 border-indigo-600'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Icon className="w-4 h-4 text-indigo-500" />
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-indigo-600 dark:text-indigo-400'}`} />
                     <span>{tab.label}</span>
                   </div>
-                  {tab.badge && tab.badge > 0 ? (
-                    <span className="px-2 py-0.5 bg-rose-500 text-white text-[10px] font-bold">
+                  {tab.badge !== undefined && tab.badge > 0 && (
+                    <span className={`text-[10px] px-1.5 py-0.2 font-mono font-bold ${
+                      isActive ? 'bg-white text-indigo-600' : 'bg-rose-500 text-white'
+                    }`}>
                       {tab.badge}
                     </span>
-                  ) : null}
+                  )}
                 </button>
               );
             })}
@@ -273,93 +327,36 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       )}
 
-      {/* Navigation Sub-bar with Horizontal Scroll for Desktop (Hidden on Mobile) */}
-      <div className="hidden md:block border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 px-4 sm:px-6 lg:px-8 overflow-x-auto scrollbar-none">
-        <div className="max-w-7xl mx-auto flex items-center gap-1 min-w-max">
+      {/* Desktop Main Navigation Tabs Bar */}
+      <div className="hidden md:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex items-center space-x-1 overflow-x-auto py-2 scrollbar-none font-mono">
           {navTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
-
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                title={`${tab.label} (${tab.shortcut})`}
-                className={`py-3 px-3 sm:px-4 text-xs font-bold uppercase tracking-wider flex items-center gap-2 whitespace-nowrap transition border-b-2 relative group ${
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all uppercase tracking-wider relative ${
                   isActive
-                    ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-900 -mb-[1px]'
-                    : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                    ? 'bg-indigo-600 text-white font-bold shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/50'
                 }`}
+                title={tab.shortcut ? `${tab.label} (${tab.shortcut})` : tab.label}
               >
-                <Icon className="w-3.5 h-3.5" />
-                <span className="font-mono text-[11px]">{tab.label}</span>
-                {tab.shortcut && (
-                  <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 bg-slate-200/60 dark:bg-slate-800 px-1 py-0.2 rounded-xs opacity-70 group-hover:opacity-100 transition">
-                    {tab.shortcut}
-                  </span>
-                )}
-                {tab.badge && tab.badge > 0 ? (
-                  <span className="px-1.5 py-0.2 bg-rose-500 text-white text-[9px] font-mono font-bold leading-none">
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-indigo-600'}`} />
+                <span>{tab.label}</span>
+                {tab.badge !== undefined && tab.badge > 0 && (
+                  <span className={`ml-1 text-[9px] px-1 py-0.2 font-bold ${
+                    isActive ? 'bg-white text-indigo-600' : 'bg-rose-500 text-white'
+                  }`}>
                     {tab.badge}
                   </span>
-                ) : null}
+                )}
               </button>
             );
           })}
         </div>
-      </div>
-
-      {/* Fixed Mobile Bottom Navigation Bar (Native Mobile Experience) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-2 py-1 flex items-center justify-around shadow-2xl font-mono">
-        <button
-          onClick={() => setActiveTab('PIPELINE')}
-          className={`flex flex-col items-center py-1 px-2.5 rounded-none transition ${
-            activeTab === 'PIPELINE' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500'
-          }`}
-        >
-          <GitMerge className="w-5 h-5" />
-          <span className="text-[9px] uppercase tracking-tighter mt-0.5">Alur PBG</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('APPLICATIONS')}
-          className={`flex flex-col items-center py-1 px-2.5 rounded-none transition ${
-            activeTab === 'APPLICATIONS' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500'
-          }`}
-        >
-          <Building2 className="w-5 h-5" />
-          <span className="text-[9px] uppercase tracking-tighter mt-0.5">Berkas</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('SCHEDULING')}
-          className={`flex flex-col items-center py-1 px-2.5 rounded-none transition ${
-            activeTab === 'SCHEDULING' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500'
-          }`}
-        >
-          <Calendar className="w-5 h-5" />
-          <span className="text-[9px] uppercase tracking-tighter mt-0.5">Sidang</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('NOTIFICATIONS')}
-          className={`flex flex-col items-center py-1 px-2.5 rounded-none transition relative ${
-            activeTab === 'NOTIFICATIONS' ? 'text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500'
-          }`}
-        >
-          <MessageSquare className="w-5 h-5" />
-          <span className="text-[9px] uppercase tracking-tighter mt-0.5">Notif WA</span>
-        </button>
-
-        <button
-          onClick={() => setIsMobileMenuOpen(prev => !prev)}
-          className={`flex flex-col items-center py-1 px-2.5 rounded-none transition ${
-            isMobileMenuOpen ? 'text-indigo-600 font-bold' : 'text-slate-500'
-          }`}
-        >
-          <Menu className="w-5 h-5" />
-          <span className="text-[9px] uppercase tracking-tighter mt-0.5">Menu</span>
-        </button>
       </div>
 
     </header>

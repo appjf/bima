@@ -1,0 +1,49 @@
+name: Supabase Keep-Alive Ping (Anti-Pause 2 Hari)
+
+on:
+  schedule:
+    # Runs at 00:00 UTC every 2 days (menjaga project Supabase tetap aktif)
+    - cron: '0 0 */2 * *'
+  workflow_dispatch: # Allow manual trigger from GitHub Actions tab
+
+jobs:
+  ping-supabase:
+    name: Ping Supabase Database & REST API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Health & REST Gateway
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "⚠️ SUPABASE_URL or SUPABASE_ANON_KEY is not set in GitHub Secrets."
+            echo "Using default project ping endpoint check..."
+            curl -sI https://supabase.com > /dev/null
+            echo "✅ Ping completed."
+            exit 0
+          fi
+
+          echo "🚀 Sending Keep-Alive Ping to Supabase at $SUPABASE_URL ..."
+          
+          # Clean URL
+          CLEAN_URL=$(echo "$SUPABASE_URL" | sed 's:/*$::')
+          
+          # Ping REST API
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            "$CLEAN_URL/rest/v1/applications?select=id&limit=1" || true)
+
+          echo "HTTP Response Status from Supabase: $HTTP_STATUS"
+          
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
+            echo "✅ Supabase project is ACTIVE and responding successfully! (Status: $HTTP_STATUS)"
+          else
+            # Try root rest health check
+            HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "apikey: $SUPABASE_ANON_KEY" \
+              "$CLEAN_URL/rest/v1/" || true)
+            echo "Supabase Root REST Status: $HEALTH_STATUS"
+            echo "✅ Ping request transmitted to keep project awake."
+          fi

@@ -55,6 +55,7 @@ import {
   ApplicationStatus, 
   NotificationLog, 
   UserRole,
+  UserAccount,
   WhatsAppSettings
 } from './types';
 import { RetribusiForm } from './components/RetribusiForm';
@@ -67,6 +68,9 @@ import {
   saveStoredWhatsAppSettings,
   resetStoredWhatsAppSettings
 } from './lib/storage';
+import { getActiveUser, switchUserRole } from './lib/accountEngine';
+import { UserAccountModal } from './components/UserAccountModal';
+import { DatabaseManagerModal } from './components/DatabaseManagerModal';
 import { runDocumentVerification } from './lib/ruleEngine';
 import { generateSmartSchedule } from './lib/schedulingEngine';
 import { generateNoticeLetterDraft } from './lib/workflowEngine';
@@ -83,8 +87,9 @@ export default function App() {
   // Navigation State
   const [activeTab, setActiveTab] = useState<MainNavTab>('PIPELINE');
 
-  // Role & Theme State
-  const [currentRole, setCurrentRole] = useState<UserRole>('OPERATOR_SIMBG');
+  // Active User Account & Role State
+  const [currentUser, setCurrentUser] = useState<UserAccount>(() => getActiveUser());
+  const [currentRole, setCurrentRole] = useState<UserRole>(() => getActiveUser().role);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('simbg_theme') === 'dark';
   });
@@ -93,6 +98,8 @@ export default function App() {
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+  const [isUserAccountModalOpen, setIsUserAccountModalOpen] = useState(false);
+  const [isDatabaseManagerOpen, setIsDatabaseManagerOpen] = useState(false);
   const [copilotInitialPrompt, setCopilotInitialPrompt] = useState<string | undefined>(undefined);
   const [statusFilterForApps, setStatusFilterForApps] = useState<ApplicationStatus | 'ALL'>('ALL');
 
@@ -322,6 +329,40 @@ export default function App() {
     showToast(`Data permohonan ${updatedApp.registerNumber} berhasil diperbarui.`);
   };
 
+  // Toggle Application Archive status (Pengarsipan Permohonan Selesai / Konsultasi Done)
+  const handleToggleArchive = (app: Application, archive: boolean) => {
+    const updatedApp: Application = {
+      ...app,
+      isArchived: archive,
+      archivedAt: archive ? new Date().toISOString() : undefined,
+      archivedBy: archive ? currentUser.name : undefined,
+      archiveNotes: archive ? `Diarsipkan oleh ${currentUser.name} (${currentUser.role})` : undefined,
+      lastUpdated: new Date().toISOString()
+    };
+    updateApplication(updatedApp);
+    if (selectedApp?.id === app.id) setSelectedApp(updatedApp);
+    
+    if (archive) {
+      showToast(`📦 Berkas ${app.registerNumber} (${app.building.name}) berhasil diarsipkan ke mode Arsip.`, 'success');
+    } else {
+      showToast(`📂 Berkas ${app.registerNumber} dipindahkan kembali ke daftar permohonan aktif.`, 'info');
+    }
+  };
+
+  // Role & User Account Management
+  const handleUserChanged = (newUser: UserAccount) => {
+    setCurrentUser(newUser);
+    setCurrentRole(newUser.role);
+    showToast(`Sesi login aktif: ${newUser.name} (${newUser.role})`, 'info');
+  };
+
+  const handleRoleChanged = (role: UserRole) => {
+    const updated = switchUserRole(role);
+    setCurrentUser(updated);
+    setCurrentRole(role);
+    showToast(`Peran operasional diubah ke: ${role}`, 'info');
+  };
+
   const handleSaveWaSettings = (newSettings: WhatsAppSettings) => {
     setWaSettings(newSettings);
     saveStoredWhatsAppSettings(newSettings);
@@ -518,7 +559,10 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         currentRole={currentRole}
-        setCurrentRole={setCurrentRole}
+        setCurrentRole={handleRoleChanged}
+        currentUser={currentUser}
+        onOpenUserModal={() => setIsUserAccountModalOpen(true)}
+        onOpenDatabaseManager={() => setIsDatabaseManagerOpen(true)}
         isDarkMode={isDarkMode}
         setIsDarkMode={setIsDarkMode}
         onOpenCopilot={() => {
@@ -574,6 +618,7 @@ export default function App() {
               }}
               onAddNewApplication={handleAddNewApplication}
               onDeleteApplication={handleDeleteApplication}
+              onToggleArchive={handleToggleArchive}
               initialStatusFilter={statusFilterForApps}
             />
           )}
@@ -783,6 +828,21 @@ export default function App() {
         onClose={() => setIsOfficialVerificationOpen(false)}
         token={verificationToken}
         initialParams={verificationParams}
+      />
+
+      {/* User Account & Role Matrix Modal */}
+      <UserAccountModal
+        isOpen={isUserAccountModalOpen}
+        onClose={() => setIsUserAccountModalOpen(false)}
+        currentUser={currentUser}
+        onUserChanged={handleUserChanged}
+      />
+
+      {/* Database Management & Supabase Migration Modal */}
+      <DatabaseManagerModal
+        isOpen={isDatabaseManagerOpen}
+        onClose={() => setIsDatabaseManagerOpen(false)}
+        applications={applications}
       />
 
       {/* Telemetry Footer (Geometric Balance Signature Component) */}
