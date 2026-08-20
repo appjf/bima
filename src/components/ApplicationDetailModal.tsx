@@ -72,6 +72,7 @@ import { StatusAuditTrailView } from './StatusAuditTrailView';
 import { logStatusChange } from '../lib/auditLogEngine';
 import { SuratUndanganVisiteDocument } from './SuratUndanganVisiteDocument';
 import { VisiteLapanganModule } from './VisiteLapanganModule';
+import { NoticeLetterPrint } from './NoticeLetterPrint';
 
 interface ApplicationDetailModalProps {
   application: Application;
@@ -114,9 +115,9 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
   );
 
   // Stage 3 Letter state
-  const [noticeDate, setNoticeDate] = useState(application.consultationNotice?.scheduledDate || '2026-08-22');
-  const [noticeTime, setNoticeTime] = useState(application.consultationNotice?.timeSlot || '08:30 - 09:15 WIB');
-  const [noticeRoom, setNoticeRoom] = useState(application.consultationNotice?.room || 'Ruang Sidang TPA Utama (Gedung DPUPR Garut Lt. 2)');
+  const [noticeDate, setNoticeDate] = useState(application.schedule?.scheduleDate || application.consultationNotice?.scheduledDate || '2026-08-22');
+  const [noticeTime, setNoticeTime] = useState(application.schedule?.timeSlot || application.consultationNotice?.timeSlot || '08:30 - 09:15 WIB');
+  const [noticeRoom, setNoticeRoom] = useState(application.schedule?.room || application.consultationNotice?.room || 'Ruang Sidang TPA Utama (Gedung DPUPR Garut Lt. 2)');
 
   // Stage 4 BA Konsultasi state
   const [baResult, setBaResult] = useState<'DISETUJUI' | 'PERBAIKAN' | 'KONSULTASI_ULANG'>(
@@ -614,24 +615,37 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
   const handleIssueNoticeLetter = () => {
     const letter = generateNoticeLetterDraft(application, noticeDate, noticeTime, noticeRoom);
     const [scheduledItem] = generateSmartSchedule([application]);
+    
+    const updatedSchedule = application.schedule ? {
+      ...application.schedule,
+      scheduleDate: noticeDate,
+      timeSlot: noticeTime,
+      room: noticeRoom
+    } : (scheduledItem ? {
+      ...scheduledItem.schedule,
+      scheduleDate: noticeDate,
+      timeSlot: noticeTime,
+      room: noticeRoom
+    } : {
+      id: `SCH-${application.id}`,
+      scheduleDate: noticeDate,
+      timeSlot: noticeTime,
+      room: noticeRoom,
+      sessionType: 'SIDANG_TPA' as const,
+      assignedExperts: [
+        { name: 'Dr. Ir. H. Hendra Setiawan, MT, IAI', expertise: 'Arsitektur', role: 'KETUA' as const },
+        { name: 'Ir. Ahmad Fauzi, ST, MT, IPM', expertise: 'Struktur', role: 'ANGGOTA' as const },
+        { name: 'Rian Pratama, ST, M.Eng', expertise: 'MEP & Damkar', role: 'ANGGOTA' as const },
+        { name: 'Dedi Kurniawan, S.AP', expertise: 'Sekretariat SIMBG Garut', role: 'SEKRETARIAT' as const }
+      ],
+      attendanceToken: `QR-ATT-${application.id.slice(-4)}-99`,
+      applicantAttended: false
+    });
+
     const updatedApp: Application = {
       ...application,
       consultationNotice: letter,
-      schedule: scheduledItem ? scheduledItem.schedule : {
-        id: `SCH-${application.id}`,
-        scheduleDate: noticeDate,
-        timeSlot: noticeTime,
-        room: noticeRoom,
-        sessionType: 'SIDANG_TPA',
-        assignedExperts: [
-          { name: 'Dr. Ir. H. Hendra Setiawan, MT, IAI', expertise: 'Arsitektur', role: 'KETUA' },
-          { name: 'Ir. Ahmad Fauzi, ST, MT, IPM', expertise: 'Struktur', role: 'ANGGOTA' },
-          { name: 'Rian Pratama, ST, M.Eng', expertise: 'MEP & Damkar', role: 'ANGGOTA' },
-          { name: 'Dedi Kurniawan, S.AP', expertise: 'Sekretariat', role: 'SEKRETARIAT' }
-        ],
-        attendanceToken: `QR-ATT-${application.id.slice(-4)}-99`,
-        applicantAttended: false
-      },
+      schedule: updatedSchedule,
       status: 'SCHEDULED',
       currentStage: 'STAGE_4_BA_KONSULTASI',
       lastUpdated: new Date().toISOString()
@@ -780,8 +794,18 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
         <LampiranVerifikasiPrint application={application} />
       </div>
 
-      {/* Main Modal (Hidden during print if on DOCS tab) */}
-      <div className={`fixed inset-0 z-50 bg-white dark:bg-slate-900 md:bg-slate-900/70 md:backdrop-blur-xs flex md:items-center md:justify-center overflow-hidden font-sans ${activeTab === 'DOCS' ? 'print:hidden' : ''}`}>
+      {/* Printable notice letter (undangan) */}
+      <div id="printable-notice-letter-wrapper" className="hidden print:block">
+        <NoticeLetterPrint 
+          application={application} 
+          noticeDate={noticeDate} 
+          noticeTime={noticeTime} 
+          noticeRoom={noticeRoom} 
+        />
+      </div>
+
+      {/* Main Modal (Hidden during print if on DOCS or SCHEDULE tab) */}
+      <div className={`fixed inset-0 z-50 bg-white dark:bg-slate-900 md:bg-slate-900/70 md:backdrop-blur-xs flex md:items-center md:justify-center overflow-hidden font-sans ${activeTab === 'DOCS' || activeTab === 'SCHEDULE' ? 'print:hidden' : ''}`}>
         <div className="bg-white dark:bg-slate-900 border-0 md:border md:border-slate-200 dark:md:border-slate-800 rounded-none max-w-5xl w-full h-full md:h-auto md:max-h-[92vh] shadow-2xl flex flex-col overflow-hidden">
           
           {/* Header (Geometric Balance) */}
@@ -1846,19 +1870,31 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
           {activeTab === 'SCHEDULE' && (
             <div className="space-y-4 font-mono text-xs">
               <div className="border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900 space-y-4">
-                <div className="border-b border-slate-200 dark:border-slate-800 pb-3 flex items-center justify-between">
+                <div className="border-b border-slate-200 dark:border-slate-800 pb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
                     <h3 className="font-bold text-slate-900 dark:text-white uppercase text-sm">
                       Draf Surat Pemberitahuan Sidang Konsultasi Teknis TPA/TPT
                     </h3>
                     <span className="text-[10px] text-slate-400">PEMERINTAH KABUPATEN GARUT - DINAS PUPR</span>
                   </div>
-                  <button
-                    onClick={handleIssueNoticeLetter}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase"
-                  >
-                    Terbitkan & Kirim Notifikasi
-                  </button>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => triggerPdfPrint('printable-notice-letter-wrapper', `Surat_Undangan_Konsultasi_${application.registerNumber.replace(/[^a-zA-Z0-9]/g, '_')}`)}
+                      className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs uppercase flex items-center justify-center gap-1.5 transition border border-slate-200 dark:border-slate-700 w-full sm:w-auto"
+                      title="Cetak surat undangan fisik format kedinasan A4"
+                    >
+                      <Printer className="w-4 h-4 text-emerald-600" />
+                      <span>Cetak Undangan (PDF)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleIssueNoticeLetter}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase transition w-full sm:w-auto"
+                    >
+                      Terbitkan & Kirim Notifikasi
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

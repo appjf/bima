@@ -65,6 +65,7 @@ import {
 } from './lib/storage';
 import { runDocumentVerification } from './lib/ruleEngine';
 import { generateSmartSchedule } from './lib/schedulingEngine';
+import { generateNoticeLetterDraft } from './lib/workflowEngine';
 import { Sparkles, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 export default function App() {
@@ -296,9 +297,12 @@ export default function App() {
 
     const updated = applications.map(a => {
       if (scheduledMap.has(a.id)) {
+        const sch = scheduledMap.get(a.id)!;
+        const letter = generateNoticeLetterDraft(a, sch.scheduleDate, sch.timeSlot, sch.room);
         return {
           ...a,
-          schedule: scheduledMap.get(a.id),
+          schedule: sch,
+          consultationNotice: letter,
           status: 'SCHEDULED' as const,
           lastUpdated: new Date().toISOString()
         };
@@ -501,6 +505,7 @@ export default function App() {
               onSelectApplication={(app) => setSelectedApp(app)}
               onToggleAttendance={handleToggleAttendance}
               onUpdateConsultationResult={handleUpdateConsultationResult}
+              onUpdateApplication={handleUpdateApplication}
             />
           )}
 

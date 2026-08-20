@@ -20,13 +20,16 @@ import {
   Scan,
   Search,
   X,
-  ExternalLink
+  ExternalLink,
+  Edit3,
+  User
 } from 'lucide-react';
 import { Application, ConsultationSchedule } from '../types';
-import { getNextFridayDate, MASTER_EXPERTS, MASTER_ROOMS } from '../lib/schedulingEngine';
+import { getNextFridayDate, MASTER_EXPERTS, MASTER_ROOMS, TIME_SLOTS } from '../lib/schedulingEngine';
 import { SchedulingAttendancePrint } from './SchedulingAttendancePrint';
 import { triggerPdfPrint } from '../lib/pdfPrintEngine';
 import { InternalQrScannerModal } from './InternalQrScannerModal';
+import { generateNoticeLetterDraft } from '../lib/workflowEngine';
 import { 
   buildAttendanceQrPayload, 
   generateQrDataUrl, 
@@ -40,6 +43,7 @@ interface SchedulingViewProps {
   onToggleAttendance: (appId: string) => void;
   onUpdateConsultationResult: (appId: string, result: 'DISETUJUI' | 'PERBAIKAN' | 'KONSULTASI_ULANG', notes?: string) => void;
   onSelectApplication: (app: Application) => void;
+  onUpdateApplication?: (updated: Application) => void;
 }
 
 export const SchedulingView: React.FC<SchedulingViewProps> = ({
@@ -47,7 +51,8 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
   onAutoGenerateFridaySchedule,
   onToggleAttendance,
   onUpdateConsultationResult,
-  onSelectApplication
+  onSelectApplication,
+  onUpdateApplication
 }) => {
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
   const [showQrModal, setShowQrModal] = useState<Application | null>(null);
@@ -62,6 +67,69 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
   const [showScannerModal, setShowScannerModal] = useState<boolean>(false);
   const [scanInput, setScanInput] = useState<string>('');
   const [scanResult, setScanResult] = useState<AttendanceVerificationResult | null>(null);
+
+  // Edit Schedule & Sync State
+  const [editingApp, setEditingApp] = useState<Application | null>(null);
+  const [editDate, setEditDate] = useState<string>('');
+  const [editTimeSlot, setEditTimeSlot] = useState<string>('');
+  const [editRoom, setEditRoom] = useState<string>('');
+  const [editSessionType, setEditSessionType] = useState<'SIDANG_TPA' | 'KONSULTASI_TPT'>('SIDANG_TPA');
+  const [editExperts, setEditExperts] = useState<{ name: string; expertise: string; role: 'KETUA' | 'ANGGOTA' | 'SEKRETARIAT' }[]>([]);
+
+  useEffect(() => {
+    if (editingApp && editingApp.schedule) {
+      const sch = editingApp.schedule;
+      setEditDate(sch.scheduleDate);
+      setEditTimeSlot(sch.timeSlot);
+      setEditRoom(sch.room);
+      setEditSessionType(sch.sessionType);
+      setEditExperts(sch.assignedExperts);
+    }
+  }, [editingApp]);
+
+  const toggleExpertAssignment = (expert: typeof MASTER_EXPERTS[0]) => {
+    const exists = editExperts.some(e => e.name === expert.name);
+    if (exists) {
+      setEditExperts(prev => prev.filter(e => e.name !== expert.name));
+    } else {
+      let role: 'KETUA' | 'ANGGOTA' | 'SEKRETARIAT' = 'ANGGOTA';
+      if (expert.role === 'KETUA') role = 'KETUA';
+      if (expert.role === 'SEKRETARIAT') role = 'SEKRETARIAT';
+      setEditExperts(prev => [...prev, { name: expert.name, expertise: expert.expertise, role }]);
+    }
+  };
+
+  const handleSaveScheduleEdit = () => {
+    if (!editingApp || !editingApp.schedule || !onUpdateApplication) return;
+
+    const updatedSchedule: ConsultationSchedule = {
+      ...editingApp.schedule,
+      scheduleDate: editDate,
+      timeSlot: editTimeSlot,
+      room: editRoom,
+      sessionType: editSessionType,
+      assignedExperts: editExperts
+    };
+
+    // Keep invitation letter (consultationNotice) in perfect sync
+    const letter = generateNoticeLetterDraft(editingApp, editDate, editTimeSlot, editRoom);
+    const updatedApp: Application = {
+      ...editingApp,
+      schedule: updatedSchedule,
+      consultationNotice: {
+        ...(editingApp.consultationNotice || letter),
+        scheduledDate: editDate,
+        timeSlot: editTimeSlot,
+        room: editRoom,
+        isIssued: true,
+        issuedAt: new Date().toISOString()
+      },
+      lastUpdated: new Date().toISOString()
+    };
+
+    onUpdateApplication(updatedApp);
+    setEditingApp(null);
+  };
 
   const scheduledApps = applications.filter(a => a.schedule);
   const unscheduledReadyApps = applications.filter(a => (a.status === 'READY_FOR_CONSULTATION' || a.status === 'COMPLETE') && !a.schedule);
@@ -85,11 +153,14 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
     }
   }, [showQrModal]);
 
-  // Escape key handler to close the local QR modal or scanner modal
+  // Escape key handler to close local modals (QR display, Scanner, or Edit modal)
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (showQrModal || showScannerModal) {
+        if (editingApp) {
+          e.stopPropagation();
+          setEditingApp(null);
+        } else if (showQrModal || showScannerModal) {
           e.stopPropagation();
           setShowQrModal(null);
           setShowScannerModal(false);
@@ -100,7 +171,7 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
     return () => {
       window.removeEventListener('keydown', handleEscape, true);
     };
-  }, [showQrModal, showScannerModal]);
+  }, [showQrModal, showScannerModal, editingApp]);
 
   const handleCopyVerificationLink = () => {
     if (showQrModal) {
@@ -330,15 +401,25 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
                       </select>
                     </td>
 
-                    {/* QR Button */}
+                    {/* Actions Column */}
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => setShowQrModal(app)}
-                        className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-700 dark:text-slate-300 transition"
-                        title="Tampilkan QR Code Presensi"
-                      >
-                        <QrCode className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => setEditingApp(app)}
+                          className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-700 dark:text-slate-300 transition"
+                          title="Edit Jadwal & Penugasan TPA"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        
+                        <button
+                          onClick={() => setShowQrModal(app)}
+                          className="p-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-600 hover:text-white text-slate-700 dark:text-slate-300 transition"
+                          title="Tampilkan QR Code Presensi"
+                        >
+                          <QrCode className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
 
                   </tr>
@@ -628,6 +709,172 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
           }
         }}
       />
+
+      {/* MODAL 3: Edit Jadwal, Sesi & Penugasan Ahli (Synchronized with Notice Letter) */}
+      {editingApp && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 max-w-2xl w-full p-6 space-y-4 shadow-2xl relative font-sans">
+            <button
+              onClick={() => setEditingApp(null)}
+              className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white font-mono text-xs"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <h3 className="font-bold text-base text-slate-900 dark:text-white uppercase font-mono">
+                  Alokasi Jadwal & Surat Undangan Sidang
+                </h3>
+              </div>
+              <p className="text-xs text-slate-500">
+                Sesuaikan jadwal sidang konsultasi teknis pemohon. Perubahan di sini akan **otomatis menyinkronkan** draf Surat Pemberitahuan Konsultasi secara real-time.
+              </p>
+            </div>
+
+            {/* Form Fields Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-slate-500 font-mono text-[10px] uppercase font-bold mb-1">
+                    No. Register Permohonan
+                  </label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={editingApp.registerNumber}
+                    className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-mono font-bold text-slate-600 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-500 font-mono text-[10px] uppercase font-bold mb-1">
+                    Nama Pemohon
+                  </label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={editingApp.applicant.name}
+                    className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs font-bold text-slate-600 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 dark:text-slate-300 font-mono text-[10px] uppercase font-bold mb-1">
+                    Tanggal Sidang (Hari Jumat)
+                  </label>
+                  <input
+                    type="date"
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 px-3 py-2 text-xs font-mono font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 dark:text-slate-300 font-mono text-[10px] uppercase font-bold mb-1">
+                    Waktu / Sesi Jam
+                  </label>
+                  <select
+                    value={editTimeSlot}
+                    onChange={(e) => setEditTimeSlot(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 px-3 py-2 text-xs font-mono font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    {TIME_SLOTS.map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-slate-700 dark:text-slate-300 font-mono text-[10px] uppercase font-bold mb-1">
+                    Ruangan Sidang
+                  </label>
+                  <select
+                    value={editRoom}
+                    onChange={(e) => setEditRoom(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 px-3 py-2 text-xs font-mono font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    {MASTER_ROOMS.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 dark:text-slate-300 font-mono text-[10px] uppercase font-bold mb-1">
+                    Jenis Sidang Konsultasi
+                  </label>
+                  <select
+                    value={editSessionType}
+                    onChange={(e) => setEditSessionType(e.target.value as any)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 px-3 py-2 text-xs font-mono font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    <option value="SIDANG_TPA">SIDANG TIM PROFESI AHLI (TPA)</option>
+                    <option value="KONSULTASI_TPT">KONSULTASI TIM PENILAI TEKNIS (TPT)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 dark:text-slate-300 font-mono text-[10px] uppercase font-bold mb-1">
+                    Penugasan Tim Penilai / Ahli TPA
+                  </label>
+                  <div className="border border-slate-200 dark:border-slate-800 p-2.5 max-h-[142px] overflow-y-auto space-y-2 bg-slate-50 dark:bg-slate-950 font-mono text-[10px]">
+                    {MASTER_EXPERTS.map((expert) => {
+                      const isAssigned = editExperts.some(e => e.name === expert.name);
+                      return (
+                        <label
+                          key={expert.name}
+                          className="flex items-start gap-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 p-1"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isAssigned}
+                            onChange={() => toggleExpertAssignment(expert)}
+                            className="mt-0.5"
+                          />
+                          <div>
+                            <span className="font-bold block text-slate-900 dark:text-slate-100">{expert.name}</span>
+                            <span className="text-slate-400 block">{expert.expertise} • ({expert.role})</span>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sync Alert Banner */}
+            <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 p-3 flex items-start gap-2.5">
+              <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400 mt-0.5 shrink-0" />
+              <div className="font-mono text-[10px] leading-relaxed text-indigo-950 dark:text-indigo-200">
+                <span className="font-bold block uppercase">Sinkronisasi Dokumen Surat Undangan Aktif:</span>
+                Menyimpan jadwal ini akan memperbarui tanggal, jam, ruangan, dan templat undangan pada menu permohonan bersangkutan. Surat Undangan fisik (PDF) dapat dicetak dengan data terupdate secara instan.
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="pt-2 text-right border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2 font-mono">
+              <button
+                onClick={() => setEditingApp(null)}
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-bold uppercase transition"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSaveScheduleEdit}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase transition shadow-xs"
+              >
+                Simpan & Sinkronkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Printable Attendance Sheet */}
       <div id="printable-attendance-area" className="hidden print:block">
