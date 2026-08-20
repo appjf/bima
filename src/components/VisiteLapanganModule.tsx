@@ -1879,7 +1879,7 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
                     <div className="text-center border-b-2 border-slate-900 dark:border-slate-100 pb-4 space-y-1">
                       <div className="font-bold text-sm tracking-wide">PEMERINTAH KABUPATEN GARUT</div>
                       <div className="font-extrabold text-base tracking-wider">DINAS PEKERJAAN UMUM DAN PENATAAN RUANG</div>
-                      <div className="text-[10px] text-slate-500">Jl. Raya Samarang No. 115, Tarogong Kidul, Kabupaten Garut, Jawa Barat 44151</div>
+                      <div className="text-[10px] text-slate-500">Jalan Prof. KH. Cecep Syarifuddin No. 117 Telp. (0262) 233730 Fax (0262) 544184 Garut 44151</div>
                     </div>
 
                     {/* Document Title */}
@@ -2461,7 +2461,7 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
                     <div className="text-center border-b-2 border-slate-900 dark:border-slate-700 pb-4 space-y-1">
                       <div className="font-bold text-xs tracking-wide">PEMERINTAH KABUPATEN GARUT</div>
                       <div className="font-extrabold text-sm tracking-wider">DINAS PEKERJAAN UMUM DAN PENATAAN RUANG</div>
-                      <div className="text-[9px] text-slate-500">Jl. Raya Samarang No. 115, Tarogong Kidul, Kabupaten Garut, Jawa Barat 44151</div>
+                      <div className="text-[9px] text-slate-500">Jalan Prof. KH. Cecep Syarifuddin No. 117 Telp. (0262) 233730 Fax (0262) 544184 Garut 44151</div>
                     </div>
                   )}
 

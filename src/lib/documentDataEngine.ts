@@ -208,8 +208,8 @@ export function buildOfficialDocumentDataset(
   const header: HeaderMetadata = {
     pemerintah: 'PEMERINTAH KABUPATEN GARUT',
     dinas: 'DINAS PEKERJAAN UMUM DAN PENATAAN RUANG (DPUPR)',
-    alamat: 'Jl. Raya Samarang No. 115, Tarogong Kidul, Kabupaten Garut, Jawa Barat 44151',
-    telepon: '(0262) 233-115',
+    alamat: 'Jalan Prof. KH. Cecep Syarifuddin No. 117 Garut 44151',
+    telepon: '(0262) 233730 Fax (0262) 544184',
     website: 'simbg.garutkab.go.id',
     email: 'dpupr@garutkab.go.id',
     kota: 'Garut',
@@ -398,7 +398,7 @@ export function exportDatasetToDocx(dataset: OfficialDocumentDataset): void {
         <h2>${dataset.header.pemerintah}</h2>
         <h1>${dataset.header.dinas}</h1>
         <p>${dataset.header.alamat}</p>
-        <p>Telp: ${dataset.header.telepon} | Website: ${dataset.header.website} | Email: ${dataset.header.email}</p>
+        <p>Telp / Fax: ${dataset.header.telepon} | Website: ${dataset.header.website} | Email: ${dataset.header.email}</p>
       </div>
 
       <div class="title">${dataset.documentTitle}</div>

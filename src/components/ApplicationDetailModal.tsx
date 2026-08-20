@@ -33,6 +33,7 @@ import {
   Users,
   Download
 } from 'lucide-react';
+import { RetribusiForm } from './RetribusiForm';
 import { DocumentEngineHub } from './DocumentEngineHub';
 import { VervalSlfTab } from './VervalSlfTab';
 import { 
@@ -2263,7 +2264,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
                   <div className="text-center font-bold pb-2 border-b border-slate-200 dark:border-slate-800">
                     PEMERINTAH KABUPATEN GARUT<br />
                     DINAS PEKERJAAN UMUM DAN PENATAAN RUANG<br />
-                    <span className="text-[10px] font-normal text-slate-500">Jl. Raya Samarang No. 115, Tarogong Kidul, Garut</span>
+                    <span className="text-[10px] font-normal text-slate-500">Jalan Prof. KH. Cecep Syarifuddin No. 117 Garut 44151</span>
                   </div>
                   <div>Nomor: {application.consultationNotice?.letterNumber || '600.1.15/DPUPR-PBG/2026'}</div>
                   <div>Lampiran: 1 (satu) Berkas</div>
@@ -2785,56 +2786,52 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
             <VervalSlfTab application={application} onUpdate={onUpdateApplication} />
           )}
 
-          {/* TAB: RETRIBUTION */}
+          {/* TAB: RETRIBUTION (SKRD) */}
           {activeTab === 'RETRIBUTION' && (
-            <div className="space-y-4 font-mono text-xs">
-              <div className="bg-slate-900 text-white p-5 border border-slate-800 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase tracking-widest block">
-                    Kalkulasi Retribusi PBG (PP 16/2021)
-                  </span>
-                  <div className="text-2xl font-bold text-emerald-400">
-                    {application.retribution ? `Rp ${application.retribution.finalRetribution.toLocaleString('id-ID')}` : 'Belum Dihitung'}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleRunRetribution}
-                    className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold border border-slate-700 uppercase"
-                  >
-                    Hitung Ulang
-                  </button>
-                  <button
-                    onClick={handleFinalizeSkrd}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold uppercase"
-                  >
-                    Terbitkan SKRD
-                  </button>
-                </div>
-              </div>
-
-              {application.retribution && (
-                <div className="border border-slate-200 dark:border-slate-800 p-4 space-y-2">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                    <div className="p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                      <span className="text-[10px] text-slate-400 block">Indeks Fungsi</span>
-                      <span className="font-bold">{application.retribution.indexFungsi}</span>
-                    </div>
-                    <div className="p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                      <span className="text-[10px] text-slate-400 block">Kompleksitas</span>
-                      <span className="font-bold">{application.retribution.indexKompleksitas}</span>
-                    </div>
-                    <div className="p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                      <span className="text-[10px] text-slate-400 block">Jumlah Lantai</span>
-                      <span className="font-bold">{application.retribution.indexJumlahLantai}</span>
-                    </div>
-                    <div className="p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                      <span className="text-[10px] text-slate-400 block">Lokalitas</span>
-                      <span className="font-bold">{application.retribution.indeksLokalitas}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
+            <div className="h-full overflow-y-auto bg-slate-50 dark:bg-slate-950 p-4">
+              <RetribusiForm 
+                application={application}
+                onSave={(data) => {
+                  // Handle saving results back to application
+                  const updatedApp: Application = {
+                    ...application,
+                    retribution: {
+                      ...(application.retribution || {
+                        id: `SKRD-${application.id.slice(-4)}`,
+                        formulaVersion: 'PP-16-2021',
+                        calculatedAt: new Date().toISOString(),
+                        calculatedBy: 'SIMBG-DIGITAL-ASSISTANT',
+                        status: 'UNPAID',
+                        isVerified: false,
+                        components: [],
+                        indexFungsi: 1,
+                        indexKompleksitas: 1,
+                        indexPermanensi: 1,
+                        indexJumlahLantai: 1,
+                        indeksLokalitas: 0.5,
+                        shst: 6000000,
+                        buildingSubtotal: data.retribusiBangunan,
+                        infrastructureItems: [],
+                        infrastructureSubtotal: data.retribusiPrasarana,
+                        totalPrimary: data.totalRetribusi,
+                        totalSecondary: data.totalRetribusi,
+                        variance: 0,
+                        totalBuildingArea: data.luasLantai,
+                        buildingRetribution: data.retribusiBangunan,
+                        infrastructureRetribution: data.retribusiPrasarana,
+                        finalRetribution: data.totalRetribusi
+                      }),
+                      totalBuildingArea: data.luasLantai,
+                      buildingRetribution: data.retribusiBangunan,
+                      infrastructureRetribution: data.retribusiPrasarana,
+                      finalRetribution: data.totalRetribusi,
+                      lastCalculated: data.timestamp
+                    },
+                    lastUpdated: new Date().toISOString()
+                  };
+                  onUpdateApplication(updatedApp);
+                }}
+              />
             </div>
           )}
 

@@ -328,6 +328,7 @@ export interface RetributionCalculation {
   formulaVersion: string;
   calculatedAt: string;
   calculatedBy: string;
+  lastCalculated?: string;
   // Building Indexes (PP 16/2021)
   indexFungsi: number;
   indexKompleksitas: number;
@@ -335,10 +336,13 @@ export interface RetributionCalculation {
   indexJumlahLantai: number;
   indeksLokalitas: number;
   shst: number; // Standar Harga Satuan Tertinggi (Rp/m²)
+  totalBuildingArea?: number;
+  buildingRetribution?: number;
   buildingSubtotal: number;
   
   // Infrastructure
   infrastructureItems: RetributionComponent[];
+  infrastructureRetribution?: number;
   infrastructureSubtotal: number;
 
   // Dual calculation verification
@@ -347,8 +351,9 @@ export interface RetributionCalculation {
   variance: number; // Math.abs(A - B)
   isVerified: boolean;
   finalRetribution: number;
-  status: 'DRAFT' | 'VERIFIED' | 'APPROVED' | 'SKRD_ISSUED';
+  status: 'DRAFT' | 'VERIFIED' | 'APPROVED' | 'SKRD_ISSUED' | 'UNPAID';
   notes?: string;
+  components?: any[];
 }
 
 export interface ConsultationSchedule {

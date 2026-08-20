@@ -337,8 +337,8 @@ export class DataEngineManager {
     const header: HeaderMetadata = {
       pemerintah: 'PEMERINTAH KABUPATEN GARUT',
       dinas: 'DINAS PEKERJAAN UMUM DAN PENATAAN RUANG (DPUPR)',
-      alamat: 'Jl. Raya Samarang No. 115, Tarogong Kidul, Kabupaten Garut, Jawa Barat 44151',
-      telepon: '(0262) 233-115',
+      alamat: 'Jalan Prof. KH. Cecep Syarifuddin No. 117 Garut 44151',
+      telepon: '(0262) 233730 Fax (0262) 544184',
       website: 'simbg.garutkab.go.id',
       email: 'dpupr@garutkab.go.id',
       kota: 'Garut',

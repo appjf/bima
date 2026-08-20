@@ -140,7 +140,7 @@ Jadwal Sidang Konsultasi Teknis:
 📅 Hari/Tanggal : *{hari_sidang}, {tanggal_sidang}*
 ⏰ Waktu Sesi : *{jam_sidang}*
 🏛️ Tempat : *{ruang_sidang}*
-🏢 Alamat : Dinas PUPR Kab. Garut (Jl. Raya Samarang No. 115, Tarogong Kidul)
+🏢 Alamat : Dinas PUPR Kab. Garut (Jalan Prof. KH. Cecep Syarifuddin No. 117)
 
 *Kelengkapan yang Wajib Dibawa:*
 1. Gambar Kerja Arsitektur, Struktur, dan MEP tercetak (Hardcopy A3/A1)
