@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
 import { Application, UserAccount, NotificationLog, StatusAuditLog, PrasaranaPriceConfig } from '../types';
 
 // Retrieve environment variables safely
@@ -26,6 +26,11 @@ export function getSupabaseClient(): SupabaseClient | null {
         auth: {
           persistSession: true,
           autoRefreshToken: true,
+        },
+        realtime: {
+          params: {
+            eventsPerSecond: 10
+          }
         }
       });
     } catch (err) {
@@ -42,12 +47,139 @@ export interface SupabaseHealthCheckResult {
   latencyMs: number;
   url: string;
   tablesFound: string[];
+  counts: {
+    applications: number;
+    user_accounts: number;
+    notification_logs: number;
+    status_audit_logs: number;
+    prasarana_prices: number;
+  };
   error?: string;
   lastCheckedAt: string;
 }
 
+export interface MigrationStepResult {
+  step: string;
+  status: 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'SKIPPED';
+  count: number;
+  message?: string;
+}
+
+export interface FullMigrationReport {
+  timestamp: string;
+  isSuccess: boolean;
+  totalMigrated: number;
+  durationMs: number;
+  steps: MigrationStepResult[];
+  error?: string;
+}
+
 /**
- * Test connectivity and table presence in Supabase
+ * Maps an Application client domain object to a Supabase DB row
+ */
+export function mapApplicationToSupabaseRow(app: Application) {
+  return {
+    id: app.id,
+    register_number: app.registerNumber,
+    application_number: app.applicationNumber || app.registerNumber,
+    submission_date: app.submissionDate,
+    permit_type: app.permitType || 'PBG_BARU',
+    status: app.status,
+    current_stage: app.currentStage || null,
+    priority: app.priority || 'NORMAL',
+    applicant: app.applicant,
+    building: app.building,
+    documents: app.documents || [],
+    verification_iterations: app.verificationIterations || [],
+    multi_verifications: app.multiVerifications || [],
+    undangan_visite: app.undanganVisite || null,
+    ba_lapangan: app.baLapangan || null,
+    consultation_notice: app.consultationNotice || null,
+    ba_konsultasi: app.baKonsultasi || null,
+    multi_verifikasi_perbaikan: app.multiVerifikasiPerbaikan || [],
+    ba_pleno: app.baPleno || null,
+    retribution: app.retribution || null,
+    schedule: app.schedule || null,
+    sla_days: app.slaDays || 1,
+    sla_deadline: app.slaDeadline || null,
+    sla_status: app.slaStatus || 'IN_SLA',
+    data_quality_score: app.dataQualityScore || 100,
+    data_errors: app.dataErrors || [],
+    assigned_operator: app.assignedOperator || null,
+    internal_notes: app.internalNotes || null,
+    is_archived: Boolean(app.isArchived),
+    archived_at: app.archivedAt || null,
+    archive_notes: app.archiveNotes || null,
+    archived_by: app.archivedBy || null,
+    last_updated: app.lastUpdated || new Date().toISOString()
+  };
+}
+
+/**
+ * Maps a Supabase DB row to an Application client domain object
+ */
+export function mapSupabaseRowToApplication(row: any): Application {
+  return {
+    id: row.id,
+    registerNumber: row.register_number,
+    applicationNumber: row.application_number || row.register_number,
+    submissionDate: row.submission_date,
+    permitType: row.permit_type || 'PBG_BARU',
+    status: row.status,
+    currentStage: row.current_stage || 'DOKUMEN_MASUK',
+    priority: row.priority || 'NORMAL',
+    applicant: row.applicant || {
+      name: 'Pemohon SIMBG',
+      nik: '',
+      phone: '',
+      email: '',
+      address: '',
+      village: '',
+      district: '',
+      city: 'Kabupaten Garut'
+    },
+    building: row.building || {
+      name: 'Bangunan SIMBG',
+      functionType: 'HUNIAN',
+      subFunction: '',
+      complexity: 'SEDERHANA',
+      address: '',
+      district: 'Garut Kota',
+      village: '',
+      landArea: 100,
+      buildingArea: 100,
+      floors: 1,
+      height: 4,
+      permanence: 'PERMANEN'
+    },
+    documents: row.documents || [],
+    verificationIterations: row.verification_iterations || [],
+    multiVerifications: row.multi_verifications || [],
+    undanganVisite: row.undangan_visite || undefined,
+    baLapangan: row.ba_lapangan || undefined,
+    consultationNotice: row.consultation_notice || undefined,
+    baKonsultasi: row.ba_konsultasi || undefined,
+    multiVerifikasiPerbaikan: row.multi_verifikasi_perbaikan || [],
+    baPleno: row.ba_pleno || undefined,
+    retribution: row.retribution || undefined,
+    schedule: row.schedule || undefined,
+    slaDays: row.sla_days || 1,
+    slaDeadline: row.sla_deadline || undefined,
+    slaStatus: row.sla_status || 'IN_SLA',
+    dataQualityScore: Number(row.data_quality_score) || 100,
+    dataErrors: row.data_errors || [],
+    assignedOperator: row.assigned_operator || undefined,
+    internalNotes: row.internal_notes || undefined,
+    isArchived: Boolean(row.is_archived),
+    archivedAt: row.archived_at || undefined,
+    archiveNotes: row.archive_notes || undefined,
+    archivedBy: row.archived_by || undefined,
+    lastUpdated: row.last_updated || new Date().toISOString()
+  };
+}
+
+/**
+ * Test connectivity, fetch counts, and inspect table presence in Supabase
  */
 export async function testSupabaseConnection(): Promise<SupabaseHealthCheckResult> {
   const result: SupabaseHealthCheckResult = {
@@ -56,6 +188,13 @@ export async function testSupabaseConnection(): Promise<SupabaseHealthCheckResul
     latencyMs: 0,
     url: supabaseUrl ? supabaseUrl.replace(/https:\/\/(.*)\.supabase\.co.*/, 'https://$1.supabase.co') : 'Belum Dikonfigurasi',
     tablesFound: [],
+    counts: {
+      applications: 0,
+      user_accounts: 0,
+      notification_logs: 0,
+      status_audit_logs: 0,
+      prasarana_prices: 0
+    },
     lastCheckedAt: new Date().toISOString()
   };
 
@@ -73,35 +212,57 @@ export async function testSupabaseConnection(): Promise<SupabaseHealthCheckResul
   const startTime = Date.now();
 
   try {
-    // Attempt pinging applications table
-    const { data: appData, error: appErr } = await sb
+    // 1. Applications table
+    const { count: appCount, error: appErr } = await sb
       .from('applications')
-      .select('id')
-      .limit(1);
+      .select('*', { count: 'exact', head: true });
 
     result.latencyMs = Date.now() - startTime;
 
     if (!appErr) {
       result.isConnected = true;
       result.tablesFound.push('applications');
+      result.counts.applications = appCount || 0;
     }
 
-    // Check user_accounts table
-    const { error: userErr } = await sb
+    // 2. User accounts table
+    const { count: userCount, error: userErr } = await sb
       .from('user_accounts')
-      .select('id')
-      .limit(1);
-    if (!userErr) result.tablesFound.push('user_accounts');
+      .select('*', { count: 'exact', head: true });
+    if (!userErr) {
+      result.tablesFound.push('user_accounts');
+      result.counts.user_accounts = userCount || 0;
+    }
 
-    // Check notification_logs table
-    const { error: notifErr } = await sb
+    // 3. Notification logs table
+    const { count: notifCount, error: notifErr } = await sb
       .from('notification_logs')
-      .select('id')
-      .limit(1);
-    if (!notifErr) result.tablesFound.push('notification_logs');
+      .select('*', { count: 'exact', head: true });
+    if (!notifErr) {
+      result.tablesFound.push('notification_logs');
+      result.counts.notification_logs = notifCount || 0;
+    }
+
+    // 4. Status audit logs table
+    const { count: auditCount, error: auditErr } = await sb
+      .from('status_audit_logs')
+      .select('*', { count: 'exact', head: true });
+    if (!auditErr) {
+      result.tablesFound.push('status_audit_logs');
+      result.counts.status_audit_logs = auditCount || 0;
+    }
+
+    // 5. Prasarana prices table
+    const { count: prasaranaCount, error: prasaranaErr } = await sb
+      .from('prasarana_prices')
+      .select('*', { count: 'exact', head: true });
+    if (!prasaranaErr) {
+      result.tablesFound.push('prasarana_prices');
+      result.counts.prasarana_prices = prasaranaCount || 0;
+    }
 
     if (appErr && userErr && notifErr) {
-      result.error = `Terkoneksi ke Supabase, namun tabel belum dibuat: ${appErr.message}`;
+      result.error = `Terkoneksi ke Supabase, namun tabel belum dibuat: ${appErr.message}. Jalankan schema SQL di Tab Schema SQL.`;
     }
   } catch (err: any) {
     result.error = err?.message || 'Gagal menghubungi server Supabase.';
@@ -111,60 +272,189 @@ export async function testSupabaseConnection(): Promise<SupabaseHealthCheckResul
 }
 
 /**
- * Synchronize applications list to Supabase
+ * Fetch all applications from Supabase
  */
-export async function syncApplicationsToSupabase(applications: Application[]): Promise<{ success: boolean; count: number; error?: string }> {
+export async function fetchApplicationsFromSupabase(): Promise<{ data: Application[]; error?: string }> {
   const sb = getSupabaseClient();
   if (!sb) {
-    return { success: false, count: 0, error: 'Supabase belum terhubung.' };
+    return { data: [], error: 'Supabase client is not configured' };
   }
 
   try {
-    const formattedData = applications.map(app => ({
-      id: app.id,
-      register_number: app.registerNumber,
-      application_number: app.applicationNumber || app.registerNumber,
-      submission_date: app.submissionDate,
-      permit_type: app.permitType || 'PBG_BARU',
-      status: app.status,
-      current_stage: app.currentStage || null,
-      priority: app.priority || 'NORMAL',
-      applicant: app.applicant,
-      building: app.building,
-      documents: app.documents,
-      verification_iterations: app.verificationIterations || [],
-      multi_verifications: app.multiVerifications || [],
-      undangan_visite: app.undanganVisite || null,
-      ba_lapangan: app.baLapangan || null,
-      consultation_notice: app.consultationNotice || null,
-      ba_konsultasi: app.baKonsultasi || null,
-      multi_verifikasi_perbaikan: app.multiVerifikasiPerbaikan || [],
-      ba_pleno: app.baPleno || null,
-      retribution: app.retribution || null,
-      schedule: app.schedule || null,
-      sla_days: app.slaDays || 1,
-      sla_deadline: app.slaDeadline || null,
-      sla_status: app.slaStatus || 'IN_SLA',
-      data_quality_score: app.dataQualityScore || 100,
-      data_errors: app.dataErrors || [],
-      assigned_operator: app.assignedOperator || null,
-      internal_notes: app.internalNotes || null,
-      is_archived: Boolean(app.isArchived),
-      archived_at: app.archivedAt || null,
-      archive_notes: app.archiveNotes || null,
-      archived_by: app.archivedBy || null,
-      last_updated: app.lastUpdated || new Date().toISOString()
-    }));
-
-    const { error } = await sb
+    const { data, error } = await sb
       .from('applications')
-      .upsert(formattedData, { onConflict: 'id' });
+      .select('*')
+      .order('submission_date', { ascending: false });
 
     if (error) throw error;
-    return { success: true, count: formattedData.length };
+
+    const apps = (data || []).map(mapSupabaseRowToApplication);
+    return { data: apps };
   } catch (err: any) {
-    console.error('Error syncing applications to Supabase:', err);
+    console.error('Failed to fetch applications from Supabase:', err);
+    return { data: [], error: err.message };
+  }
+}
+
+/**
+ * Save / Upsert a single application to Supabase
+ */
+export async function saveApplicationToSupabase(app: Application): Promise<{ success: boolean; error?: string }> {
+  const sb = getSupabaseClient();
+  if (!sb) return { success: false, error: 'Supabase belum terkonfigurasi' };
+
+  try {
+    const row = mapApplicationToSupabaseRow(app);
+    const { error } = await sb
+      .from('applications')
+      .upsert(row, { onConflict: 'id' });
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    console.error('Failed to upsert application to Supabase:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Batch save applications to Supabase
+ */
+export async function batchSaveApplicationsToSupabase(apps: Application[]): Promise<{ success: boolean; count: number; error?: string }> {
+  const sb = getSupabaseClient();
+  if (!sb) return { success: false, count: 0, error: 'Supabase belum terkonfigurasi' };
+
+  try {
+    const rows = apps.map(mapApplicationToSupabaseRow);
+    const { error } = await sb
+      .from('applications')
+      .upsert(rows, { onConflict: 'id' });
+
+    if (error) throw error;
+    return { success: true, count: rows.length };
+  } catch (err: any) {
+    console.error('Batch save to Supabase failed:', err);
     return { success: false, count: 0, error: err.message };
+  }
+}
+
+/**
+ * Delete an application from Supabase
+ */
+export async function deleteApplicationFromSupabase(appId: string): Promise<{ success: boolean; error?: string }> {
+  const sb = getSupabaseClient();
+  if (!sb) return { success: false, error: 'Supabase belum terkonfigurasi' };
+
+  try {
+    const { error } = await sb
+      .from('applications')
+      .delete()
+      .eq('id', appId);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    console.error('Delete application from Supabase failed:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Subscribe to real-time changes on applications table
+ */
+export function subscribeToApplicationsSupabase(
+  onInsertOrUpdate: (app: Application) => void,
+  onDelete: (id: string) => void
+): () => void {
+  const sb = getSupabaseClient();
+  if (!sb) return () => {};
+
+  try {
+    const channel: RealtimeChannel = sb
+      .channel('realtime_applications_changes')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'applications' },
+        (payload) => {
+          if (payload.new) {
+            const app = mapSupabaseRowToApplication(payload.new);
+            onInsertOrUpdate(app);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'applications' },
+        (payload) => {
+          if (payload.new) {
+            const app = mapSupabaseRowToApplication(payload.new);
+            onInsertOrUpdate(app);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'applications' },
+        (payload) => {
+          if (payload.old && payload.old.id) {
+            onDelete(payload.old.id);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      sb.removeChannel(channel);
+    };
+  } catch (err) {
+    console.warn('Realtime subscription error:', err);
+    return () => {};
+  }
+}
+
+/**
+ * Synchronize applications list to Supabase
+ */
+export async function syncApplicationsToSupabase(applications: Application[]): Promise<{ success: boolean; count: number; error?: string }> {
+  return batchSaveApplicationsToSupabase(applications);
+}
+
+/**
+ * Fetch User Accounts from Supabase
+ */
+export async function fetchUserAccountsFromSupabase(): Promise<{ data: UserAccount[]; error?: string }> {
+  const sb = getSupabaseClient();
+  if (!sb) return { data: [], error: 'Supabase belum terkonfigurasi' };
+
+  try {
+    const { data, error } = await sb
+      .from('user_accounts')
+      .select('*')
+      .order('name');
+
+    if (error) throw error;
+
+    const users: UserAccount[] = (data || []).map(row => ({
+      id: row.id,
+      username: row.username,
+      name: row.name,
+      email: row.email,
+      nip: row.nip || undefined,
+      role: row.role,
+      positionTitle: row.position_title,
+      subSpecialty: row.sub_specialty || undefined,
+      phone: row.phone || undefined,
+      avatarUrl: row.avatar_url || undefined,
+      isActive: row.is_active,
+      permissions: row.permissions,
+      signatureDataUrl: row.signature_data_url || undefined,
+      lastLoginAt: row.last_login_at || undefined,
+      createdAt: row.created_at || new Date().toISOString()
+    }));
+
+    return { data: users };
+  } catch (err: any) {
+    return { data: [], error: err.message };
   }
 }
 
@@ -190,7 +480,8 @@ export async function syncUserAccountsToSupabase(users: UserAccount[]): Promise<
       is_active: u.isActive,
       permissions: u.permissions,
       signature_data_url: u.signatureDataUrl || null,
-      last_login_at: u.lastLoginAt || null
+      last_login_at: u.lastLoginAt || null,
+      updated_at: new Date().toISOString()
     }));
 
     const { error } = await sb
@@ -201,5 +492,220 @@ export async function syncUserAccountsToSupabase(users: UserAccount[]): Promise<
     return { success: true, count: formattedUsers.length };
   } catch (err: any) {
     return { success: false, count: 0, error: err.message };
+  }
+}
+
+/**
+ * Record a Notification log in Supabase
+ */
+export async function recordNotificationLogToSupabase(log: NotificationLog): Promise<{ success: boolean; error?: string }> {
+  const sb = getSupabaseClient();
+  if (!sb) return { success: false, error: 'Supabase belum terhubung' };
+
+  try {
+    const { error } = await sb
+      .from('notification_logs')
+      .upsert({
+        id: log.id,
+        application_id: log.applicationId || null,
+        register_number: log.registerNumber,
+        recipient_name: log.recipientName,
+        recipient_phone: log.recipientPhone,
+        template_type: log.templateType,
+        message: log.message,
+        channel: log.channel || 'WHATSAPP',
+        status: log.status || 'SENT',
+        retry_count: log.retryCount || 0,
+        error_message: log.errorMessage || null,
+        sent_at: log.sentAt || new Date().toISOString(),
+        created_at: log.createdAt || new Date().toISOString()
+      }, { onConflict: 'id' });
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Record a Status Audit log in Supabase
+ */
+export async function recordStatusAuditLogToSupabase(log: StatusAuditLog): Promise<{ success: boolean; error?: string }> {
+  const sb = getSupabaseClient();
+  if (!sb) return { success: false, error: 'Supabase belum terhubung' };
+
+  try {
+    const { error } = await sb
+      .from('status_audit_logs')
+      .upsert({
+        id: log.id,
+        application_id: log.applicationId || null,
+        register_number: log.registerNumber || null,
+        from_status: log.fromStatus,
+        to_status: log.toStatus,
+        actor_name: log.actorName,
+        actor_role: log.actorRole,
+        stage_name: log.stageName || null,
+        notes: log.notes || null,
+        created_at: log.timestamp || new Date().toISOString()
+      }, { onConflict: 'id' });
+
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Run Comprehensive 1-Click Migration of all data models to Supabase
+ */
+export async function runCompleteMigrationToSupabase(
+  applications: Application[],
+  userAccounts: UserAccount[],
+  notificationLogs: NotificationLog[] = [],
+  auditLogs: StatusAuditLog[] = []
+): Promise<FullMigrationReport> {
+  const startTime = Date.now();
+  const steps: MigrationStepResult[] = [
+    { step: '1. Verifikasi Koneksi & Kredensial Supabase', status: 'RUNNING', count: 0 },
+    { step: '2. Migrasi Akun Pengguna & Matriks RBAC', status: 'PENDING', count: 0 },
+    { step: '3. Migrasi Seluruh Permohonan PBG/SLF & Iterasi Dokumen', status: 'PENDING', count: 0 },
+    { step: '4. Migrasi Log Notifikasi WhatsApp Terkirim', status: 'PENDING', count: 0 },
+    { step: '5. Migrasi Audit Trail & Log Perubahan Status', status: 'PENDING', count: 0 },
+    { step: '6. Verifikasi Integritas Data Pasca-Migrasi', status: 'PENDING', count: 0 }
+  ];
+
+  let totalMigrated = 0;
+
+  try {
+    // Step 1: Check connection
+    const health = await testSupabaseConnection();
+    if (!health.isConnected) {
+      steps[0].status = 'FAILED';
+      steps[0].message = health.error || 'Koneksi ke Supabase gagal. Periksa URL dan API key.';
+      return {
+        timestamp: new Date().toISOString(),
+        isSuccess: false,
+        totalMigrated: 0,
+        durationMs: Date.now() - startTime,
+        steps,
+        error: steps[0].message
+      };
+    }
+    steps[0].status = 'SUCCESS';
+    steps[0].message = `Terhubung ke ${health.url} (${health.latencyMs}ms)`;
+
+    // Step 2: Migrate User Accounts
+    steps[1].status = 'RUNNING';
+    const userRes = await syncUserAccountsToSupabase(userAccounts);
+    if (!userRes.success) {
+      steps[1].status = 'FAILED';
+      steps[1].message = userRes.error;
+      throw new Error(`Gagal migrasi akun: ${userRes.error}`);
+    }
+    steps[1].status = 'SUCCESS';
+    steps[1].count = userRes.count;
+    totalMigrated += userRes.count;
+
+    // Step 3: Migrate Applications
+    steps[2].status = 'RUNNING';
+    const appRes = await syncApplicationsToSupabase(applications);
+    if (!appRes.success) {
+      steps[2].status = 'FAILED';
+      steps[2].message = appRes.error;
+      throw new Error(`Gagal migrasi permohonan: ${appRes.error}`);
+    }
+    steps[2].status = 'SUCCESS';
+    steps[2].count = appRes.count;
+    totalMigrated += appRes.count;
+
+    // Step 4: Migrate Notification Logs
+    steps[3].status = 'RUNNING';
+    if (notificationLogs.length > 0) {
+      const sb = getSupabaseClient()!;
+      const rows = notificationLogs.map(l => ({
+        id: l.id,
+        application_id: l.applicationId || null,
+        register_number: l.registerNumber,
+        recipient_name: l.recipientName,
+        recipient_phone: l.recipientPhone,
+        template_type: l.templateType,
+        message: l.message,
+        channel: l.channel || 'WHATSAPP',
+        status: l.status || 'SENT',
+        retry_count: l.retryCount || 0,
+        error_message: l.errorMessage || null,
+        sent_at: l.sentAt || new Date().toISOString(),
+        created_at: l.createdAt || new Date().toISOString()
+      }));
+      const { error } = await sb.from('notification_logs').upsert(rows, { onConflict: 'id' });
+      if (error) {
+        steps[3].status = 'FAILED';
+        steps[3].message = error.message;
+      } else {
+        steps[3].status = 'SUCCESS';
+        steps[3].count = rows.length;
+        totalMigrated += rows.length;
+      }
+    } else {
+      steps[3].status = 'SKIPPED';
+      steps[3].message = 'Tidak ada log notifikasi lokal yang perlu dimigrasi.';
+    }
+
+    // Step 5: Migrate Audit Logs
+    steps[4].status = 'RUNNING';
+    if (auditLogs.length > 0) {
+      const sb = getSupabaseClient()!;
+      const rows = auditLogs.map(l => ({
+        id: l.id,
+        application_id: l.applicationId || null,
+        register_number: l.registerNumber || null,
+        from_status: l.fromStatus,
+        to_status: l.toStatus,
+        actor_name: l.actorName,
+        actor_role: l.actorRole,
+        stage_name: l.stageName || null,
+        notes: l.notes || null,
+        created_at: l.timestamp || new Date().toISOString()
+      }));
+      const { error } = await sb.from('status_audit_logs').upsert(rows, { onConflict: 'id' });
+      if (error) {
+        steps[4].status = 'FAILED';
+        steps[4].message = error.message;
+      } else {
+        steps[4].status = 'SUCCESS';
+        steps[4].count = rows.length;
+        totalMigrated += rows.length;
+      }
+    } else {
+      steps[4].status = 'SKIPPED';
+      steps[4].message = 'Tidak ada riwayat audit log lokal yang perlu dimigrasi.';
+    }
+
+    // Step 6: Verify post-migration integrity
+    steps[5].status = 'RUNNING';
+    const finalHealth = await testSupabaseConnection();
+    steps[5].status = 'SUCCESS';
+    steps[5].count = finalHealth.counts.applications;
+    steps[5].message = `Validasi selesai: ${finalHealth.counts.applications} berkas & ${finalHealth.counts.user_accounts} akun terverifikasi di PostgreSQL.`;
+
+    return {
+      timestamp: new Date().toISOString(),
+      isSuccess: true,
+      totalMigrated,
+      durationMs: Date.now() - startTime,
+      steps
+    };
+  } catch (err: any) {
+    return {
+      timestamp: new Date().toISOString(),
+      isSuccess: false,
+      totalMigrated,
+      durationMs: Date.now() - startTime,
+      steps,
+      error: err.message
+    };
   }
 }

@@ -414,6 +414,8 @@ export interface ConsultationSchedule {
 export interface StatusAuditLog {
   id: string;
   timestamp: string;
+  applicationId?: string;
+  registerNumber?: string;
   fromStatus: ApplicationStatus | string;
   toStatus: ApplicationStatus | string;
   actorName: string;
