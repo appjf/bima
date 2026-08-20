@@ -74,19 +74,20 @@ export const Navbar: React.FC<NavbarProps> = ({
     label: string;
     icon: React.ComponentType<{ className?: string }>;
     badge?: number;
+    shortcut?: string;
   }
 
   const navTabs: NavTabItem[] = [
-    { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'PIPELINE', label: 'Alur Terpadu PBG/SLF', icon: GitMerge },
-    { id: 'APPLICATIONS', label: 'Permohonan', icon: Building2 },
-    { id: 'VISITE_LAPANGAN', label: 'Visite Lapangan', icon: Compass },
-    { id: 'VERIFICATION', label: 'Verifikasi Dokumen', icon: FileCheck },
-    { id: 'SCHEDULING', label: 'Sidang Jumat', icon: Calendar },
-    { id: 'RETRIBUTION', label: 'Retribusi PP 16', icon: Calculator },
-    { id: 'NOTIFICATIONS', label: 'Notifikasi WA', icon: MessageSquare },
-    { id: 'DATA_QUALITY', label: 'Data Sanity', icon: ShieldAlert, badge: dataQualityIssueCount },
-    { id: 'SETTINGS', label: 'Pengaturan WA', icon: Settings }
+    { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard, shortcut: 'Ctrl+1' },
+    { id: 'PIPELINE', label: 'Alur Terpadu PBG/SLF', icon: GitMerge, shortcut: 'Ctrl+2' },
+    { id: 'APPLICATIONS', label: 'Permohonan', icon: Building2, shortcut: 'Ctrl+3' },
+    { id: 'VISITE_LAPANGAN', label: 'Visite Lapangan', icon: Compass, shortcut: 'Ctrl+4' },
+    { id: 'VERIFICATION', label: 'Verifikasi Dokumen', icon: FileCheck, shortcut: 'Ctrl+5' },
+    { id: 'SCHEDULING', label: 'Sidang Jumat', icon: Calendar, shortcut: 'Ctrl+6' },
+    { id: 'RETRIBUTION', label: 'Retribusi PP 16', icon: Calculator, shortcut: 'Ctrl+7' },
+    { id: 'NOTIFICATIONS', label: 'Notifikasi WA', icon: MessageSquare, shortcut: 'Ctrl+8' },
+    { id: 'DATA_QUALITY', label: 'Data Sanity', icon: ShieldAlert, badge: dataQualityIssueCount, shortcut: 'Ctrl+9' },
+    { id: 'SETTINGS', label: 'Pengaturan WA', icon: Settings, shortcut: 'Ctrl+0' }
   ];
 
   return (
@@ -291,7 +292,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`py-3 px-3 sm:px-4 text-xs font-bold uppercase tracking-wider flex items-center gap-2 whitespace-nowrap transition border-b-2 relative ${
+                title={`${tab.label} (${tab.shortcut})`}
+                className={`py-3 px-3 sm:px-4 text-xs font-bold uppercase tracking-wider flex items-center gap-2 whitespace-nowrap transition border-b-2 relative group ${
                   isActive
                     ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-900 -mb-[1px]'
                     : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
@@ -299,6 +301,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span className="font-mono text-[11px]">{tab.label}</span>
+                {tab.shortcut && (
+                  <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 bg-slate-200/60 dark:bg-slate-800 px-1 py-0.2 rounded-xs opacity-70 group-hover:opacity-100 transition">
+                    {tab.shortcut}
+                  </span>
+                )}
                 {tab.badge && tab.badge > 0 ? (
                   <span className="px-1.5 py-0.2 bg-rose-500 text-white text-[9px] font-mono font-bold leading-none">
                     {tab.badge}

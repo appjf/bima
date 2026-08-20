@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Building, 
@@ -71,6 +71,7 @@ import { InternalApprovalFormPrint } from './InternalApprovalFormPrint';
 import { StatusAuditTrailView } from './StatusAuditTrailView';
 import { logStatusChange } from '../lib/auditLogEngine';
 import { SuratUndanganVisiteDocument } from './SuratUndanganVisiteDocument';
+import { VisiteLapanganModule } from './VisiteLapanganModule';
 
 interface ApplicationDetailModalProps {
   application: Application;
@@ -156,6 +157,27 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
     intervalMs: 30000,
     enabled: true
   });
+
+  // Escape key handler to close this modal or its open nested submodals
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showDocumentHub) {
+          e.stopPropagation();
+          setShowDocumentHub(false);
+        } else if (showInternalApprovalModal) {
+          e.stopPropagation();
+          setShowInternalApprovalModal(false);
+        } else {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleEscape, true);
+    return () => {
+      window.removeEventListener('keydown', handleEscape, true);
+    };
+  }, [showDocumentHub, showInternalApprovalModal, onClose]);
 
   const handleRestoreModalDraft = () => {
     const draft = autoSaveModal.loadDraft();
@@ -1790,149 +1812,33 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
             </div>
           )}
 
-          {/* TAB: VISITE & BA LAPANGAN (KHUSUS SLF) */}
+          {/* TAB: VISITE & BA LAPANGAN (KHUSUS SLF & PBG) */}
           {activeTab === 'VISITE' && (
-            <div className="space-y-6 font-mono text-xs">
-              {/* Visite Sub-Tab Switcher */}
-              <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 text-xs font-mono font-bold uppercase overflow-x-auto">
-                <button
-                  onClick={() => setVisiteSubTab('UNDANGAN')}
-                  className={`py-2.5 px-4 border-b-2 flex items-center gap-1.5 whitespace-nowrap transition ${
-                    visiteSubTab === 'UNDANGAN'
-                      ? 'border-amber-600 text-amber-600 dark:text-amber-400 bg-white dark:bg-slate-900 -mb-[1px]'
-                      : 'border-transparent text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  <Mail className="w-4 h-4 text-amber-600" />
-                  <span>1. Surat Undangan Visite (Siap Publish)</span>
-                  {application.undanganVisite?.isSigned && (
-                    <span className="px-1.5 py-0.2 bg-emerald-500 text-white text-[9px] font-bold">TTE SIAP</span>
-                  )}
-                </button>
-
-                <button
-                  onClick={() => setVisiteSubTab('BA_LAPANGAN')}
-                  className={`py-2.5 px-4 border-b-2 flex items-center gap-1.5 whitespace-nowrap transition ${
-                    visiteSubTab === 'BA_LAPANGAN'
-                      ? 'border-amber-600 text-amber-600 dark:text-amber-400 bg-white dark:bg-slate-900 -mb-[1px]'
-                      : 'border-transparent text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  <FileText className="w-4 h-4 text-indigo-600" />
-                  <span>2. Berita Acara (BA) Pemeriksaan Lapangan</span>
-                </button>
+            <div className="space-y-6">
+              <div className="bg-amber-50 dark:bg-amber-950/40 p-3 border border-amber-200 dark:border-amber-800 flex items-center justify-between text-xs font-mono">
+                <div className="flex items-center gap-2">
+                  <Compass className="w-4 h-4 text-amber-600 animate-spin" />
+                  <span className="font-bold text-amber-900 dark:text-amber-300 uppercase">
+                    Sinkronisasi Penuh // Modul Visite Lapangan & BA Lapangan
+                  </span>
+                </div>
+                <span className="text-[10px] text-slate-500">
+                  ID: {application.registerNumber}
+                </span>
               </div>
 
-              {visiteSubTab === 'UNDANGAN' ? (
-                <div>
-                  <SuratUndanganVisiteDocument
-                    application={application}
-                    onUpdateApplication={onUpdateApplication}
-                    onSendWhatsApp={onSendWhatsApp}
-                    currentRole={currentRole}
-                  />
-                </div>
-              ) : (
-                <div className="border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900 space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-slate-900 dark:text-white uppercase text-sm">
-                          Berita Acara (BA) Pemeriksaan Lapangan (Visite SLF)
-                        </h3>
-                        <span className="bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-[10px] font-mono px-2 py-0.5 border border-amber-300 font-bold">
-                          VERIFIKASI KESESUAIAN FISIK VS LAPORAN
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-400">
-                        Inspeksi fisik langsung ke bangunan gedung eksisting oleh Tim Pengawas Teknis DPUPR Garut & TPA
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={handleFinalizeBaLapangan}
-                      className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs uppercase flex items-center gap-1.5"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Sahkan BA Lapangan</span>
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-slate-500 text-[10px] uppercase font-bold mb-1">Catatan/Keterangan Lokasi Inspeksi</label>
-                      <textarea
-                        rows={3}
-                        value={visiteNotes}
-                        onChange={(e) => setVisiteNotes(e.target.value)}
-                        className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-500 text-[10px] uppercase font-bold mb-1">Status Kesesuaian Fisik Bangunan</label>
-                      <select
-                        value={visiteConformity}
-                        onChange={(e) => setVisiteConformity(e.target.value as any)}
-                        className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs focus:outline-none font-bold"
-                      >
-                        <option value="SESUAI_DOKUMEN">SESUAI DOKUMEN LAPORAN KELAIKAN</option>
-                        <option value="PERLU_PENYESUAIAN_LAPORAN">PERLU PENYESUAIAN LAPORAN KELAIKAN</option>
-                        <option value="TIDAK_SESUAI">TIDAK SESUAI / KANSER PERMOHONAN</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-500 text-[10px] uppercase font-bold mb-1">Rekomendasi Tim Inspeksi Lapangan</label>
-                    <textarea
-                      rows={2}
-                      value={visiteRecommendations}
-                      onChange={(e) => setVisiteRecommendations(e.target.value)}
-                      className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs focus:outline-none"
-                    />
-                  </div>
-
-                  {/* Checklist Aspek Pemeriksaan Lapangan */}
-                  <div className="space-y-3 pt-2">
-                    <h4 className="font-bold text-slate-900 dark:text-white uppercase text-xs flex items-center gap-1.5">
-                      <CheckSquare className="w-4 h-4 text-indigo-600" />
-                      <span>Checklist Kesesuaian Kondisi Fisik vs Dokumen Laporan Kelaikan Fungsi</span>
-                    </h4>
-
-                    <div className="border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
-                      {fieldItems.map((item, idx) => (
-                        <div key={item.id || idx} className="p-3 flex items-start justify-between gap-3">
-                          <div className="space-y-0.5">
-                            <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 text-[9px] px-1.5 py-0.2 font-mono uppercase">
-                              {item.category}
-                            </span>
-                            <div className="font-semibold text-slate-900 dark:text-white">{item.itemCheck}</div>
-                            <div className="text-[10px] text-slate-500">{item.notes}</div>
-                          </div>
-                          <select
-                            value={item.status}
-                            onChange={(e) => {
-                              const updated = [...fieldItems];
-                              updated[idx] = { ...updated[idx], status: e.target.value as any };
-                              setFieldItems(updated);
-                            }}
-                            className={`px-2 py-1 border text-xs font-mono font-bold ${
-                              item.status === 'SESUAI' ? 'bg-emerald-50 text-emerald-700 border-emerald-300' :
-                              item.status === 'TIDAK_SESUAI' ? 'bg-rose-50 text-rose-700 border-rose-300' :
-                              'bg-amber-50 text-amber-700 border-amber-300'
-                            }`}
-                          >
-                            <option value="SESUAI">SESUAI</option>
-                            <option value="PERLU_CATATAN">PERLU CATATAN</option>
-                            <option value="TIDAK_SESUAI">TIDAK SESUAI</option>
-                          </select>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                </div>
-              )}
+              <VisiteLapanganModule
+                applications={[application]}
+                onUpdateApplication={(updated) => {
+                  onUpdateApplication(updated);
+                }}
+                onSelectApplication={(app) => {
+                  // already selected
+                }}
+                onSendWhatsApp={onSendWhatsApp}
+                currentRole={currentRole}
+                singleApplication={true}
+              />
             </div>
           )}
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { 
   Navbar, 
   MainNavTab 
@@ -159,6 +160,62 @@ export default function App() {
       localStorage.setItem('simbg_theme', 'light');
     }
   }, [isDarkMode]);
+
+  // Keyboard shortcut listener for quick tab navigation (Ctrl+1 to Ctrl+0)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        // Do not intercept if user is typing in form inputs, textareas, or select elements
+        const activeTagName = document.activeElement?.tagName?.toLowerCase();
+        if (activeTagName === 'input' || activeTagName === 'textarea' || activeTagName === 'select') {
+          return;
+        }
+
+        const key = e.key;
+        const tabMap: Record<string, { tab: MainNavTab; label: string }> = {
+          '1': { tab: 'DASHBOARD', label: 'Dashboard' },
+          '2': { tab: 'PIPELINE', label: 'Alur Terpadu PBG/SLF' },
+          '3': { tab: 'APPLICATIONS', label: 'Permohonan' },
+          '4': { tab: 'VISITE_LAPANGAN', label: 'Visite Lapangan' },
+          '5': { tab: 'VERIFICATION', label: 'Verifikasi Dokumen' },
+          '6': { tab: 'SCHEDULING', label: 'Sidang Jumat' },
+          '7': { tab: 'RETRIBUTION', label: 'Retribusi PP 16' },
+          '8': { tab: 'NOTIFICATIONS', label: 'Notifikasi WA' },
+          '9': { tab: 'DATA_QUALITY', label: 'Data Sanity' },
+          '0': { tab: 'SETTINGS', label: 'Pengaturan WA' }
+        };
+
+        if (tabMap[key]) {
+          e.preventDefault();
+          const targetTab = tabMap[key];
+          setActiveTab(targetTab.tab);
+          showToast(`Navigasi Cepat: Membuka ${targetTab.label} (Ctrl+${key})`, 'info');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Global Escape key listener to close modals
+  useEffect(() => {
+    const handleEscapeKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedApp(null);
+        setIsCopilotOpen(false);
+        setIsQrScannerOpen(false);
+        setIsOfficialVerificationOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscapeKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleEscapeKeyDown);
+    };
+  }, []);
 
   // Persist applications on change
   useEffect(() => {
@@ -370,119 +427,127 @@ export default function App() {
       />
 
       {/* Main Workspace Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 md:p-8 space-y-6 pb-20 md:pb-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 md:p-8 pb-20 md:pb-8">
         
-        {/* Dynamic Views */}
-        {activeTab === 'PIPELINE' && (
-          <WorkflowPipelineView
-            applications={applications}
-            onSelectApplication={(app) => setSelectedApp(app)}
-            onUpdateApplication={handleUpdateApplication}
-            onOpenNewApplicationModal={() => {
-              setActiveTab('APPLICATIONS');
-            }}
-            onOpenWhatsApp={handleOpenWhatsAppWeb}
-          />
-        )}
+        {/* Dynamic Views with Smooth Fade-In Transitions */}
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="space-y-6"
+        >
+          {activeTab === 'PIPELINE' && (
+            <WorkflowPipelineView
+              applications={applications}
+              onSelectApplication={(app) => setSelectedApp(app)}
+              onUpdateApplication={handleUpdateApplication}
+              onOpenNewApplicationModal={() => {
+                setActiveTab('APPLICATIONS');
+              }}
+              onOpenWhatsApp={handleOpenWhatsAppWeb}
+            />
+          )}
 
-        {activeTab === 'DASHBOARD' && (
-          <DashboardView
-            applications={applications}
-            onSelectApplication={(app) => setSelectedApp(app)}
-            onNavigate={(tab) => setActiveTab(tab as any)}
-            onRunBatchVerification={handleBatchVerifyAll}
-            onOpenCopilot={() => {
-              setCopilotInitialPrompt(undefined);
-              setIsCopilotOpen(true);
-            }}
-          />
-        )}
+          {activeTab === 'DASHBOARD' && (
+            <DashboardView
+              applications={applications}
+              onSelectApplication={(app) => setSelectedApp(app)}
+              onNavigate={(tab) => setActiveTab(tab as any)}
+              onRunBatchVerification={handleBatchVerifyAll}
+              onOpenCopilot={() => {
+                setCopilotInitialPrompt(undefined);
+                setIsCopilotOpen(true);
+              }}
+            />
+          )}
 
-        {activeTab === 'APPLICATIONS' && (
-          <ApplicationsView
-            applications={applications}
-            onSelectApplication={(app) => setSelectedApp(app)}
-            onQuickVerify={(app) => {
-              setSelectedApp(app);
-            }}
-            onAddNewApplication={handleAddNewApplication}
-            onDeleteApplication={handleDeleteApplication}
-            initialStatusFilter={statusFilterForApps}
-          />
-        )}
+          {activeTab === 'APPLICATIONS' && (
+            <ApplicationsView
+              applications={applications}
+              onSelectApplication={(app) => setSelectedApp(app)}
+              onQuickVerify={(app) => {
+                setSelectedApp(app);
+              }}
+              onAddNewApplication={handleAddNewApplication}
+              onDeleteApplication={handleDeleteApplication}
+              initialStatusFilter={statusFilterForApps}
+            />
+          )}
 
-        {activeTab === 'VISITE_LAPANGAN' && (
-          <VisiteLapanganModule
-            applications={applications}
-            onUpdateApplication={handleUpdateApplication}
-            onSelectApplication={(app) => setSelectedApp(app)}
-            onSendWhatsApp={(phone, text) => handleOpenWhatsAppWeb(phone, text)}
-            currentRole={currentRole}
-          />
-        )}
+          {activeTab === 'VISITE_LAPANGAN' && (
+            <VisiteLapanganModule
+              applications={applications}
+              onUpdateApplication={handleUpdateApplication}
+              onSelectApplication={(app) => setSelectedApp(app)}
+              onSendWhatsApp={(phone, text) => handleOpenWhatsAppWeb(phone, text)}
+              currentRole={currentRole}
+            />
+          )}
 
-        {activeTab === 'VERIFICATION' && (
-          <VerificationView
-            applications={applications}
-            onBatchVerifyAll={handleBatchVerifyAll}
-            onSelectApplication={(app) => setSelectedApp(app)}
-            onOpenWhatsApp={handleOpenWhatsAppWeb}
-          />
-        )}
+          {activeTab === 'VERIFICATION' && (
+            <VerificationView
+              applications={applications}
+              onBatchVerifyAll={handleBatchVerifyAll}
+              onSelectApplication={(app) => setSelectedApp(app)}
+              onOpenWhatsApp={handleOpenWhatsAppWeb}
+            />
+          )}
 
-        {activeTab === 'SCHEDULING' && (
-          <SchedulingView
-            applications={applications}
-            onAutoGenerateFridaySchedule={handleAutoGenerateFridaySchedule}
-            onSelectApplication={(app) => setSelectedApp(app)}
-            onToggleAttendance={handleToggleAttendance}
-            onUpdateConsultationResult={handleUpdateConsultationResult}
-          />
-        )}
+          {activeTab === 'SCHEDULING' && (
+            <SchedulingView
+              applications={applications}
+              onAutoGenerateFridaySchedule={handleAutoGenerateFridaySchedule}
+              onSelectApplication={(app) => setSelectedApp(app)}
+              onToggleAttendance={handleToggleAttendance}
+              onUpdateConsultationResult={handleUpdateConsultationResult}
+            />
+          )}
 
-        {activeTab === 'RETRIBUTION' && (
-          <RetributionView
-            applications={applications}
-            onSelectApplication={(app) => setSelectedApp(app)}
-            onUpdateApplication={handleUpdateApplication}
-          />
-        )}
+          {activeTab === 'RETRIBUTION' && (
+            <RetributionView
+              applications={applications}
+              onSelectApplication={(app) => setSelectedApp(app)}
+              onUpdateApplication={handleUpdateApplication}
+            />
+          )}
 
-        {activeTab === 'NOTIFICATIONS' && (
-          <NotificationView
-            notifications={notifications}
-            applications={applications}
-            onResendNotification={(id) => {
-              setNotifications(prev => prev.map(n => n.id === id ? { ...n, status: 'SENT', errorMessage: undefined } : n));
-              showToast('Notifikasi berhasil dikirim ulang.');
-            }}
-            onAddNotifications={(newNotifs) => {
-              setNotifications(prev => [...newNotifs, ...prev]);
-              saveStoredNotifications([...newNotifs, ...notifications]);
-              showToast(`${newNotifs.length} notifikasi siaran massal berhasil ditambahkan ke Outbox.`);
-            }}
-            onOpenWhatsApp={handleOpenWhatsAppWeb}
-            onNavigateToSettings={() => setActiveTab('SETTINGS')}
-          />
-        )}
+          {activeTab === 'NOTIFICATIONS' && (
+            <NotificationView
+              notifications={notifications}
+              applications={applications}
+              onResendNotification={(id) => {
+                setNotifications(prev => prev.map(n => n.id === id ? { ...n, status: 'SENT', errorMessage: undefined } : n));
+                showToast('Notifikasi berhasil dikirim ulang.');
+              }}
+              onAddNotifications={(newNotifs) => {
+                setNotifications(prev => [...newNotifs, ...prev]);
+                saveStoredNotifications([...newNotifs, ...notifications]);
+                showToast(`${newNotifs.length} notifikasi siaran massal berhasil ditambahkan ke Outbox.`);
+              }}
+              onOpenWhatsApp={handleOpenWhatsAppWeb}
+              onNavigateToSettings={() => setActiveTab('SETTINGS')}
+            />
+          )}
 
-        {activeTab === 'DATA_QUALITY' && (
-          <DataQualityCenter
-            applications={applications}
-            onUpdateApplications={setApplications}
-            onSelectApplication={(app) => setSelectedApp(app)}
-          />
-        )}
+          {activeTab === 'DATA_QUALITY' && (
+            <DataQualityCenter
+              applications={applications}
+              onUpdateApplications={setApplications}
+              onSelectApplication={(app) => setSelectedApp(app)}
+            />
+          )}
 
-        {activeTab === 'SETTINGS' && (
-          <SettingsView
-            applications={applications}
-            settings={waSettings}
-            onSaveSettings={handleSaveWaSettings}
-            onResetSettings={handleResetWaSettings}
-            onOpenWhatsApp={handleOpenWhatsAppWeb}
-          />
-        )}
+          {activeTab === 'SETTINGS' && (
+            <SettingsView
+              applications={applications}
+              settings={waSettings}
+              onSaveSettings={handleSaveWaSettings}
+              onResetSettings={handleResetWaSettings}
+              onOpenWhatsApp={handleOpenWhatsAppWeb}
+            />
+          )}
+        </motion.div>
 
       </main>
 

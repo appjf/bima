@@ -85,6 +85,23 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
     }
   }, [showQrModal]);
 
+  // Escape key handler to close the local QR modal or scanner modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showQrModal || showScannerModal) {
+          e.stopPropagation();
+          setShowQrModal(null);
+          setShowScannerModal(false);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleEscape, true);
+    return () => {
+      window.removeEventListener('keydown', handleEscape, true);
+    };
+  }, [showQrModal, showScannerModal]);
+
   const handleCopyVerificationLink = () => {
     if (showQrModal) {
       const payload = buildAttendanceQrPayload(showQrModal);

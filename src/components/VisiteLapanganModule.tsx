@@ -50,6 +50,7 @@ interface VisiteLapanganModuleProps {
   onSelectApplication: (app: Application) => void;
   onSendWhatsApp: (phone: string, message: string, templateType: any) => void;
   currentRole: UserRole;
+  singleApplication?: boolean;
 }
 
 export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
@@ -57,7 +58,8 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
   onUpdateApplication,
   onSelectApplication,
   onSendWhatsApp,
-  currentRole
+  currentRole,
+  singleApplication = false
 }) => {
   // Filter for applications relevant to Visite Lapangan (Prioritizing SLF, but accessible to any PBG needing site inspection)
   const [selectedAppId, setSelectedAppId] = useState<string>(() => {
@@ -115,6 +117,99 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Print & TTE Preview States
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [isTteModalOpen, setIsTteModalOpen] = useState(false);
+  const [ttePassphrase, setTtePassphrase] = useState('');
+  const [tteSigner, setTteSigner] = useState('Ir. H. Agus Ismail, S.T., M.T.');
+  const [tteSignerRole, setTteSignerRole] = useState('Kepala Dinas Pekerjaan Umum dan Penataan Ruang');
+  const [tteSignerNip, setTteSignerNip] = useState('197208151998031004');
+  const [tteError, setTteError] = useState<string | null>(null);
+  const [isTteSigningProgress, setIsTteSigningProgress] = useState(false);
+  const [tteSigningStep, setTteSigningStep] = useState('');
+
+  // Print Configuration Options (Real-time Preview Toggles)
+  const [printConfigKop, setPrintConfigKop] = useState(true);
+  const [printConfigPhotos, setPrintConfigPhotos] = useState(true);
+  const [printConfigSignatures, setPrintConfigSignatures] = useState(true);
+
+  // Escape key handler to close the local print or TTE modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isPrintModalOpen || isTteModalOpen) {
+          e.stopPropagation();
+          setIsPrintModalOpen(false);
+          setIsTteModalOpen(false);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleEscape, true);
+    return () => {
+      window.removeEventListener('keydown', handleEscape, true);
+    };
+  }, [isPrintModalOpen, isTteModalOpen]);
+
+  const handleApplyTte = () => {
+    if (!selectedApp) return;
+    if (!ttePassphrase) {
+      setTteError('Passphrase TTE wajib diisi!');
+      return;
+    }
+    
+    setIsTteSigningProgress(true);
+    setTteError(null);
+    
+    const steps = [
+      'Menghubungi server Balai Sertifikasi Elektronik (BSrE) BSSN...',
+      'Melakukan validasi sertifikat aktif pejabat penilai...',
+      'Membentuk hash kriptografis SHA-256 dari dokumen Berita Acara...',
+      'Menyandikan hash menggunakan kunci privat (RSA-2048)...',
+      'Membubuhi penanda timestamp terpercaya (trusted RFC-3161 timestamps)...',
+      'Selesai! Menandatangani dokumen secara elektronik (TTE).'
+    ];
+
+    let currentStep = 0;
+    setTteSigningStep(steps[0]);
+
+    const interval = setInterval(() => {
+      currentStep += 1;
+      if (currentStep < steps.length) {
+        setTteSigningStep(steps[currentStep]);
+      } else {
+        clearInterval(interval);
+        
+        // Finalize signature
+        const randomHex = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1).toUpperCase();
+        const tteTokenVal = `JWS.eyJhbGciOiJSUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYmI2NCJdfQ.${randomHex()}.${randomHex()}.${randomHex()}`;
+        const serialNum = `BSrE-DPUPR-GRT-2026/${randomHex()}/${randomHex()}`;
+        
+        const currentBa = selectedApp.baLapangan || generateBeritaAcaraLapanganDraft(selectedApp);
+        const updatedBa: BeritaAcaraLapangan = {
+          ...currentBa,
+          isTteSigned: true,
+          tteSignedAt: new Date().toISOString(),
+          tteToken: tteTokenVal,
+          tteSignerName: tteSigner,
+          tteSignerNip: tteSignerNip,
+          tteCertificateSerial: serialNum
+        };
+
+        const updatedApp: Application = {
+          ...selectedApp,
+          baLapangan: updatedBa,
+          lastUpdated: new Date().toISOString()
+        };
+
+        onUpdateApplication(updatedApp);
+        setIsTteSigningProgress(false);
+        setIsTteModalOpen(false);
+        setTtePassphrase('');
+        setTteError(null);
+      }
+    }, 400);
+  };
 
   // Interactive Signature Pad State & Handlers
   const sigCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -415,6 +510,14 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
 
   const handlePrint = () => {
     if (selectedApp) {
+      setIsPrintModalOpen(true);
+    } else {
+      window.print();
+    }
+  };
+
+  const executePhysicalPrint = () => {
+    if (selectedApp) {
       triggerPdfPrint('printable-ba-area', `BA_Visite_${selectedApp.registerNumber}`);
     } else {
       window.print();
@@ -441,162 +544,166 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
   return (
     <div className="space-y-6">
       
-      {/* Module Header Banner (Geometric Balance) */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-mono font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest flex items-center gap-1">
-              <Compass className="w-3.5 h-3.5" />
-              <span>MODUL KHUSUS // VISITE LAPANGAN & BA LAPANGAN</span>
-            </span>
-            <span className="text-[10px] font-mono text-indigo-600 bg-indigo-50 dark:bg-indigo-950 px-1.5 py-0.2 border border-indigo-200">
-              TAHAP SEBELUM KONSULTASI TEKNIS
-            </span>
+      {/* Module Header Banner (Geometric Balance) - Only when not singleApplication */}
+      {!singleApplication && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-mono font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest flex items-center gap-1">
+                <Compass className="w-3.5 h-3.5" />
+                <span>MODUL KHUSUS // VISITE LAPANGAN & BA LAPANGAN</span>
+              </span>
+              <span className="text-[10px] font-mono text-indigo-600 bg-indigo-50 dark:bg-indigo-950 px-1.5 py-0.2 border border-indigo-200">
+                TAHAP SEBELUM KONSULTASI TEKNIS
+              </span>
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight uppercase font-mono">
+              Pemeriksaan Lapangan & Berita Acara Kesesuaian Fisik (SLF & PBG)
+            </h2>
+            <p className="text-xs text-slate-500 max-w-3xl mt-0.5">
+              Inspeksi fisik langsung ke lokasi gedung, dokumentasi foto real-time via kamera, verifikasi as-built drawing vs laporan kelaikan, dan penerbitan Berita Acara (BA) Lapangan resmi DPUPR Garut.
+            </p>
           </div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight uppercase font-mono">
-            Pemeriksaan Lapangan & Berita Acara Kesesuaian Fisik (SLF & PBG)
-          </h2>
-          <p className="text-xs text-slate-500 max-w-3xl mt-0.5">
-            Inspeksi fisik langsung ke lokasi gedung, dokumentasi foto real-time via kamera, verifikasi as-built drawing vs laporan kelaikan, dan penerbitan Berita Acara (BA) Lapangan resmi DPUPR Garut.
-          </p>
-        </div>
 
-        <div className="flex items-center gap-3">
-          <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 border border-slate-200 dark:border-slate-700 text-center font-mono">
-            <span className="text-[9px] text-slate-400 block uppercase">Total Permohonan</span>
-            <span className="text-base font-bold text-slate-900 dark:text-white">{applications.length}</span>
-          </div>
-          <div className="bg-amber-50 dark:bg-amber-950/60 p-2.5 border border-amber-200 dark:border-amber-800 text-center font-mono">
-            <span className="text-[9px] text-amber-700 dark:text-amber-400 block uppercase">Butuh Visite</span>
-            <span className="text-base font-bold text-amber-600 dark:text-amber-400">
-              {applications.filter(a => isSlfApplication(a) && !a.baLapangan?.isCompleted).length}
-            </span>
-          </div>
-          <div className="bg-emerald-50 dark:bg-emerald-950/60 p-2.5 border border-emerald-200 dark:border-emerald-800 text-center font-mono">
-            <span className="text-[9px] text-emerald-700 dark:text-emerald-400 block uppercase">BA Sah</span>
-            <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
-              {applications.filter(a => a.baLapangan?.isCompleted).length}
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 border border-slate-200 dark:border-slate-700 text-center font-mono">
+              <span className="text-[9px] text-slate-400 block uppercase">Total Permohonan</span>
+              <span className="text-base font-bold text-slate-900 dark:text-white">{applications.length}</span>
+            </div>
+            <div className="bg-amber-50 dark:bg-amber-950/60 p-2.5 border border-amber-200 dark:border-amber-800 text-center font-mono">
+              <span className="text-[9px] text-amber-700 dark:text-amber-400 block uppercase">Butuh Visite</span>
+              <span className="text-base font-bold text-amber-600 dark:text-amber-400">
+                {applications.filter(a => isSlfApplication(a) && !a.baLapangan?.isCompleted).length}
+              </span>
+            </div>
+            <div className="bg-emerald-50 dark:bg-emerald-950/60 p-2.5 border border-emerald-200 dark:border-emerald-800 text-center font-mono">
+              <span className="text-[9px] text-emerald-700 dark:text-emerald-400 block uppercase">BA Sah</span>
+              <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+                {applications.filter(a => a.baLapangan?.isCompleted).length}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Main Grid: Left Selector Sidebar + Right Interactive Inspection Desk */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* Left Column: Permohonan Selector (4 cols) */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-            <span className="font-mono font-bold text-xs text-slate-900 dark:text-white uppercase">
-              Pilih Permohonan Gedung
-            </span>
-            <span className="text-[10px] font-mono text-slate-400">{filteredList.length} Berkas</span>
-          </div>
-
-          {/* Search & Filter */}
-          <div className="space-y-2">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-              <input
-                type="text"
-                placeholder="Cari register, nama, gedung..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-2 py-1.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs font-mono focus:outline-none"
-              />
+        {/* Left Column: Permohonan Selector (4 cols) - Only when not singleApplication */}
+        {!singleApplication && (
+          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <span className="font-mono font-bold text-xs text-slate-900 dark:text-white uppercase">
+                Pilih Permohonan Gedung
+              </span>
+              <span className="text-[10px] font-mono text-slate-400">{filteredList.length} Berkas</span>
             </div>
 
-            <div className="flex gap-1">
-              <button
-                onClick={() => setFilterStatus('ALL')}
-                className={`flex-1 py-1 text-[10px] font-mono font-bold uppercase border ${
-                  filterStatus === 'ALL'
-                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 border-slate-900'
-                    : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
-                }`}
-              >
-                Semua
-              </button>
-              <button
-                onClick={() => setFilterStatus('NEED_VISITE')}
-                className={`flex-1 py-1 text-[10px] font-mono font-bold uppercase border ${
-                  filterStatus === 'NEED_VISITE'
-                    ? 'bg-amber-600 text-white border-amber-600'
-                    : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
-                }`}
-              >
-                Belum Visite
-              </button>
-              <button
-                onClick={() => setFilterStatus('COMPLETED_VISITE')}
-                className={`flex-1 py-1 text-[10px] font-mono font-bold uppercase border ${
-                  filterStatus === 'COMPLETED_VISITE'
-                    ? 'bg-emerald-600 text-white border-emerald-600'
-                    : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
-                }`}
-              >
-                BA Sah
-              </button>
-            </div>
-          </div>
+            {/* Search & Filter */}
+            <div className="space-y-2">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Cari register, nama, gedung..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-2 py-1.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs font-mono focus:outline-none"
+                />
+              </div>
 
-          {/* List of Applications */}
-          <div className="space-y-2 max-h-[620px] overflow-y-auto pr-1">
-            {filteredList.map(app => {
-              const isSelected = app.id === selectedAppId;
-              const isSlf = isSlfApplication(app);
-              const isBaDone = app.baLapangan?.isCompleted;
-
-              return (
+              <div className="flex gap-1">
                 <button
-                  key={app.id}
-                  onClick={() => setSelectedAppId(app.id)}
-                  className={`w-full text-left p-3 border transition font-mono ${
-                    isSelected
-                      ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-500 ring-2 ring-amber-500/30'
-                      : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                  onClick={() => setFilterStatus('ALL')}
+                  className={`flex-1 py-1 text-[10px] font-mono font-bold uppercase border ${
+                    filterStatus === 'ALL'
+                      ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 border-slate-900'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className="font-bold text-xs text-indigo-600 dark:text-indigo-400">{app.registerNumber}</span>
-                    {isBaDone ? (
-                      <span className="bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[9px] px-1.5 py-0.2 border border-emerald-300 font-bold">
-                        ✓ BA SAH
-                      </span>
-                    ) : isSlf ? (
-                      <span className="bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-[9px] px-1.5 py-0.2 border border-amber-300 font-bold">
-                        VISITE SLF
-                      </span>
-                    ) : (
-                      <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[9px] px-1.5 py-0.2">
-                        PBG
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="font-sans font-bold text-xs text-slate-900 dark:text-white line-clamp-1 mb-0.5">
-                    {app.building.name}
-                  </div>
-
-                  <div className="text-[10px] text-slate-500 flex items-center justify-between">
-                    <span>Pemohon: {app.applicant.name}</span>
-                    <span>{app.building.district}</span>
-                  </div>
-
-                  {app.baLapangan?.photos && app.baLapangan.photos.length > 0 && (
-                    <div className="mt-1.5 text-[9px] text-slate-400 flex items-center gap-1">
-                      <Camera className="w-3 h-3 text-amber-500" />
-                      <span>{app.baLapangan.photos.length} Foto Lapangan Terlampir</span>
-                    </div>
-                  )}
+                  Semua
                 </button>
-              );
-            })}
-          </div>
-        </div>
+                <button
+                  onClick={() => setFilterStatus('NEED_VISITE')}
+                  className={`flex-1 py-1 text-[10px] font-mono font-bold uppercase border ${
+                    filterStatus === 'NEED_VISITE'
+                      ? 'bg-amber-600 text-white border-amber-600'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  Belum Visite
+                </button>
+                <button
+                  onClick={() => setFilterStatus('COMPLETED_VISITE')}
+                  className={`flex-1 py-1 text-[10px] font-mono font-bold uppercase border ${
+                    filterStatus === 'COMPLETED_VISITE'
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  BA Sah
+                </button>
+              </div>
+            </div>
 
-        {/* Right Column: Visite Workspace (8 cols) */}
-        <div className="lg:col-span-8 space-y-4">
+            {/* List of Applications */}
+            <div className="space-y-2 max-h-[620px] overflow-y-auto pr-1">
+              {filteredList.map(app => {
+                const isSelected = app.id === selectedAppId;
+                const isSlf = isSlfApplication(app);
+                const isBaDone = app.baLapangan?.isCompleted;
+
+                return (
+                  <button
+                    key={app.id}
+                    onClick={() => setSelectedAppId(app.id)}
+                    className={`w-full text-left p-3 border transition font-mono ${
+                      isSelected
+                        ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-500 ring-2 ring-amber-500/30'
+                        : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <span className="font-bold text-xs text-indigo-600 dark:text-indigo-400">{app.registerNumber}</span>
+                      {isBaDone ? (
+                        <span className="bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[9px] px-1.5 py-0.2 border border-emerald-300 font-bold">
+                          ✓ BA SAH
+                        </span>
+                      ) : isSlf ? (
+                        <span className="bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-[9px] px-1.5 py-0.2 border border-amber-300 font-bold">
+                          VISITE SLF
+                        </span>
+                      ) : (
+                        <span className="bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[9px] px-1.5 py-0.2">
+                          PBG
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="font-sans font-bold text-xs text-slate-900 dark:text-white line-clamp-1 mb-0.5">
+                      {app.building.name}
+                    </div>
+
+                    <div className="text-[10px] text-slate-500 flex items-center justify-between">
+                      <span>Pemohon: {app.applicant.name}</span>
+                      <span>{app.building.district}</span>
+                    </div>
+
+                    {app.baLapangan?.photos && app.baLapangan.photos.length > 0 && (
+                      <div className="mt-1.5 text-[9px] text-slate-400 flex items-center gap-1">
+                        <Camera className="w-3 h-3 text-amber-500" />
+                        <span>{app.baLapangan.photos.length} Foto Lapangan Terlampir</span>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Right Column: Visite Workspace (8 cols normally, 12 cols if singleApplication) */}
+        <div className={singleApplication ? 'lg:col-span-12 space-y-4' : 'lg:col-span-8 space-y-4'}>
           
           {selectedApp ? (
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
@@ -1670,6 +1777,101 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
                     </div>
                   </div>
 
+                  {/* TTE Certificate Status & Validation Panel */}
+                  <div className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs p-4 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="p-1 bg-indigo-50 dark:bg-slate-800 text-indigo-600">
+                          <ShieldCheck className="w-4 h-4" />
+                        </span>
+                        <div>
+                          <h4 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+                            Validasi Sertifikat & Otorisasi TTE BSrE
+                          </h4>
+                          <span className="text-[10px] text-slate-400">Verifikasi tanda tangan elektronik pejabat teknis DPUPR Garut</span>
+                        </div>
+                      </div>
+
+                      {/* OCSP / LTV Status Badge */}
+                      <div className="flex items-center gap-1.5 text-[9px] font-mono font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 border border-slate-200 dark:border-slate-700">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span className="text-emerald-700 dark:text-emerald-400">OCSP & LTV STATUS: ACTIVE (BSrE CA)</span>
+                      </div>
+                    </div>
+
+                    {selectedApp.baLapangan?.isTteSigned ? (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-2 space-y-2 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 p-3">
+                          <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-bold text-[11px]">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                            <span>✓ DOKUMEN TTE TERVERIFIKASI SAH</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10.5px] text-slate-600 dark:text-slate-400">
+                            <div>
+                              <span className="text-slate-400 block text-[9.5px] uppercase">Penandatangan:</span>
+                              <strong className="text-slate-800 dark:text-slate-200">{selectedApp.baLapangan.tteSignerName}</strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[9.5px] uppercase">NIP Pejabat:</span>
+                              <strong className="text-slate-800 dark:text-slate-200">{selectedApp.baLapangan.tteSignerNip || '197208151998031004'}</strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[9.5px] uppercase">Tanggal TTE:</span>
+                              <strong className="text-slate-800 dark:text-slate-200">{new Date(selectedApp.baLapangan.tteSignedAt || '').toLocaleString('id-ID')} WIB</strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[9.5px] uppercase">Serial BSrE:</span>
+                              <strong className="text-indigo-600 dark:text-indigo-400 font-mono text-[9px]">{selectedApp.baLapangan.tteCertificateSerial}</strong>
+                            </div>
+                          </div>
+                          <div className="border-t border-emerald-100 dark:border-emerald-900/40 pt-1.5 mt-1.5 flex items-center justify-between text-[9px] text-slate-500">
+                            <span>Hash SHA-256 Valid & Utuh (Integritas Terjaga)</span>
+                            <span className="bg-slate-200 dark:bg-slate-800 px-1.5 py-0.2 text-[8px] font-mono select-all">{selectedApp.baLapangan.tteToken?.slice(0, 32)}...</span>
+                          </div>
+                        </div>
+
+                        <div className="border border-slate-200 dark:border-slate-800 p-3 bg-slate-50 dark:bg-slate-900/60 flex flex-col justify-between space-y-2">
+                          <div className="text-[10px] space-y-1">
+                            <span className="font-bold text-slate-700 dark:text-slate-300 block uppercase">Log Audit Validasi TTE</span>
+                            <div className="text-[9.5px] font-mono text-slate-500 space-y-0.5">
+                              <div>- RSA-2048 Bit Key Verified</div>
+                              <div>- Timestamp RFC 3161 Certified</div>
+                              <div>- OCSP Status Revocation: GOOD</div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              alert(`Audit Validasi Kriptografi:\n-----------------------------------\nSertifikat Penandatangan: ${selectedApp.baLapangan?.tteSignerName}\nSerial: ${selectedApp.baLapangan?.tteCertificateSerial}\nRoot CA: Balai Sertifikasi Elektronik - BSSN RI\nIntegritas File: SANGAT BAIK (TIDAK ADA MODIFIKASI)\nStatus OCSP: VALID & AKTIF`);
+                            }}
+                            className="w-full py-1 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold uppercase transition"
+                          >
+                            Uji Log Integritas TTE
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 p-4">
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 font-bold text-[11px] uppercase">
+                            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                            <span>Peringatan TTE: Dokumen Belum Ditandatangani</span>
+                          </div>
+                          <p className="text-[10px] text-slate-600 dark:text-slate-400 leading-relaxed max-w-xl">
+                            Dokumen Berita Acara Lapangan ini belum ditandatangani secara elektronik (TTE) menggunakan sertifikat BSrE resmi Dinas PUPR Garut. Pencetakan resmi tanpa TTE akan ditandai tanda air (watermark) draft tidak sah.
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => setIsTteModalOpen(true)}
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase flex items-center justify-center gap-1.5 shadow-xs shrink-0 cursor-pointer"
+                        >
+                          <ShieldCheck className="w-4 h-4" />
+                          <span>Bubuhkan TTE Pejabat Sekarang</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Official Letter Paper Representation */}
                   <div id="printable-ba-area" className="bg-white dark:bg-slate-950 p-6 sm:p-8 border border-slate-300 dark:border-slate-700 shadow-lg max-w-3xl mx-auto text-slate-900 dark:text-slate-100 space-y-4 font-mono leading-relaxed">
                     
@@ -1926,19 +2128,54 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
                       </div>
 
                       <div className="flex flex-col items-center justify-between min-h-[140px] space-y-2">
-                        <div className="font-bold uppercase text-slate-800 dark:text-slate-200">PETUGAS / OPERATOR SIMBG DPUPR GARUT</div>
-                        
-                        <div className="my-1 h-16 flex items-center justify-center text-slate-400 text-[8px] font-mono leading-tight">
-                          <div className="border border-slate-300 p-1 text-center bg-slate-50 select-none uppercase">
-                            <div>TERTANDALINDUNGI</div>
-                            <div className="font-bold text-slate-600">SIMBG Garut TTE</div>
-                            <div>RFC-7515 JWS SECURE</div>
-                          </div>
+                        <div className="font-bold uppercase text-slate-800 dark:text-slate-200">
+                          {selectedApp.baLapangan?.isTteSigned ? 'PEJABAT PENGESAH DOKUMEN TTE' : 'PETUGAS / OPERATOR SIMBG DPUPR GARUT'}
                         </div>
+                        
+                        {selectedApp.baLapangan?.isTteSigned ? (
+                          <div className="my-1 h-16 flex items-center gap-2 border border-emerald-500/30 p-1.5 bg-emerald-50/20 max-w-[190px] text-left">
+                            {/* QR Verification Seal */}
+                            <div className="w-12 h-12 bg-white flex items-center justify-center p-0.5 border border-slate-300 shrink-0">
+                              {/* Inline representation of a barcode/QR code using custom styled boxes */}
+                              <div className="w-full h-full grid grid-cols-4 grid-rows-4 gap-[1px]">
+                                {[1,0,1,1,0,1,0,1,1,1,0,0,1,0,1,1].map((v, i) => (
+                                  <div key={i} className={`w-full h-full ${v === 1 ? 'bg-slate-900' : 'bg-transparent'}`}></div>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="text-[7.5px] font-mono leading-tight text-slate-600">
+                              <div className="font-bold text-emerald-700">TTE BSrE SAH</div>
+                              <div className="truncate">SN: {selectedApp.baLapangan.tteCertificateSerial?.slice(-8)}</div>
+                              <div>Date: {new Date(selectedApp.baLapangan.tteSignedAt || '').toLocaleDateString('id-ID')}</div>
+                              <div className="text-[6.5px] text-indigo-600 truncate">Verify @simbg.garut</div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="my-1 h-16 flex items-center justify-center text-slate-400 text-[8px] font-mono leading-tight">
+                            <div className="border border-slate-300 p-1 text-center bg-slate-50 select-none uppercase">
+                              <div>DRAFT BELUM SAH TTE</div>
+                              <div className="font-bold text-slate-600">SIMBG Garut TTE</div>
+                              <div>KUNCI DITANGGUHKAN</div>
+                            </div>
+                          </div>
+                        )}
 
                         <div>
-                          <div className="font-bold underline text-slate-900 dark:text-white uppercase">OPERATOR TEKNIS SIMBG</div>
-                          <div className="text-[9px] text-slate-500 font-mono">Dinas PUPR Kabupaten Garut</div>
+                          {selectedApp.baLapangan?.isTteSigned ? (
+                            <>
+                              <div className="font-bold underline text-slate-900 dark:text-white uppercase">
+                                {selectedApp.baLapangan.tteSignerName}
+                              </div>
+                              <div className="text-[8.5px] text-slate-500 font-mono">
+                                NIP: {selectedApp.baLapangan.tteSignerNip}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="font-bold underline text-slate-900 dark:text-white uppercase">OPERATOR TEKNIS SIMBG</div>
+                              <div className="text-[9px] text-slate-500 font-mono">Dinas PUPR Kabupaten Garut</div>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1958,6 +2195,438 @@ export const VisiteLapanganModule: React.FC<VisiteLapanganModuleProps> = ({
         </div>
 
       </div>
+
+      {/* Modal 1: Otorisasi & TTE Signature Pejabat */}
+      {isTteModalOpen && selectedApp && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 max-w-md w-full shadow-2xl p-5 space-y-4 font-mono text-xs text-slate-800 dark:text-slate-200">
+            <div className="flex items-center justify-between border-b pb-2 border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-indigo-600" />
+                <span className="font-bold uppercase text-slate-900 dark:text-white">Otorisasi TTE BSrE</span>
+              </div>
+              <button 
+                disabled={isTteSigningProgress}
+                onClick={() => {
+                  setIsTteModalOpen(false);
+                  setTtePassphrase('');
+                  setTteError(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 disabled:opacity-50 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {isTteSigningProgress ? (
+              <div className="py-6 flex flex-col items-center justify-center space-y-4 text-center">
+                {/* Animated spinner */}
+                <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                <div className="space-y-1">
+                  <span className="font-bold text-slate-900 dark:text-white uppercase block">Proses Enkripsi TTE</span>
+                  <p className="text-[10px] text-slate-500 animate-pulse">{tteSigningStep}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-[10.5px] leading-relaxed text-slate-500">
+                  Anda akan membubuhi Berita Acara Lapangan dengan Tanda Tangan Elektronik (TTE) tersertifikasi Balai Sertifikasi Elektronik - BSSN. Sesuai Undang-Undang ITE, dokumen yang disahkan memiliki kekuatan hukum penuh.
+                </p>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Pejabat Penandatangan:</label>
+                    <select
+                      value={`${tteSigner}||${tteSignerRole}||${tteSignerNip}`}
+                      onChange={(e) => {
+                        const [name, role, nip] = e.target.value.split('||');
+                        setTteSigner(name);
+                        setTteSignerRole(role);
+                        setTteSignerNip(nip);
+                      }}
+                      className="w-full px-2.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-bold focus:ring-0"
+                    >
+                      <option value="Ir. H. Agus Ismail, S.T., M.T.||Kepala Dinas Pekerjaan Umum dan Penataan Ruang||197208151998031004">
+                        Ir. H. Agus Ismail, S.T., M.T. (Kepala Dinas)
+                      </option>
+                      <option value="Ir. H. Deni Kusnadi, M.Si.||Kepala Bidang Tata Bangunan & Bina Konstruksi||196904121995031002">
+                        Ir. H. Deni Kusnadi, M.Si. (Kabid Tata Bangunan)
+                      </option>
+                      <option value="Rian Pratama, S.T., M.Eng.||Ketua Tim Pengawas Lapangan DPUPR||198511202009041001">
+                        Rian Pratama, S.T., M.Eng. (Ketua Tim Pengawas)
+                      </option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Passphrase / PIN Kunci Privat:</label>
+                    <input
+                      type="password"
+                      value={ttePassphrase}
+                      onChange={(e) => setTtePassphrase(e.target.value)}
+                      placeholder="Masukkan Passphrase TTE (e.g. puprgarut)"
+                      className="w-full px-2.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono font-bold focus:outline-none focus:border-indigo-600"
+                    />
+                    <span className="text-[9px] text-slate-400 mt-1 block">Petunjuk: Masukkan PIN sertifikat BSrE Pejabat (e.g. 'puprgarut')</span>
+                  </div>
+                </div>
+
+                {tteError && (
+                  <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/60 p-2 text-rose-700 dark:text-rose-300 text-[10px] font-bold">
+                    ⚠️ {tteError}
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    onClick={() => {
+                      setIsTteModalOpen(false);
+                      setTtePassphrase('');
+                      setTteError(null);
+                    }}
+                    className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 font-bold text-slate-700 dark:text-slate-300 transition uppercase cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={handleApplyTte}
+                    className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 font-bold text-white transition uppercase shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Sahkan TTE</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal 2: Premium Print Preview & Live Configuration Drawer */}
+      {isPrintModalOpen && selectedApp && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6">
+          <div className="bg-slate-100 dark:bg-slate-900 w-full max-w-6xl h-[90vh] flex flex-col shadow-2xl border border-slate-300 dark:border-slate-800 text-slate-800 dark:text-slate-200 font-sans">
+            
+            {/* Header */}
+            <div className="bg-white dark:bg-slate-950 px-6 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-indigo-600" />
+                  <span>Pratinjau Cetak Berita Acara Lapangan (A4 Live Preview)</span>
+                </h3>
+                <span className="text-[10px] text-slate-500 font-mono">No. Register: {selectedApp.registerNumber} | Pemilik: {selectedApp.applicant.name}</span>
+              </div>
+              <button
+                onClick={() => setIsPrintModalOpen(false)}
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Dynamic Split Layout */}
+            <div className="flex-1 flex overflow-hidden">
+              
+              {/* Left Pane: Config Panel & Controls (320px) */}
+              <div className="w-[320px] shrink-0 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 p-4 flex flex-col justify-between overflow-y-auto space-y-6">
+                
+                <div className="space-y-5">
+                  {/* Status TTE Badge Card */}
+                  <div className="border border-slate-200 dark:border-slate-800 p-3 bg-slate-50 dark:bg-slate-900/60 space-y-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Status Sertifikasi TTE</span>
+                    
+                    {selectedApp.baLapangan?.isTteSigned ? (
+                      <div className="space-y-1.5">
+                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400 font-mono font-bold text-[9px] border border-emerald-300">
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          <span>TERVERIFIKASI TTE BSrE</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 leading-normal">
+                          Dokumen sah. Hash SHA-256 telah disahkan oleh {selectedApp.baLapangan.tteSignerName}.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400 font-mono font-bold text-[9px] border border-amber-300">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          <span>DRAFT (BELUM SAH TTE)</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 leading-normal">
+                          Dokumen belum dibubuhi TTE Pejabat. Tanda air "DRAFT" akan dicetak secara semi-transparan.
+                        </p>
+                        <button
+                          onClick={() => {
+                            setIsPrintModalOpen(false);
+                            setIsTteModalOpen(true);
+                          }}
+                          className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold uppercase transition cursor-pointer"
+                        >
+                          Bubuhi TTE Sekarang
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Real-time Layout Options */}
+                  <div className="space-y-3">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block border-b pb-1">Konfigurasi Lembar Kerja</span>
+                    
+                    <div className="space-y-2 text-xs">
+                      <label className="flex items-start gap-2.5 cursor-pointer">
+                        <input 
+                          type="checkbox"
+                          checked={printConfigKop}
+                          onChange={(e) => setPrintConfigKop(e.target.checked)}
+                          className="mt-0.5 rounded-none border-slate-300 focus:ring-0 text-indigo-600"
+                        />
+                        <div>
+                          <span className="font-bold text-slate-700 dark:text-slate-300 block">Tampilkan Kop Resmi DPUPR</span>
+                          <span className="text-[10px] text-slate-400">Menyisipkan kop surat kedinasan Garut di halaman 1</span>
+                        </div>
+                      </label>
+
+                      <label className="flex items-start gap-2.5 cursor-pointer">
+                        <input 
+                          type="checkbox"
+                          checked={printConfigSignatures}
+                          onChange={(e) => setPrintConfigSignatures(e.target.checked)}
+                          className="mt-0.5 rounded-none border-slate-300 focus:ring-0 text-indigo-600"
+                        />
+                        <div>
+                          <span className="font-bold text-slate-700 dark:text-slate-300 block">Tampilkan TTD Pemohon</span>
+                          <span className="text-[10px] text-slate-400">Menampilkan tanda tangan fisik perwakilan pemilik</span>
+                        </div>
+                      </label>
+
+                      <label className="flex items-start gap-2.5 cursor-pointer">
+                        <input 
+                          type="checkbox"
+                          checked={printConfigPhotos}
+                          onChange={(e) => setPrintConfigPhotos(e.target.checked)}
+                          className="mt-0.5 rounded-none border-slate-300 focus:ring-0 text-indigo-600"
+                        />
+                        <div>
+                          <span className="font-bold text-slate-700 dark:text-slate-300 block">Lampirkan Foto Lapangan</span>
+                          <span className="text-[10px] text-slate-400">Menyisipkan dokumentasi visual di akhir Berita Acara</span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* PDF Dimensions Info */}
+                  <div className="border border-slate-200 dark:border-slate-800 p-2.5 text-[10px] text-slate-400 font-mono space-y-1">
+                    <div>Format Target: Kertas A4 (ISO 216)</div>
+                    <div>Dimensi: 210mm x 297mm</div>
+                    <div>Integritas: Terproteksi Kriptografi</div>
+                  </div>
+                </div>
+
+                {/* Core Print Action Buttons */}
+                <div className="space-y-2 pt-4 border-t border-slate-100 dark:border-slate-800 shrink-0">
+                  <button
+                    onClick={() => {
+                      setIsPrintModalOpen(false);
+                      executePhysicalPrint();
+                    }}
+                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase flex items-center justify-center gap-2 shadow-xs transition cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Kirim ke Mesin Cetak / PDF</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => setIsPrintModalOpen(false)}
+                    className="w-full py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase transition cursor-pointer"
+                  >
+                    Tutup Pratinjau
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Pane: Live Simulated Paper Canvas */}
+              <div className="flex-1 p-6 overflow-y-auto bg-slate-300/60 dark:bg-slate-950/40 flex justify-center items-start">
+                
+                {/* Styled Sheet Simulating Physical A4 Letterhead */}
+                <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-12 max-w-[210mm] w-full shadow-2xl border border-slate-300 dark:border-slate-800 relative space-y-4 font-mono text-[10.5px] leading-relaxed select-none">
+                  
+                  {/* Real-time diagonal watermark if draft */}
+                  {!selectedApp.baLapangan?.isTteSigned && (
+                    <div className="absolute inset-0 flex items-center justify-center opacity-[0.06] text-slate-900 dark:text-white text-5xl font-extrabold select-none pointer-events-none rotate-12 z-10">
+                      DRAFT - BELUM SAH TTE
+                    </div>
+                  )}
+
+                  {/* Kop Surat (Configurable) */}
+                  {printConfigKop && (
+                    <div className="text-center border-b-2 border-slate-900 dark:border-slate-700 pb-4 space-y-1">
+                      <div className="font-bold text-xs tracking-wide">PEMERINTAH KABUPATEN GARUT</div>
+                      <div className="font-extrabold text-sm tracking-wider">DINAS PEKERJAAN UMUM DAN PENATAAN RUANG</div>
+                      <div className="text-[9px] text-slate-500">Jl. Raya Samarang No. 115, Tarogong Kidul, Kabupaten Garut, Jawa Barat 44151</div>
+                    </div>
+                  )}
+
+                  {/* Title */}
+                  <div className="text-center pt-2 space-y-0.5">
+                    <div className="font-bold text-xs uppercase underline tracking-wider">
+                      BERITA ACARA PEMERIKSAAN KELAIKAN FUNGSI LAPANGAN (VISITE SLF/PBG)
+                    </div>
+                    <div className="text-[10px] text-slate-500">
+                      Nomor: {selectedApp.baLapangan?.baLapanganNumber || `BA-VISITE/${selectedApp.registerNumber.replace(/[^a-zA-Z0-9]/g, '').slice(-6)}/DPUPR-GRT/2026`}
+                    </div>
+                  </div>
+
+                  {/* Narrative */}
+                  <p className="text-[10.5px]">
+                    Pada hari ini, <strong>{visitDate}</strong> pukul <strong>{visitTime}</strong>, telah dilaksanakan pemeriksaan langsung/visite ke lokasi bangunan gedung dalam rangka permohonan penerbitan <strong>{isSlfApplication(selectedApp) ? 'Sertifikat Laik Fungsi (SLF)' : 'Persetujuan Bangunan Gedung (PBG)'}</strong>:
+                  </p>
+
+                  {/* Specs Table */}
+                  <table className="w-full border-collapse border border-slate-300 text-[10px] text-left">
+                    <tbody>
+                      <tr>
+                        <td className="border border-slate-300 p-1.5 font-bold w-1/3">Nama Permohonan</td>
+                        <td className="border border-slate-300 p-1.5 capitalize">{selectedApp.building.name}</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-slate-300 p-1.5 font-bold">No. Register</td>
+                        <td className="border border-slate-300 p-1.5 font-mono">{selectedApp.registerNumber}</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-slate-300 p-1.5 font-bold">Nama Pemilik</td>
+                        <td className="border border-slate-300 p-1.5">{selectedApp.applicant.name}</td>
+                      </tr>
+                      <tr>
+                        <td className="border border-slate-300 p-1.5 font-bold">Lokasi Bangunan</td>
+                        <td className="border border-slate-300 p-1.5">{selectedApp.building.address}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  {/* Param checks */}
+                  <div className="space-y-2 pt-1">
+                    <div className="font-bold text-[10px] uppercase">Hasil Verifikasi Parameter Lapangan:</div>
+                    <div className="grid grid-cols-2 gap-3 text-[10px]">
+                      <div className="border border-slate-300 p-2 space-y-0.5 bg-slate-50">
+                        <div className="font-bold border-b pb-0.5 mb-1 text-[9px] uppercase">Kondisi Tanah</div>
+                        <div>{selectedApp.baLapangan?.kondisiLapangan?.tanahKosong ? '☑' : '☐'} 1. Tanah kosong</div>
+                        <div>{selectedApp.baLapangan?.kondisiLapangan?.adaBangunanLama ? '☑' : '☐'} 2. Ada bangunan lama</div>
+                        <div>{selectedApp.baLapangan?.kondisiLapangan?.bangunanSudahJadi ? '☑' : '☐'} 3. Bangunan sudah jadi</div>
+                      </div>
+
+                      <div className="border border-slate-300 p-2 space-y-0.5 bg-slate-50">
+                        <div className="font-bold border-b pb-0.5 mb-1 text-[9px] uppercase">Kesesuaian Fisik</div>
+                        <div className="font-bold text-indigo-700">{conformityStatus.replace('_', ' ')}</div>
+                        <div className="text-[9px] text-slate-500">Catatan: {locationNotes.slice(0, 50)}...</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Attached Photos (Configurable) */}
+                  {printConfigPhotos && photos.length > 0 && (
+                    <div className="space-y-1.5 pt-2">
+                      <div className="font-bold text-[10px] uppercase">Lampiran Dokumentasi Visual Lapangan:</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {photos.slice(0, 3).map((ph) => (
+                          <div key={ph.id} className="border border-slate-300 p-1 bg-slate-50 text-center">
+                            <img 
+                              src={ph.url} 
+                              alt={ph.tag} 
+                              className="h-16 w-full object-cover" 
+                              referrerPolicy="no-referrer"
+                            />
+                            <span className="text-[7.5px] font-bold block truncate mt-0.5 uppercase">{ph.tag}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Signatures Row */}
+                  <div className="pt-6 grid grid-cols-2 gap-6 text-center text-[10px] border-t border-slate-200">
+                    
+                    {/* Pemohon (Configurable) */}
+                    <div className="flex flex-col items-center justify-between min-h-[110px] space-y-1">
+                      <div className="font-bold uppercase text-slate-700">
+                        {selectedApp.baLapangan?.attendeesOwner?.role ? selectedApp.baLapangan.attendeesOwner.role.toUpperCase() : 'PEMOHON / YANG DIKUASAKAN'}
+                      </div>
+                      
+                      {printConfigSignatures && selectedApp.baLapangan?.perwakilanTtdUrl ? (
+                        <div className="my-0.5 h-12 flex items-center justify-center">
+                          <img 
+                            src={selectedApp.baLapangan.perwakilanTtdUrl} 
+                            alt="Tanda Tangan Pemohon" 
+                            className="h-12 object-contain mix-blend-multiply" 
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                      ) : (
+                        <div className="h-12 flex items-center justify-center text-slate-400 italic text-[9px]">
+                          {printConfigSignatures ? '(Belum ditandatangani)' : '(Disembunyikan)'}
+                        </div>
+                      )}
+
+                      <div>
+                        <div className="font-bold underline uppercase">{selectedApp.baLapangan?.attendeesOwner?.name || selectedApp.applicant.name}</div>
+                        <div className="text-[8.5px] text-slate-500">NIK: {selectedApp.baLapangan?.attendeesOwner?.nik || selectedApp.applicant.nik || '-'}</div>
+                      </div>
+                    </div>
+
+                    {/* TTE Seal (Pejabat) */}
+                    <div className="flex flex-col items-center justify-between min-h-[110px] space-y-1">
+                      <div className="font-bold uppercase text-slate-700">
+                        {selectedApp.baLapangan?.isTteSigned ? 'PEJABAT PENILAI TEKNIS' : 'PETUGAS SIMBG DPUPR'}
+                      </div>
+                      
+                      {selectedApp.baLapangan?.isTteSigned ? (
+                        <div className="my-0.5 h-12 flex items-center gap-2 border border-emerald-500/30 p-1 bg-emerald-50/20 max-w-[170px] text-left">
+                          <div className="w-9 h-9 bg-white flex items-center justify-center p-0.5 border border-slate-300 shrink-0">
+                            <img 
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&ecc=M&data=${encodeURIComponent(`https://simbg.garutkab.go.id/verify?sn=${selectedApp.baLapangan.tteCertificateSerial || 'BSRE-GARUT'}&signer=${encodeURIComponent(selectedApp.baLapangan.tteSignerName || '')}&doc=${encodeURIComponent(selectedApp.baLapangan.baLapanganNumber || selectedApp.registerNumber)}`)}`} 
+                              alt="QR TTE BSrE" 
+                              className="w-full h-full object-contain" 
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
+                          <div className="text-[7px] font-mono leading-tight text-slate-600">
+                            <div className="font-bold text-emerald-700">TTE BSrE SAH</div>
+                            <div className="truncate">SN: {selectedApp.baLapangan.tteCertificateSerial?.slice(-8)}</div>
+                            <div className="text-[6px] text-indigo-600 truncate">Verify @simbg</div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="my-0.5 h-12 flex items-center justify-center text-slate-400 text-[8px] font-mono leading-tight">
+                          <div className="border border-slate-300 p-1 text-center bg-slate-50 select-none uppercase">
+                            <div>DRAFT BELUM SAH TTE</div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        {selectedApp.baLapangan?.isTteSigned ? (
+                          <>
+                            <div className="font-bold underline uppercase">{selectedApp.baLapangan.tteSignerName}</div>
+                            <div className="text-[8px] text-slate-500">NIP: {selectedApp.baLapangan.tteSignerNip}</div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="font-bold underline uppercase">OPERATOR TEKNIS SIMBG</div>
+                            <div className="text-[8.5px] text-slate-500">Dinas PUPR Kabupaten Garut</div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

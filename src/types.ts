@@ -161,6 +161,14 @@ export interface BeritaAcaraLapangan {
   isCompleted: boolean;
   completedAt?: string;
 
+  // TTE (Tanda Tangan Elektronik) Verification fields
+  isTteSigned?: boolean;
+  tteSignedAt?: string;
+  tteToken?: string;
+  tteSignerName?: string;
+  tteSignerNip?: string;
+  tteCertificateSerial?: string; // BSrE certificate ID
+
   // New fields from the official PDF
   kondisiLapangan?: {
     tanahKosong?: boolean;
