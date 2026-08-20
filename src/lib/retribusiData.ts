@@ -128,6 +128,7 @@ export const PRASARANA_TYPES = [
   { label: 'Carport', unit: 'M2', price: 3000 },
   { label: 'Teras', unit: 'M2', price: 3000 },
   { label: 'Pedestrian', unit: 'M2', price: 3000 },
+  { label: '0', unit: 'M2', price: 3000 },
   { label: 'Perkerasan Grassblock', unit: 'M2', price: 3000 },
   { label: 'Jembatan', unit: 'M2', price: 68000 },
   { label: 'Dek', unit: 'M2', price: 68000 },

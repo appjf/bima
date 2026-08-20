@@ -312,6 +312,14 @@ export const DatabaseImportExportModule: React.FC<DatabaseImportExportModuleProp
           const res = await executeImportToSupabase('prasarana_prices', bundle.prasaranaPrices, importMode);
           totalInserted += res.insertedCount;
           if (res.errors.length) allErrors.push(...res.errors);
+
+          // Sync to Firestore too!
+          try {
+            const { importPricesToFirestore } = await import('../lib/firebaseSettings');
+            await importPricesToFirestore(bundle.prasaranaPrices);
+          } catch (err) {
+            console.error('Failed to sync imported prasarana prices to Firestore:', err);
+          }
         }
 
         setImportProgress(100);

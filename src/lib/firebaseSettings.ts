@@ -1,6 +1,7 @@
 import { 
   collection, 
   doc, 
+  getDoc,
   getDocs, 
   setDoc, 
   query, 
@@ -34,6 +35,7 @@ export async function initializePrasaranaPrices() {
   // Initialize Prasarana Prices
   const snapshot = await getDocs(collection(db, SETTINGS_COLLECTION));
   const existingIds = new Set(snapshot.docs.map(doc => doc.id));
+  const initializedItems: PrasaranaPriceConfig[] = [];
 
   console.log('Checking for missing prasarana prices...');
   for (const item of PRASARANA_TYPES) {
@@ -49,6 +51,17 @@ export async function initializePrasaranaPrices() {
         updatedBy: 'SYSTEM_INITIAL'
       };
       await setDoc(doc(db, SETTINGS_COLLECTION, id), config);
+      initializedItems.push(config);
+    }
+  }
+
+  // Sync newly added items to Supabase
+  if (initializedItems.length > 0) {
+    try {
+      const { syncPrasaranaPricesToSupabase } = await import('./supabase');
+      await syncPrasaranaPricesToSupabase(initializedItems);
+    } catch (err) {
+      console.error('Failed to sync initialized prices to Supabase:', err);
     }
   }
 
@@ -109,16 +122,33 @@ export function subscribeToPrasaranaPrices(callback: (prices: PrasaranaPriceConf
 
 export async function updatePrasaranaPrice(id: string, price: number, user: string) {
   // Ensure ID is sanitized even if a label is passed
-  const docRef = doc(db, SETTINGS_COLLECTION, sanitizeId(id));
+  const docId = sanitizeId(id);
+  const docRef = doc(db, SETTINGS_COLLECTION, docId);
+  const updatedAt = new Date().toISOString();
+
   await setDoc(docRef, {
     price,
-    updatedAt: new Date().toISOString(),
+    updatedAt,
     updatedBy: user
   }, { merge: true });
+
+  // Sync to Supabase as well
+  try {
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const fullData = snap.data() as PrasaranaPriceConfig;
+      const { syncPrasaranaPricesToSupabase } = await import('./supabase');
+      await syncPrasaranaPricesToSupabase([fullData]);
+    }
+  } catch (err) {
+    console.error('Failed to sync updated prasarana price to Supabase:', err);
+  }
 }
 
 export async function resetPrasaranaToDefaults(user: string) {
   console.log('Resetting prasarana prices to defaults...');
+  const resetItems: PrasaranaPriceConfig[] = [];
+  
   for (const item of PRASARANA_TYPES) {
     const id = sanitizeId(item.label);
     const config: PrasaranaPriceConfig = {
@@ -128,6 +158,30 @@ export async function resetPrasaranaToDefaults(user: string) {
       price: item.price,
       updatedAt: new Date().toISOString(),
       updatedBy: user
+    };
+    await setDoc(doc(db, SETTINGS_COLLECTION, id), config);
+    resetItems.push(config);
+  }
+
+  // Sync all reset items to Supabase
+  try {
+    const { syncPrasaranaPricesToSupabase } = await import('./supabase');
+    await syncPrasaranaPricesToSupabase(resetItems);
+  } catch (err) {
+    console.error('Failed to sync reset prasarana prices to Supabase:', err);
+  }
+}
+
+export async function importPricesToFirestore(prices: PrasaranaPriceConfig[]) {
+  for (const item of prices) {
+    const id = sanitizeId(item.id || item.label);
+    const config: PrasaranaPriceConfig = {
+      id,
+      label: item.label,
+      unit: item.unit,
+      price: item.price,
+      updatedAt: item.updatedAt || new Date().toISOString(),
+      updatedBy: item.updatedBy || 'SYSTEM_IMPORT'
     };
     await setDoc(doc(db, SETTINGS_COLLECTION, id), config);
   }

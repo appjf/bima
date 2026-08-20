@@ -1015,7 +1015,7 @@ export async function fetchPrasaranaPricesFromSupabase(): Promise<{ data: Prasar
     const { data, error } = await sb
       .from('prasarana_prices')
       .select('*')
-      .order('name');
+      .order('id');
 
     if (error) {
       if (isSupabaseTableMissingError(error)) return { data: [], isTableMissing: true, error: 'TABLE_NOT_FOUND' };
@@ -1023,12 +1023,12 @@ export async function fetchPrasaranaPricesFromSupabase(): Promise<{ data: Prasar
     }
 
     const prices: PrasaranaPriceConfig[] = (data || []).map(row => ({
-      id: row.id || row.item_code,
-      label: row.name,
+      id: row.id,
+      label: row.label,
       unit: row.unit,
-      price: Number(row.base_price || 0),
+      price: Number(row.price || 0),
       updatedAt: row.updated_at || new Date().toISOString(),
-      updatedBy: row.notes || 'DPUPR Garut'
+      updatedBy: row.updated_by || 'DPUPR Garut'
     }));
 
     return { data: prices };
@@ -1049,12 +1049,10 @@ export async function syncPrasaranaPricesToSupabase(prices: PrasaranaPriceConfig
   try {
     const rows = prices.map(p => ({
       id: p.id,
-      item_code: p.id,
-      name: p.label,
+      label: p.label,
       unit: p.unit,
-      base_price: p.price,
-      category: 'PRASARANA_UMUM',
-      notes: p.updatedBy || 'DPUPR Garut',
+      price: p.price,
+      updated_by: p.updatedBy || 'DPUPR Garut',
       updated_at: new Date().toISOString()
     }));
 
@@ -1272,12 +1270,10 @@ export async function executeImportToSupabase(
         case 'prasarana_prices':
           payloadRows = chunk.map(p => ({
             id: p.id,
-            item_code: p.id,
-            name: p.label,
+            label: p.label || p.name,
             unit: p.unit,
-            base_price: p.price,
-            category: 'PRASARANA_UMUM',
-            notes: p.updatedBy || 'DPUPR Garut',
+            price: p.price || p.base_price,
+            updated_by: p.updatedBy || p.notes || 'DPUPR Garut',
             updated_at: new Date().toISOString()
           }));
           break;
