@@ -237,6 +237,24 @@ export interface ConsultationNoticeLetter {
   issuedAt?: string;
 }
 
+export interface FieldConsultationEvaluation {
+  field: 'ARSITEKTUR' | 'STRUKTUR' | 'MEP';
+  expertName: string;
+  result: 'DISETUJUI' | 'PERBAIKAN' | 'KONSULTASI_ULANG';
+  notes: string;
+  revisionItems: string[];
+  updatedAt: string;
+}
+
+export interface ConsultationHistoryItem {
+  id: string;
+  timestamp: string;
+  sessionTitle: string;
+  overallResult: 'DISETUJUI' | 'PERBAIKAN' | 'KONSULTASI_ULANG';
+  evaluations: FieldConsultationEvaluation[];
+  summaryNotes: string;
+}
+
 export interface BeritaAcaraKonsultasi {
   baNumber: string;
   baDate: string;
@@ -246,6 +264,10 @@ export interface BeritaAcaraKonsultasi {
   revisionDeadline?: string;
   attendees: { name: string; role: string; present: boolean }[];
   isFinalized: boolean;
+  // Field-specific evaluations by TPA experts
+  fieldEvaluations?: FieldConsultationEvaluation[];
+  // History log of previous consultation sessions & revisions
+  history?: ConsultationHistoryItem[];
 }
 
 export interface BeritaAcaraPleno {
@@ -257,6 +279,10 @@ export interface BeritaAcaraPleno {
   leadExpertName: string;
   leadExpertNip?: string;
   isSigned: boolean;
+  arsitekturNotes?: string[];
+  strukturNotes?: string[];
+  mepNotes?: string[];
+  attendants?: { name: string; role: string; present?: boolean }[];
 }
 
 export interface BuildingInfo {

@@ -30,7 +30,8 @@ import {
   Camera,
   CheckCircle,
   Layers,
-  Users
+  Users,
+  Download
 } from 'lucide-react';
 import { DocumentEngineHub } from './DocumentEngineHub';
 import { 
@@ -74,6 +75,8 @@ import { logStatusChange } from '../lib/auditLogEngine';
 import { SuratUndanganVisiteDocument } from './SuratUndanganVisiteDocument';
 import { VisiteLapanganModule } from './VisiteLapanganModule';
 import { NoticeLetterPrint } from './NoticeLetterPrint';
+import { BAPlenoPrint } from './BAPlenoPrint';
+import { BAKonsultasiPrint } from './BAKonsultasiPrint';
 
 interface ApplicationDetailModalProps {
   application: Application;
@@ -143,20 +146,127 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
     }
   };
 
-  // Stage 4 BA Konsultasi state
+  // Stage 4 BA Konsultasi state (Multi-Field TPA/TPT & History)
+  const [baActiveField, setBaActiveField] = useState<'OVERVIEW' | 'ARSITEKTUR' | 'STRUKTUR' | 'MEP'>('OVERVIEW');
+  const [sessionTitle, setSessionTitle] = useState('Sidang Konsultasi Teknis Sesi 1');
+
+  // Arsitektur
+  const [arsitResult, setArsitResult] = useState<'DISETUJUI' | 'PERBAIKAN' | 'KONSULTASI_ULANG'>(
+    application.baKonsultasi?.fieldEvaluations?.find(f => f.field === 'ARSITEKTUR')?.result || 'DISETUJUI'
+  );
+  const [arsitNotes, setArsitNotes] = useState(
+    application.baKonsultasi?.fieldEvaluations?.find(f => f.field === 'ARSITEKTUR')?.notes || 'Tata ruang dan konsep arsitektur sudah sesuai KRK & SNI.'
+  );
+  const [arsitRevisions, setArsitRevisions] = useState(
+    application.baKonsultasi?.fieldEvaluations?.find(f => f.field === 'ARSITEKTUR')?.revisionItems?.join('\n') || ''
+  );
+
+  // Struktur
+  const [strukResult, setStrukResult] = useState<'DISETUJUI' | 'PERBAIKAN' | 'KONSULTASI_ULANG'>(
+    application.baKonsultasi?.fieldEvaluations?.find(f => f.field === 'STRUKTUR')?.result || 'DISETUJUI'
+  );
+  const [strukNotes, setStrukNotes] = useState(
+    application.baKonsultasi?.fieldEvaluations?.find(f => f.field === 'STRUKTUR')?.notes || 'Perhitungan struktur atas dan bawah menggunakan SAP2000 memenuhi SNI 1726:2019.'
+  );
+  const [strukRevisions, setStrukRevisions] = useState(
+    application.baKonsultasi?.fieldEvaluations?.find(f => f.field === 'STRUKTUR')?.revisionItems?.join('\n') || ''
+  );
+
+  // MEP
+  const [mepResult, setMepResult] = useState<'DISETUJUI' | 'PERBAIKAN' | 'KONSULTASI_ULANG'>(
+    application.baKonsultasi?.fieldEvaluations?.find(f => f.field === 'MEP')?.result || 'DISETUJUI'
+  );
+  const [mepNotes, setMepNotes] = useState(
+    application.baKonsultasi?.fieldEvaluations?.find(f => f.field === 'MEP')?.notes || 'Analisis kebutuhan air bersih, septic tank, dan diagram SLD telah sesuai SNI 03-7065-2005.'
+  );
+  const [mepRevisions, setMepRevisions] = useState(
+    application.baKonsultasi?.fieldEvaluations?.find(f => f.field === 'MEP')?.revisionItems?.join('\n') || ''
+  );
+
   const [baResult, setBaResult] = useState<'DISETUJUI' | 'PERBAIKAN' | 'KONSULTASI_ULANG'>(
     application.baKonsultasi?.result || 'DISETUJUI'
   );
   const [baNotes, setBaNotes] = useState(
-    application.baKonsultasi?.expertNotes || 'Gambar teknis arsitektur dan struktur telah memenuhi standar teknis PP 16/2021.'
+    application.baKonsultasi?.expertNotes || 'Seluruh hasil evaluasi per bidang TPA/TPT telah dikoordinasikan.'
   );
   const [baRevisions, setBaRevisions] = useState<string>(
     application.baKonsultasi?.revisionItems?.join('\n') || ''
   );
 
+  // Integrated Automatic Document Numbers
+  const regClean = application.registerNumber.replace(/[^a-zA-Z0-9]/g, '').slice(-4);
+  const currentYear = new Date().getFullYear();
+
+  const [baKonsultasiNumber, setBaKonsultasiNumber] = useState(
+    application.baKonsultasi?.baNumber || `BA-KONS/${regClean}/DPUPR-GRT/${currentYear}`
+  );
+  const [noticeLetterNumber, setNoticeLetterNumber] = useState(
+    application.noticeLetter?.letterNumber || `600.1.15/${regClean}/DPUPR-PBG/${currentYear}`
+  );
+  const [rekomtekNumber, setRekomtekNumber] = useState(
+    application.baPleno?.rekomtekNumber || `REKOMTEK/${regClean}/DPUPR-PBG/${currentYear}`
+  );
+  const [baLapanganNumber, setBaLapanganNumber] = useState(
+    application.baLapangan?.baLapanganNumber || `BA-VISITE/${regClean}/DPUPR-GRT/${currentYear}`
+  );
+  const [skrdNumber, setSkrdNumber] = useState(
+    application.retribution?.skrdNumber || `SKRD/3205/DPUPR/${currentYear}/${regClean}`
+  );
+
+  const handleAutoGenerateNumbers = () => {
+    const rc = application.registerNumber.replace(/[^a-zA-Z0-9]/g, '').slice(-4);
+    const yr = new Date().getFullYear();
+    setBaKonsultasiNumber(`BA-KONS/${rc}/DPUPR-GRT/${yr}`);
+    setNoticeLetterNumber(`600.1.15/${rc}/DPUPR-PBG/${yr}`);
+    setBaPlenoNumber(`BA-PLENO/${rc}/TPA-GRT/${yr}`);
+    setRekomtekNumber(`REKOMTEK/${rc}/DPUPR-PBG/${yr}`);
+    setBaLapanganNumber(`BA-VISITE/${rc}/DPUPR-GRT/${yr}`);
+    setSkrdNumber(`SKRD/3205/DPUPR/${yr}/${rc}`);
+  };
+
   // Stage 6 BA Pleno state
   const [plenoNotes, setPlenoNotes] = useState(
     application.baPleno?.notes || 'Sidang Pleno TPA menyetujui penerbitan Persetujuan Bangunan Gedung (PBG) / Sertifikat Laik Fungsi (SLF).'
+  );
+  const [baPlenoNumber, setBaPlenoNumber] = useState(
+    application.baPleno?.baPlenoNumber || `080/TPA-P/VII/${new Date().getFullYear()}`
+  );
+  const [plenoConclusion, setPlenoConclusion] = useState<'DISETUJUI_PENERBITAN_PBG' | 'DITOLAK'>(
+    application.baPleno?.conclusion || 'DISETUJUI_PENERBITAN_PBG'
+  );
+  const [plenoDateState, setPlenoDateState] = useState(
+    application.baPleno?.plenoDate || new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+  );
+
+  const [plenoArsitText, setPlenoArsitText] = useState(
+    application.baPleno?.arsitekturNotes?.join('\n') || [
+      'Lahan diperbolehkan untuk Fungsi Bangunan Usaha, sub fungsi Bangunan Wisata dan Rekreasi; Bangunan Gedung Perhotelan berdasarkan KRK.',
+      'Tenaga Ahli Arsitektur sudah sesuai.',
+      'Sudah melampirkan gambar detail arsitektur lengkap.',
+      'Sudah melampirkan gambar jalur evakuasi pada rencana tata ruang dalam dan luar.',
+      'Gambar Arsitektur sudah lengkap dan memenuhi syarat.'
+    ].join('\n')
+  );
+
+  const [plenoStrukText, setPlenoStrukText] = useState(
+    application.baPleno?.strukturNotes?.join('\n') || [
+      'Pemohon menginformasikan bangunan belum dibangun / dibangun setelah PBG terbit.',
+      'Tenaga ahli struktur sudah tersedia bersertifikat kompetensi kerja (SKK).',
+      'Lokasi/lahan telah diperbolehkan untuk dibangun menurut KRK.',
+      'Perhitungan struktur atas dan struktur bawah sudah ada.',
+      'Legalitas tandatangan dokumen perhitungan struktur oleh tenaga ahli yang kompeten ber-SKK.'
+    ].join('\n')
+  );
+
+  const [plenoMepText, setPlenoMepText] = useState(
+    application.baPleno?.mepNotes?.join('\n') || [
+      'Perencanaan pembangunan sudah memiliki tenaga ahli MEP.',
+      'Peruntukan lahan sudah sesuai dengan KRK.',
+      'Bangunan belum terbangun 100%.',
+      'Spesifikasi dan desain Mekanikal, Elektrikal dan Plambing lengkap.',
+      'Sudah menghitung kebutuhan sesuai luasan dan kapasitas.',
+      'Sudah melengkapi SLD atau diagram pengawatan.'
+    ].join('\n')
   );
 
   // Visite Lapangan SubTab (Surat Undangan vs BA Lapangan)
@@ -697,16 +807,57 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
 
   // Step 4 Action: Submit BA Konsultasi
   const handleSubmitBaKonsultasi = () => {
-    const revisionList = baRevisions.split('\n').map(s => s.trim()).filter(Boolean);
-    const ba = generateBeritaAcaraKonsultasiDraft(application, baResult, baNotes, revisionList);
+    // Compile field evaluations
+    const arsitRevList = arsitRevisions.split('\n').map(s => s.trim()).filter(Boolean);
+    const strukRevList = strukRevisions.split('\n').map(s => s.trim()).filter(Boolean);
+    const mepRevList = mepRevisions.split('\n').map(s => s.trim()).filter(Boolean);
+
+    const fieldEvaluations = [
+      { field: 'ARSITEKTUR' as const, expertName: 'Dr. Ir. H. Hendra Setiawan, MT, IAI', result: arsitResult, notes: arsitNotes, revisionItems: arsitRevList, updatedAt: new Date().toLocaleString('id-ID') },
+      { field: 'STRUKTUR' as const, expertName: 'Ir. Ahmad Fauzi, ST, MT, IPM', result: strukResult, notes: strukNotes, revisionItems: strukRevList, updatedAt: new Date().toLocaleString('id-ID') },
+      { field: 'MEP' as const, expertName: 'Rian Pratama, ST, M.Eng', result: mepResult, notes: mepNotes, revisionItems: mepRevList, updatedAt: new Date().toLocaleString('id-ID') }
+    ];
+
+    // Determine overall result: if any field is PERBAIKAN or KONSULTASI_ULANG, overall is that
+    let calculatedOverall: 'DISETUJUI' | 'PERBAIKAN' | 'KONSULTASI_ULANG' = 'DISETUJUI';
+    if (fieldEvaluations.some(f => f.result === 'KONSULTASI_ULANG')) {
+      calculatedOverall = 'KONSULTASI_ULANG';
+    } else if (fieldEvaluations.some(f => f.result === 'PERBAIKAN')) {
+      calculatedOverall = 'PERBAIKAN';
+    }
+
+    const allRevisions = [...arsitRevList, ...strukRevList, ...mepRevList];
+    const draftBa = generateBeritaAcaraKonsultasiDraft(application, calculatedOverall, baNotes, allRevisions);
+
+    // Build history item
+    const historyItem = {
+      id: `HIST-${Date.now()}`,
+      timestamp: new Date().toLocaleString('id-ID') + ' WIB',
+      sessionTitle: sessionTitle,
+      overallResult: calculatedOverall,
+      evaluations: fieldEvaluations,
+      summaryNotes: baNotes
+    };
+
+    const existingHistory = application.baKonsultasi?.history || [];
+    const updatedHistory = [historyItem, ...existingHistory];
+
+    const ba = {
+      ...draftBa,
+      result: calculatedOverall,
+      fieldEvaluations,
+      history: updatedHistory,
+      expertNotes: baNotes,
+      revisionItems: allRevisions
+    };
     
     let nextStage: WorkflowStage = 'STAGE_6_BA_PLENO';
     let nextStatus: Application['status'] = 'CONSULTATION_DONE';
 
-    if (baResult === 'PERBAIKAN') {
+    if (calculatedOverall === 'PERBAIKAN') {
       nextStage = 'STAGE_5_VERIFIKASI_PERBAIKAN';
       nextStatus = 'REVISION_REQUESTED';
-    } else if (baResult === 'KONSULTASI_ULANG') {
+    } else if (calculatedOverall === 'KONSULTASI_ULANG') {
       nextStage = 'STAGE_3_SURAT_PEMBERITAHUAN';
       nextStatus = 'SCHEDULED';
     }
@@ -718,7 +869,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
         ...application.schedule,
         applicantAttended: true,
         attendanceTimestamp: new Date().toLocaleString('id-ID') + ' WIB',
-        consultationResult: baResult,
+        consultationResult: calculatedOverall,
         consultationNotes: baNotes
       } : undefined,
       currentStage: nextStage,
@@ -748,7 +899,18 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
 
   // Step 6 Action: Finalize BA Pleno
   const handleFinalizeBaPleno = () => {
-    const pleno = generateBeritaAcaraPlenoDraft(application, plenoNotes);
+    const draftPleno = generateBeritaAcaraPlenoDraft(application, plenoNotes);
+    const pleno = {
+      ...draftPleno,
+      baPlenoNumber: baPlenoNumber,
+      plenoDate: plenoDateState,
+      conclusion: plenoConclusion,
+      notes: plenoNotes,
+      arsitekturNotes: plenoArsitText.split('\n').map(s => s.trim()).filter(Boolean),
+      strukturNotes: plenoStrukText.split('\n').map(s => s.trim()).filter(Boolean),
+      mepNotes: plenoMepText.split('\n').map(s => s.trim()).filter(Boolean)
+    };
+    
     const isNeedsSkrd = application.building.existingImbStatus === 'BELUM_MEMILIKI_IMB_PBG' || !application.building.existingImbStatus;
 
     const nextStage: WorkflowStage = isNeedsSkrd ? 'STAGE_7_PERHITUNGAN_SKRD' : 'STAGE_8_SELESAI';
@@ -826,8 +988,43 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
         />
       </div>
 
-      {/* Main Modal (Hidden during print if on DOCS or SCHEDULE tab) */}
-      <div className={`fixed inset-0 z-50 bg-white dark:bg-slate-900 md:bg-slate-900/70 md:backdrop-blur-xs flex md:items-center md:justify-center overflow-hidden font-sans ${activeTab === 'DOCS' || activeTab === 'SCHEDULE' ? 'print:hidden' : ''}`}>
+      {/* Printable BA Pleno TPA */}
+      <div id="printable-ba-pleno-wrapper" className="hidden print:block">
+        <BAPlenoPrint 
+          application={application}
+          plenoDate={plenoDateState}
+          baPlenoNumber={baPlenoNumber}
+          conclusion={plenoConclusion}
+          notes={plenoNotes}
+          arsitekturNotes={plenoArsitText.split('\n').map(s => s.trim()).filter(Boolean)}
+          strukturNotes={plenoStrukText.split('\n').map(s => s.trim()).filter(Boolean)}
+          mepNotes={plenoMepText.split('\n').map(s => s.trim()).filter(Boolean)}
+        />
+      </div>
+
+      {/* Printable BA Konsultasi Teknis */}
+      <div id="printable-ba-konsultasi-wrapper" className="hidden print:block">
+        <BAKonsultasiPrint 
+          application={application}
+          baNumber={baKonsultasiNumber}
+          baDate={new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+          sessionTitle={sessionTitle}
+          arsitekturNotes={arsitNotes}
+          arsitekturRevisions={arsitRevisions}
+          strukturNotes={strukNotes}
+          strukturRevisions={strukRevisions}
+          mepNotes={mepNotes}
+          mepRevisions={mepRevisions}
+          arsitekturResult={arsitResult}
+          strukturResult={strukResult}
+          mepResult={mepResult}
+          overallResult={baResult}
+          summaryNotes={baNotes}
+        />
+      </div>
+
+      {/* Main Modal (Hidden during print if on DOCS, SCHEDULE, or BA tab) */}
+      <div className={`fixed inset-0 z-50 bg-white dark:bg-slate-900 md:bg-slate-900/70 md:backdrop-blur-xs flex md:items-center md:justify-center overflow-hidden font-sans ${activeTab === 'DOCS' || activeTab === 'SCHEDULE' || activeTab === 'BA' ? 'print:hidden' : ''}`}>
         <div className="bg-white dark:bg-slate-900 border-0 md:border md:border-slate-200 dark:md:border-slate-800 rounded-none max-w-5xl w-full h-full md:h-auto md:max-h-[92vh] shadow-2xl flex flex-col overflow-hidden">
           
           {/* Header (Geometric Balance) */}
@@ -2038,105 +2235,462 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
             </div>
           )}
 
-          {/* TAB: BA (BA KONSULTASI & PLENO) */}
-          {activeTab === 'BA' && (
-            <div className="space-y-6 font-mono text-xs">
-              
-              {/* Berita Acara Konsultasi */}
-              <div className="border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-                  <h3 className="font-bold text-slate-900 dark:text-white uppercase text-sm">
-                    Formulir Berita Acara (BA) Konsultasi Teknis TPA/TPT
-                  </h3>
-                  <button
-                    onClick={handleSubmitBaKonsultasi}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase"
-                  >
-                    Simpan Berita Acara
-                  </button>
-                </div>
+           {/* TAB: BA (BA KONSULTASI & PLENO) */}
+           {activeTab === 'BA' && (
+             <div className="space-y-6 font-mono text-xs">
+               
+               {/* Berita Acara Konsultasi (Multi-Field TPA/TPT Expertise & History) */}
+               <div className="border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900 space-y-4">
+                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+                   <div>
+                     <h3 className="font-bold text-slate-900 dark:text-white uppercase text-sm">
+                       Berita Acara (BA) Konsultasi Teknis PBG — Bidang Keahlian TPA/TPT
+                     </h3>
+                     <p className="text-[11px] text-slate-500 mt-0.5">
+                       Evaluasi terpisah oleh Tenaga Ahli Arsitektur, Struktur, dan MEP dengan peninjauan Ketua TPA
+                     </p>
+                   </div>
+                   <div className="flex items-center gap-2">
+                     <button
+                       onClick={handleSubmitBaKonsultasi}
+                       className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase shadow-sm"
+                     >
+                       Simpan & Finalisasi BA Konsultasi
+                     </button>
+                   </div>
+                 </div>
 
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-slate-500 block text-[10px] mb-1 uppercase font-bold">Hasil Keputusan Sidang Konsultasi</label>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setBaResult('DISETUJUI')}
-                        className={`px-3 py-1.5 font-bold border transition ${
-                          baResult === 'DISETUJUI'
-                            ? 'bg-emerald-600 text-white border-emerald-600'
-                            : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700'
-                        }`}
-                      >
-                        ✓ Disetujui (Lanjut ke BA Pleno)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setBaResult('PERBAIKAN')}
-                        className={`px-3 py-1.5 font-bold border transition ${
-                          baResult === 'PERBAIKAN'
-                            ? 'bg-amber-600 text-white border-amber-600'
-                            : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700'
-                        }`}
-                      >
-                        ⚠ Perlu Perbaikan (Revisi)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setBaResult('KONSULTASI_ULANG')}
-                        className={`px-3 py-1.5 font-bold border transition ${
-                          baResult === 'KONSULTASI_ULANG'
-                            ? 'bg-rose-600 text-white border-rose-600'
-                            : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700'
-                        }`}
-                      >
-                        ✕ Konsultasi Ulang
-                      </button>
-                    </div>
-                  </div>
+                 {/* Session Title Input */}
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 dark:bg-slate-950 p-3 border border-slate-200 dark:border-slate-800">
+                   <div>
+                     <label className="text-slate-500 block text-[10px] mb-1 uppercase font-bold">Judul Sesi / Siklus Konsultasi</label>
+                     <input
+                       type="text"
+                       value={sessionTitle}
+                       onChange={(e) => setSessionTitle(e.target.value)}
+                       className="w-full p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs"
+                       placeholder="Contoh: Sidang Konsultasi Sesi 1 - Review Awal"
+                     />
+                   </div>
+                   <div>
+                     <label className="text-slate-500 block text-[10px] mb-1 uppercase font-bold">Catatan Umum Rangkuman Ketua TPA</label>
+                     <input
+                       type="text"
+                       value={baNotes}
+                       onChange={(e) => setBaNotes(e.target.value)}
+                       className="w-full p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs"
+                     />
+                   </div>
+                 </div>
 
-                  <div>
-                    <label className="text-slate-500 block text-[10px] mb-1 uppercase font-bold">Catatan Teknis Tim Ahli (TPA/TPT)</label>
-                    <textarea
-                      rows={3}
-                      value={baNotes}
-                      onChange={(e) => setBaNotes(e.target.value)}
-                      className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-xs focus:outline-none"
-                    />
-                  </div>
+                 {/* Field Switcher Tabs */}
+                 <div className="flex flex-wrap gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2">
+                   <button
+                     type="button"
+                     onClick={() => setBaActiveField('OVERVIEW')}
+                     className={`px-3 py-1.5 font-bold text-xs uppercase transition flex items-center gap-1.5 ${
+                       baActiveField === 'OVERVIEW'
+                         ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
+                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                     }`}
+                   >
+                     <Users className="w-3.5 h-3.5" />
+                     <span>1. Overview Ketua TPA</span>
+                   </button>
+                   <button
+                     type="button"
+                     onClick={() => setBaActiveField('ARSITEKTUR')}
+                     className={`px-3 py-1.5 font-bold text-xs uppercase transition ${
+                       baActiveField === 'ARSITEKTUR'
+                         ? 'bg-indigo-600 text-white'
+                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                     }`}
+                   >
+                     A. Bidang Arsitektur
+                   </button>
+                   <button
+                     type="button"
+                     onClick={() => setBaActiveField('STRUKTUR')}
+                     className={`px-3 py-1.5 font-bold text-xs uppercase transition ${
+                       baActiveField === 'STRUKTUR'
+                         ? 'bg-indigo-600 text-white'
+                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                     }`}
+                   >
+                     B. Bidang Struktur
+                   </button>
+                   <button
+                     type="button"
+                     onClick={() => setBaActiveField('MEP')}
+                     className={`px-3 py-1.5 font-bold text-xs uppercase transition ${
+                       baActiveField === 'MEP'
+                         ? 'bg-indigo-600 text-white'
+                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                     }`}
+                   >
+                     C. Bidang MEP
+                   </button>
+                 </div>
 
-                  {baResult === 'PERBAIKAN' && (
-                    <div>
-                      <label className="text-slate-500 block text-[10px] mb-1 uppercase font-bold">Daftar Item Revisi Dokumen (Satu per baris)</label>
-                      <textarea
-                        rows={3}
-                        value={baRevisions}
-                        onChange={(e) => setBaRevisions(e.target.value)}
-                        placeholder="Contoh: Tambahkan notasi dimensi tangga darurat&#10;Lengkapi perhitungan beban gempa SAP2000"
-                        className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-xs focus:outline-none"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
+                 {/* TAB 1: OVERVIEW KETUA TPA */}
+                 {baActiveField === 'OVERVIEW' && (
+                   <div className="space-y-4 pt-2">
+                     <div className="bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-900 p-4 rounded-sm space-y-3">
+                       <h4 className="font-bold text-indigo-950 dark:text-indigo-200 uppercase text-xs">
+                         Dashboard Ketua TPA / TPT (Rekapitulasi Hasil Konsultasi per Bidang)
+                       </h4>
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                         {/* Arsitektur Summary */}
+                         <div className="bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-800 space-y-1">
+                           <div className="text-[10px] text-slate-400 font-bold uppercase">A. Bidang Arsitektur</div>
+                           <div className="font-bold text-slate-900 dark:text-white">Dr. Ir. H. Hendra Setiawan, MT</div>
+                           <div className="pt-1">
+                             <span className={`px-2 py-0.5 font-bold text-[10px] uppercase rounded-xs ${
+                               arsitResult === 'DISETUJUI' ? 'bg-emerald-100 text-emerald-800' : arsitResult === 'PERBAIKAN' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                             }`}>
+                               {arsitResult}
+                             </span>
+                           </div>
+                           <p className="text-[11px] text-slate-600 dark:text-slate-300 pt-1 line-clamp-2">{arsitNotes}</p>
+                         </div>
+
+                         {/* Struktur Summary */}
+                         <div className="bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-800 space-y-1">
+                           <div className="text-[10px] text-slate-400 font-bold uppercase">B. Bidang Struktur</div>
+                           <div className="font-bold text-slate-900 dark:text-white">Ir. Ahmad Fauzi, ST, MT</div>
+                           <div className="pt-1">
+                             <span className={`px-2 py-0.5 font-bold text-[10px] uppercase rounded-xs ${
+                               strukResult === 'DISETUJUI' ? 'bg-emerald-100 text-emerald-800' : strukResult === 'PERBAIKAN' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                             }`}>
+                               {strukResult}
+                             </span>
+                           </div>
+                           <p className="text-[11px] text-slate-600 dark:text-slate-300 pt-1 line-clamp-2">{strukNotes}</p>
+                         </div>
+
+                         {/* MEP Summary */}
+                         <div className="bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-800 space-y-1">
+                           <div className="text-[10px] text-slate-400 font-bold uppercase">C. Bidang MEP</div>
+                           <div className="font-bold text-slate-900 dark:text-white">Rian Pratama, ST, M.Eng</div>
+                           <div className="pt-1">
+                             <span className={`px-2 py-0.5 font-bold text-[10px] uppercase rounded-xs ${
+                               mepResult === 'DISETUJUI' ? 'bg-emerald-100 text-emerald-800' : mepResult === 'PERBAIKAN' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                             }`}>
+                               {mepResult}
+                             </span>
+                           </div>
+                           <p className="text-[11px] text-slate-600 dark:text-slate-300 pt-1 line-clamp-2">{mepNotes}</p>
+                         </div>
+                       </div>
+                     </div>
+
+                     {/* Consultation History & Revision Tracking Timeline */}
+                     <div className="border border-slate-200 dark:border-slate-800 p-4 space-y-3 bg-slate-50/50 dark:bg-slate-950/40">
+                       <h4 className="font-bold text-slate-900 dark:text-white uppercase text-xs flex items-center gap-1.5">
+                         <Calendar className="w-4 h-4 text-indigo-600" />
+                         <span>Jejak Rekam (History) Konsultasi Teknis & Revisi Sebelumnya</span>
+                       </h4>
+                       {(!application.baKonsultasi?.history || application.baKonsultasi.history.length === 0) ? (
+                         <div className="text-slate-500 text-[11px] italic py-2">
+                           Belum ada riwayat sesi konsultasi sebelumnya. Silakan lengkapi evaluasi per bidang di atas dan simpan.
+                         </div>
+                       ) : (
+                         <div className="space-y-3">
+                           {application.baKonsultasi.history.map((hist, i) => (
+                             <div key={hist.id || i} className="bg-white dark:bg-slate-900 p-3 border border-slate-200 dark:border-slate-800 space-y-2">
+                               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-1.5">
+                                 <div>
+                                   <span className="font-bold text-slate-900 dark:text-white">{hist.sessionTitle}</span>
+                                   <span className="text-[10px] text-slate-400 ml-2">({hist.timestamp})</span>
+                                 </div>
+                                 <span className={`px-2 py-0.5 font-bold text-[10px] uppercase rounded-xs ${
+                                   hist.overallResult === 'DISETUJUI' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                 }`}>
+                                   {hist.overallResult}
+                                 </span>
+                               </div>
+                               <div className="text-slate-600 dark:text-slate-300 text-[11px]">
+                                 <strong>Catatan:</strong> {hist.summaryNotes}
+                               </div>
+                               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1">
+                                 {hist.evaluations?.map((ev, eIdx) => (
+                                   <div key={eIdx} className="bg-slate-50 dark:bg-slate-800 p-2 text-[10px] space-y-1">
+                                     <div className="font-bold text-indigo-600 uppercase">{ev.field} ({ev.result})</div>
+                                     <div className="text-slate-500">{ev.notes}</div>
+                                     {ev.revisionItems && ev.revisionItems.length > 0 && (
+                                       <div className="text-amber-600 font-semibold">
+                                         Revisi: {ev.revisionItems.join(', ')}
+                                       </div>
+                                     )}
+                                   </div>
+                                 ))}
+                               </div>
+                             </div>
+                           ))}
+                         </div>
+                       )}
+                     </div>
+                   </div>
+                 )}
+
+                 {/* TAB 2: BIDANG ARSITEKTUR */}
+                 {baActiveField === 'ARSITEKTUR' && (
+                   <div className="space-y-3 pt-2">
+                     <div className="bg-slate-50 dark:bg-slate-950 p-3 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                       <div>
+                         <span className="font-bold text-slate-900 dark:text-white uppercase block">Ahli Arsitektur: Dr. Ir. H. Hendra Setiawan, MT, IAI</span>
+                         <span className="text-slate-500 text-[10px]">Verifikasi Tata Ruang, KRK, Fasad, Sempadan, dan Sirkulasi</span>
+                       </div>
+                       <select
+                         value={arsitResult}
+                         onChange={(e) => setArsitResult(e.target.value as any)}
+                         className="p-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-bold text-xs"
+                       >
+                         <option value="DISETUJUI">DISETUJUI</option>
+                         <option value="PERBAIKAN">PERLU PERBAIKAN</option>
+                         <option value="KONSULTASI_ULANG">KONSULTASI ULANG</option>
+                       </select>
+                     </div>
+                     <div>
+                       <div className="flex items-center justify-between mb-1">
+                         <label className="text-slate-500 block text-[10px] uppercase font-bold">Catatan Teknis Arsitektur</label>
+                         <div className="flex gap-1">
+                           <button onClick={() => setArsitNotes('Lahan diperbolehkan untuk Fungsi Bangunan sesuai KRK.\nGambar Arsitektur sudah lengkap dan memenuhi syarat.\nGambar jalur evakuasi pada rencana tata ruang dalam dan luar sudah sesuai.')} className="text-[9px] px-1.5 py-0.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded text-slate-700 dark:text-slate-300">T. Disetujui</button>
+                           <button onClick={() => setArsitNotes('Terdapat ketidaksesuaian pada gambar rencana arsitektur dengan ketentuan KRK.\nDimohon untuk melakukan penyesuaian.')} className="text-[9px] px-1.5 py-0.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded text-slate-700 dark:text-slate-300">T. Perbaikan</button>
+                         </div>
+                       </div>
+                       <textarea
+                         rows={3}
+                         value={arsitNotes}
+                         onChange={(e) => setArsitNotes(e.target.value)}
+                         className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-xs"
+                       />
+                     </div>
+                     <div>
+                       <div className="flex items-center justify-between mb-1">
+                         <label className="text-slate-500 block text-[10px] uppercase font-bold">Daftar Revisi Arsitektur (Satu per baris)</label>
+                         <div className="flex gap-1">
+                           <button onClick={() => setArsitRevisions('Sesuaikan garis sempadan bangunan (GSB) dengan KRK\nLengkapi dimensi pada denah dan potongan\nTambahkan detail bukaan (pintu/jendela)')} className="text-[9px] px-1.5 py-0.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded text-slate-700 dark:text-slate-300">T. Revisi Umum</button>
+                         </div>
+                       </div>
+                       <textarea
+                         rows={3}
+                         value={arsitRevisions}
+                         onChange={(e) => setArsitRevisions(e.target.value)}
+                         placeholder="Contoh: Sesuaikan garis sempadan bangunan (GSB)&#10;Tambahkan detail tampak samping bangunan"
+                         className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-xs"
+                       />
+                     </div>
+                   </div>
+                 )}
+
+                 {/* TAB 3: BIDANG STRUKTUR */}
+                 {baActiveField === 'STRUKTUR' && (
+                   <div className="space-y-3 pt-2">
+                     <div className="bg-slate-50 dark:bg-slate-950 p-3 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                       <div>
+                         <span className="font-bold text-slate-900 dark:text-white uppercase block">Ahli Struktur: Ir. Ahmad Fauzi, ST, MT, IPM</span>
+                         <span className="text-slate-500 text-[10px]">Verifikasi Beton/Baja, Beban Gempa SNI 1726, dan Pondasi</span>
+                       </div>
+                       <select
+                         value={strukResult}
+                         onChange={(e) => setStrukResult(e.target.value as any)}
+                         className="p-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-bold text-xs"
+                       >
+                         <option value="DISETUJUI">DISETUJUI</option>
+                         <option value="PERBAIKAN">PERLU PERBAIKAN</option>
+                         <option value="KONSULTASI_ULANG">KONSULTASI ULANG</option>
+                       </select>
+                     </div>
+                     <div>
+                       <div className="flex items-center justify-between mb-1">
+                         <label className="text-slate-500 block text-[10px] uppercase font-bold">Catatan Teknis Struktur</label>
+                         <div className="flex gap-1">
+                           <button onClick={() => setStrukNotes('Perhitungan pembebanan struktur atas dan bawah menggunakan SNI 1726 (Beban Gempa) memenuhi persyaratan.\nGambar detail penulangan sudah lengkap dan sesuai dengan analisis.')} className="text-[9px] px-1.5 py-0.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded text-slate-700 dark:text-slate-300">T. Disetujui</button>
+                           <button onClick={() => setStrukNotes('Laporan perhitungan struktur belum melampirkan analisis gempa dinamis.\nDetail penulangan pondasi masih kurang spesifik.')} className="text-[9px] px-1.5 py-0.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded text-slate-700 dark:text-slate-300">T. Perbaikan</button>
+                         </div>
+                       </div>
+                       <textarea
+                         rows={3}
+                         value={strukNotes}
+                         onChange={(e) => setStrukNotes(e.target.value)}
+                         className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-xs"
+                       />
+                     </div>
+                     <div>
+                       <div className="flex items-center justify-between mb-1">
+                         <label className="text-slate-500 block text-[10px] uppercase font-bold">Daftar Revisi Struktur (Satu per baris)</label>
+                         <div className="flex gap-1">
+                           <button onClick={() => setStrukRevisions('Lampirkan hasil output software analisis struktur (ETABS/SAP2000)\nPerbaiki detail sambungan baja / penjangkaran tulangan\nTambahkan data penyelidikan tanah (Sondir/Boring)')} className="text-[9px] px-1.5 py-0.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded text-slate-700 dark:text-slate-300">T. Revisi Umum</button>
+                         </div>
+                       </div>
+                       <textarea
+                         rows={3}
+                         value={strukRevisions}
+                         onChange={(e) => setStrukRevisions(e.target.value)}
+                         placeholder="Contoh: Lampirkan perhitungan ETABS SNI 1726&#10;Perkuat dimensi penulangan footplate"
+                         className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-xs"
+                       />
+                     </div>
+                   </div>
+                 )}
+
+                 {/* TAB 4: BIDANG MEP */}
+                 {baActiveField === 'MEP' && (
+                   <div className="space-y-3 pt-2">
+                     <div className="bg-slate-50 dark:bg-slate-950 p-3 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                       <div>
+                         <span className="font-bold text-slate-900 dark:text-white uppercase block">Ahli MEP: Rian Pratama, ST, M.Eng</span>
+                         <span className="text-slate-500 text-[10px]">Verifikasi Plambing, Kelistrikan, Proteksi Kebakaran, & Sanitasi</span>
+                       </div>
+                       <select
+                         value={mepResult}
+                         onChange={(e) => setMepResult(e.target.value as any)}
+                         className="p-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 font-bold text-xs"
+                       >
+                         <option value="DISETUJUI">DISETUJUI</option>
+                         <option value="PERBAIKAN">PERLU PERBAIKAN</option>
+                         <option value="KONSULTASI_ULANG">KONSULTASI ULANG</option>
+                       </select>
+                     </div>
+                     <div>
+                       <div className="flex items-center justify-between mb-1">
+                         <label className="text-slate-500 block text-[10px] uppercase font-bold">Catatan Teknis MEP</label>
+                         <div className="flex gap-1">
+                           <button onClick={() => setMepNotes('Sistem plambing, kelistrikan (SLD), sanitasi, dan proteksi kebakaran memenuhi SNI dan standar keselamatan bangunan gedung.')} className="text-[9px] px-1.5 py-0.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded text-slate-700 dark:text-slate-300">T. Disetujui</button>
+                           <button onClick={() => setMepNotes('Belum terdapat diagram Single Line Diagram (SLD) kelistrikan.\nPerhitungan kapasitas pompa hidran dan reservoir belum memadai.')} className="text-[9px] px-1.5 py-0.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded text-slate-700 dark:text-slate-300">T. Perbaikan</button>
+                         </div>
+                       </div>
+                       <textarea
+                         rows={3}
+                         value={mepNotes}
+                         onChange={(e) => setMepNotes(e.target.value)}
+                         className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-xs"
+                       />
+                     </div>
+                     <div>
+                       <div className="flex items-center justify-between mb-1">
+                         <label className="text-slate-500 block text-[10px] uppercase font-bold">Daftar Revisi MEP (Satu per baris)</label>
+                         <div className="flex gap-1">
+                           <button onClick={() => setMepRevisions('Lengkapi gambar isometrik instalasi air bersih dan kotor\nTambahkan detail grounding system dan penangkal petir\nSesuaikan titik APAR dengan luasan ruang')} className="text-[9px] px-1.5 py-0.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded text-slate-700 dark:text-slate-300">T. Revisi Umum</button>
+                         </div>
+                       </div>
+                       <textarea
+                         rows={3}
+                         value={mepRevisions}
+                         onChange={(e) => setMepRevisions(e.target.value)}
+                         placeholder="Contoh: Lengkapi diagram satu garis (SLD) panel listrik&#10;Tambahkan titik penempatan APAR dapur"
+                         className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-xs"
+                       />
+                     </div>
+                   </div>
+                 )}
+               </div>
 
               {/* Berita Acara Pleno */}
               <div className="border border-slate-200 dark:border-slate-800 p-5 bg-white dark:bg-slate-900 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-                  <h3 className="font-bold text-slate-900 dark:text-white uppercase text-sm">
-                    Berita Acara Sidang Pleno & Rekomendasi Teknis (Rekomtek)
-                  </h3>
-                  <button
-                    onClick={handleFinalizeBaPleno}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase"
-                  >
-                    Sahkan BA Pleno
-                  </button>
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+                  <div>
+                    <h3 className="font-bold text-slate-900 dark:text-white uppercase text-sm">
+                      Berita Acara Sidang Pleno & Rekomendasi Teknis (Rekomtek) PBG
+                    </h3>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Sesuai format resmi Dinas PUPR Kabupaten Garut (Contoh BA Pleno TPA)
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setPlenoArsitText(arsitNotes);
+                        setPlenoStrukText(strukNotes);
+                        setPlenoMepText(mepNotes);
+                        showToast('Catatan teknis berhasil ditarik dari BA Konsultasi.');
+                      }}
+                      className="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs uppercase flex items-center gap-1.5"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Tarik Data Konsultasi</span>
+                    </button>
+                    <button
+                      onClick={() => triggerPdfPrint('printable-ba-pleno-area')}
+                      className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase flex items-center gap-1.5"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>Cetak BA Pleno (PDF)</span>
+                    </button>
+                    <button
+                      onClick={handleFinalizeBaPleno}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase"
+                    >
+                      Sahkan BA Pleno
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-slate-500 block text-[10px] mb-1 uppercase font-bold">Nomor Berita Acara Pleno</label>
+                    <input
+                      type="text"
+                      value={baPlenoNumber}
+                      onChange={(e) => setBaPlenoNumber(e.target.value)}
+                      className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-500 block text-[10px] mb-1 uppercase font-bold">Tanggal Sidang Pleno</label>
+                    <input
+                      type="text"
+                      value={plenoDateState}
+                      onChange={(e) => setPlenoDateState(e.target.value)}
+                      className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-500 block text-[10px] mb-1 uppercase font-bold">Keputusan Pleno</label>
+                    <select
+                      value={plenoConclusion}
+                      onChange={(e) => setPlenoConclusion(e.target.value as any)}
+                      className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-bold text-xs text-emerald-600"
+                    >
+                      <option value="DISETUJUI_PENERBITAN_PBG">MEREKOMENDASIKAN PENERBITAN PBG</option>
+                      <option value="DITOLAK">MENOLAK / PERLU PERBAIKAN</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-slate-500 block text-[10px] mb-1 uppercase font-bold">Catatan Bidang Arsitektur (1 baris per poin)</label>
+                    <textarea
+                      rows={4}
+                      value={plenoArsitText}
+                      onChange={(e) => setPlenoArsitText(e.target.value)}
+                      className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-500 block text-[10px] mb-1 uppercase font-bold">Catatan Bidang Struktur (1 baris per poin)</label>
+                    <textarea
+                      rows={4}
+                      value={plenoStrukText}
+                      onChange={(e) => setPlenoStrukText(e.target.value)}
+                      className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[11px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-500 block text-[10px] mb-1 uppercase font-bold">Catatan Bidang MEP (1 baris per poin)</label>
+                    <textarea
+                      rows={4}
+                      value={plenoMepText}
+                      onChange={(e) => setPlenoMepText(e.target.value)}
+                      className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[11px]"
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="text-slate-500 block text-[10px] mb-1 uppercase font-bold">Kesimpulan Rekomendasi Teknis Akhir</label>
+                  <label className="text-slate-500 block text-[10px] mb-1 uppercase font-bold">Kesimpulan & Catatan Khusus Pleno TPA</label>
                   <textarea
                     rows={2}
                     value={plenoNotes}
