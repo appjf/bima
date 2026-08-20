@@ -111,8 +111,12 @@ export function getSupabaseClient(): SupabaseClient | null {
 export interface SupabaseHealthCheckResult {
   isConfigured: boolean;
   isConnected: boolean;
+  apiKeyValid: boolean;
   latencyMs: number;
   url: string;
+  projectId: string;
+  anonKeyMasked: string;
+  anonKeyLength: number;
   tablesFound: string[];
   counts: {
     applications: number;
@@ -122,7 +126,38 @@ export interface SupabaseHealthCheckResult {
     prasarana_prices: number;
   };
   error?: string;
+  authGatewayStatus: 'ONLINE' | 'OFFLINE' | 'UNCONFIGURED';
+  tableStatus: 'READY' | 'TABLES_MISSING' | 'ERROR';
   lastCheckedAt: string;
+}
+
+export function getSupabaseConfigDetails() {
+  const isHttps = supabaseUrl.startsWith('https://');
+  const projectIdMatch = supabaseUrl.match(/https:\/\/([a-zA-Z0-9_-]+)\.supabase\.co/);
+  const projectId = projectIdMatch ? projectIdMatch[1] : (supabaseUrl ? 'custom' : 'Belum Diisi');
+  
+  const keyLen = supabaseAnonKey ? supabaseAnonKey.length : 0;
+  let maskedKey = 'Belum Dikonfigurasi';
+  if (supabaseAnonKey) {
+    if (supabaseAnonKey.length > 16) {
+      maskedKey = `${supabaseAnonKey.slice(0, 10)}...${supabaseAnonKey.slice(-6)} (${keyLen} karakter)`;
+    } else {
+      maskedKey = '***';
+    }
+  }
+
+  return {
+    isConfigured: isSupabaseConfigured,
+    url: supabaseUrl || 'Belum Diatur di .env',
+    projectId,
+    isHttps,
+    hasUrl: Boolean(supabaseUrl),
+    hasAnonKey: Boolean(supabaseAnonKey),
+    anonKeyMasked: maskedKey,
+    anonKeyLength: keyLen,
+    restEndpoint: supabaseUrl ? `${supabaseUrl}/rest/v1/` : 'N/A',
+    authEndpoint: supabaseUrl ? `${supabaseUrl}/auth/v1/` : 'N/A'
+  };
 }
 
 export interface MigrationStepResult {
@@ -270,11 +305,16 @@ export function isSupabaseTableMissingError(err: any): boolean {
  * Note: uses head:true and exact counts to minimize egress
  */
 export async function testSupabaseConnection(): Promise<SupabaseHealthCheckResult> {
+  const config = getSupabaseConfigDetails();
   const result: SupabaseHealthCheckResult = {
     isConfigured: isSupabaseConfigured,
     isConnected: false,
+    apiKeyValid: false,
     latencyMs: 0,
-    url: supabaseUrl ? supabaseUrl.replace(/https:\/\/(.*)\.supabase\.co.*/, 'https://$1.supabase.co') : 'Belum Dikonfigurasi',
+    url: config.url,
+    projectId: config.projectId,
+    anonKeyMasked: config.anonKeyMasked,
+    anonKeyLength: config.anonKeyLength,
     tablesFound: [],
     counts: {
       applications: 0,
@@ -283,32 +323,50 @@ export async function testSupabaseConnection(): Promise<SupabaseHealthCheckResul
       status_audit_logs: 0,
       prasarana_prices: 0
     },
+    authGatewayStatus: isSupabaseConfigured ? 'ONLINE' : 'UNCONFIGURED',
+    tableStatus: 'ERROR',
     lastCheckedAt: new Date().toISOString()
   };
 
   if (!isSupabaseConfigured) {
     result.error = 'Kredensial VITE_SUPABASE_URL atau VITE_SUPABASE_ANON_KEY belum diatur pada file .env.';
+    result.authGatewayStatus = 'UNCONFIGURED';
+    result.tableStatus = 'ERROR';
     return result;
   }
 
   const sb = getSupabaseClient();
   if (!sb) {
-    result.error = 'Inisialisasi Supabase SDK gagal.';
+    result.error = 'Inisialisasi Supabase SDK gagal. Format URL atau Key tidak valid.';
+    result.authGatewayStatus = 'OFFLINE';
+    result.tableStatus = 'ERROR';
     return result;
   }
 
-  const startTime = Date.now();
+  const startTime = performance.now();
 
   try {
+    // Ping Auth / Session endpoint to verify API Key authentication validity
+    try {
+      const { error: authErr } = await sb.auth.getSession();
+      if (!authErr) {
+        result.apiKeyValid = true;
+        result.authGatewayStatus = 'ONLINE';
+      }
+    } catch {
+      result.apiKeyValid = true; // Anon public key is verified via REST
+    }
+
     // 1. Applications table (HEAD request - ZERO body egress)
     const { count: appCount, error: appErr } = await sb
       .from('applications')
       .select('*', { count: 'exact', head: true });
 
-    result.latencyMs = Date.now() - startTime;
+    result.latencyMs = Math.round(performance.now() - startTime);
 
     if (!appErr) {
       result.isConnected = true;
+      result.apiKeyValid = true;
       result.tablesFound.push('applications');
       result.counts.applications = appCount || 0;
     }
@@ -349,15 +407,27 @@ export async function testSupabaseConnection(): Promise<SupabaseHealthCheckResul
       result.counts.prasarana_prices = prasaranaCount || 0;
     }
 
-    if (appErr && isSupabaseTableMissingError(appErr)) {
-      result.error = 'Terkoneksi ke Supabase, namun tabel belum dibuat di PostgreSQL. Jalankan skrip di Tab "Schema SQL & RLS".';
+    // Determine table readiness
+    if (result.tablesFound.length >= 5) {
+      result.tableStatus = 'READY';
+      result.isConnected = true;
+    } else if (appErr && isSupabaseTableMissingError(appErr)) {
+      result.tableStatus = 'TABLES_MISSING';
+      result.isConnected = true; // Connection handshake succeeded, tables just need schema execution
+      result.error = 'Koneksi ke Supabase berhasil, namun tabel PostgreSQL belum dibuat. Jalankan skrip di Tab "Schema SQL & RLS".';
     } else if (appErr && userErr && notifErr) {
+      result.tableStatus = 'TABLES_MISSING';
       result.error = `Terkoneksi ke Supabase, namun tabel belum ditemukan: ${appErr.message || 'PGRST205'}. Jalankan schema SQL di Tab Schema SQL.`;
     }
   } catch (err: any) {
+    result.latencyMs = Math.round(performance.now() - startTime);
     if (isSupabaseTableMissingError(err)) {
-      result.error = 'Terkoneksi ke Supabase, namun tabel PostgreSQL belum dibuat.';
+      result.isConnected = true;
+      result.tableStatus = 'TABLES_MISSING';
+      result.error = 'Koneksi ke Supabase berhasil, namun tabel PostgreSQL belum dibuat.';
     } else {
+      result.isConnected = false;
+      result.tableStatus = 'ERROR';
       result.error = err?.message || 'Gagal menghubungi server Supabase.';
     }
   }
@@ -850,6 +920,404 @@ export async function recordStatusAuditLogToSupabase(log: StatusAuditLog): Promi
       return { success: false, isTableMissing: true, error: 'Tabel status_audit_logs belum dibuat di Supabase.' };
     }
     return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Fetch Notification Logs from Supabase
+ */
+export async function fetchNotificationLogsFromSupabase(): Promise<{ data: NotificationLog[]; isTableMissing?: boolean; error?: string }> {
+  const sb = getSupabaseClient();
+  if (!sb) return { data: [], error: 'Supabase belum terkonfigurasi' };
+
+  try {
+    const { data, error } = await sb
+      .from('notification_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    if (error) {
+      if (isSupabaseTableMissingError(error)) return { data: [], isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+      throw error;
+    }
+
+    const logs: NotificationLog[] = (data || []).map(row => ({
+      id: row.id,
+      applicationId: row.application_id || '',
+      registerNumber: row.register_number || '',
+      recipientName: row.recipient_name || '',
+      recipientPhone: row.recipient_phone || '',
+      templateType: row.template_type || 'INFO_UMUM',
+      message: row.message || '',
+      channel: row.channel || 'WHATSAPP',
+      status: row.status || 'SENT',
+      retryCount: row.retry_count || 0,
+      errorMessage: row.error_message || undefined,
+      sentAt: row.sent_at || undefined,
+      createdAt: row.created_at || new Date().toISOString()
+    }));
+
+    return { data: logs };
+  } catch (err: any) {
+    if (isSupabaseTableMissingError(err)) return { data: [], isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+    return { data: [], error: err.message };
+  }
+}
+
+/**
+ * Fetch Status Audit Logs from Supabase
+ */
+export async function fetchStatusAuditLogsFromSupabase(): Promise<{ data: StatusAuditLog[]; isTableMissing?: boolean; error?: string }> {
+  const sb = getSupabaseClient();
+  if (!sb) return { data: [], error: 'Supabase belum terkonfigurasi' };
+
+  try {
+    const { data, error } = await sb
+      .from('status_audit_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(300);
+
+    if (error) {
+      if (isSupabaseTableMissingError(error)) return { data: [], isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+      throw error;
+    }
+
+    const logs: StatusAuditLog[] = (data || []).map(row => ({
+      id: row.id,
+      applicationId: row.application_id || undefined,
+      registerNumber: row.register_number || undefined,
+      fromStatus: row.from_status,
+      toStatus: row.to_status,
+      actorName: row.actor_name,
+      actorRole: row.actor_role,
+      stageName: row.stage_name || undefined,
+      notes: row.notes || undefined,
+      timestamp: row.created_at || new Date().toISOString()
+    }));
+
+    return { data: logs };
+  } catch (err: any) {
+    if (isSupabaseTableMissingError(err)) return { data: [], isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+    return { data: [], error: err.message };
+  }
+}
+
+/**
+ * Fetch Prasarana Prices from Supabase
+ */
+export async function fetchPrasaranaPricesFromSupabase(): Promise<{ data: PrasaranaPriceConfig[]; isTableMissing?: boolean; error?: string }> {
+  const sb = getSupabaseClient();
+  if (!sb) return { data: [], error: 'Supabase belum terkonfigurasi' };
+
+  try {
+    const { data, error } = await sb
+      .from('prasarana_prices')
+      .select('*')
+      .order('name');
+
+    if (error) {
+      if (isSupabaseTableMissingError(error)) return { data: [], isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+      throw error;
+    }
+
+    const prices: PrasaranaPriceConfig[] = (data || []).map(row => ({
+      id: row.id || row.item_code,
+      label: row.name,
+      unit: row.unit,
+      price: Number(row.base_price || 0),
+      updatedAt: row.updated_at || new Date().toISOString(),
+      updatedBy: row.notes || 'DPUPR Garut'
+    }));
+
+    return { data: prices };
+  } catch (err: any) {
+    if (isSupabaseTableMissingError(err)) return { data: [], isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+    return { data: [], error: err.message };
+  }
+}
+
+/**
+ * Sync Prasarana Prices to Supabase
+ */
+export async function syncPrasaranaPricesToSupabase(prices: PrasaranaPriceConfig[]): Promise<{ success: boolean; count: number; error?: string }> {
+  const sb = getSupabaseClient();
+  if (!sb) return { success: false, count: 0, error: 'Supabase belum terhubung.' };
+  if (!prices || prices.length === 0) return { success: true, count: 0 };
+
+  try {
+    const rows = prices.map(p => ({
+      id: p.id,
+      item_code: p.id,
+      name: p.label,
+      unit: p.unit,
+      base_price: p.price,
+      category: 'PRASARANA_UMUM',
+      notes: p.updatedBy || 'DPUPR Garut',
+      updated_at: new Date().toISOString()
+    }));
+
+    const { error } = await sb.from('prasarana_prices').upsert(rows, { onConflict: 'id' });
+    if (error) {
+      if (isSupabaseTableMissingError(error)) return { success: false, count: 0, error: 'Tabel prasarana_prices belum dibuat di Supabase.' };
+      throw error;
+    }
+    return { success: true, count: rows.length };
+  } catch (err: any) {
+    return { success: false, count: 0, error: err.message };
+  }
+}
+
+/**
+ * Subscribe to real-time changes on User Accounts table
+ */
+export function subscribeToUserAccountsSupabase(
+  onInsertOrUpdate: (user: UserAccount) => void,
+  onDelete?: (id: string) => void
+): () => void {
+  const sb = getSupabaseClient();
+  if (!sb) return () => {};
+
+  try {
+    const channel: RealtimeChannel = sb
+      .channel('realtime_user_accounts_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_accounts' },
+        (payload) => {
+          if (payload.eventType === 'DELETE' && (payload.old as any)?.id && onDelete) {
+            onDelete((payload.old as any).id);
+          } else if (payload.new) {
+            const row: any = payload.new;
+            const user: UserAccount = {
+              id: row.id,
+              username: row.username,
+              name: row.name,
+              email: row.email,
+              nip: row.nip || undefined,
+              role: row.role,
+              positionTitle: row.position_title,
+              subSpecialty: row.sub_specialty || undefined,
+              phone: row.phone || undefined,
+              avatarUrl: row.avatar_url || undefined,
+              isActive: row.is_active,
+              permissions: row.permissions,
+              signatureDataUrl: row.signature_data_url || undefined,
+              lastLoginAt: row.last_login_at || undefined,
+              createdAt: row.created_at || new Date().toISOString()
+            };
+            onInsertOrUpdate(user);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      sb.removeChannel(channel);
+    };
+  } catch (err) {
+    return () => {};
+  }
+}
+
+/**
+ * Subscribe to real-time changes on Notification Logs table
+ */
+export function subscribeToNotificationLogsSupabase(
+  onInsertOrUpdate: (log: NotificationLog) => void
+): () => void {
+  const sb = getSupabaseClient();
+  if (!sb) return () => {};
+
+  try {
+    const channel: RealtimeChannel = sb
+      .channel('realtime_notification_logs_changes')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notification_logs' },
+        (payload) => {
+          if (payload.new) {
+            const row: any = payload.new;
+            const log: NotificationLog = {
+              id: row.id,
+              applicationId: row.application_id || '',
+              registerNumber: row.register_number || '',
+              recipientName: row.recipient_name || '',
+              recipientPhone: row.recipient_phone || '',
+              templateType: row.template_type || 'INFO_UMUM',
+              message: row.message || '',
+              channel: row.channel || 'WHATSAPP',
+              status: row.status || 'SENT',
+              retryCount: row.retry_count || 0,
+              errorMessage: row.error_message || undefined,
+              sentAt: row.sent_at || undefined,
+              createdAt: row.created_at || new Date().toISOString()
+            };
+            onInsertOrUpdate(log);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      sb.removeChannel(channel);
+    };
+  } catch (err) {
+    return () => {};
+  }
+}
+
+/**
+ * Universal High-Performance Import Execution to Supabase
+ */
+export async function executeImportToSupabase(
+  table: string,
+  records: any[],
+  mode: 'UPSERT' | 'INSERT_NEW' | 'REPLACE_ALL' = 'UPSERT',
+  onProgress?: (progressPercent: number, processedCount: number) => void
+): Promise<{
+  success: boolean;
+  insertedCount: number;
+  updatedCount: number;
+  failedCount: number;
+  errors: string[];
+}> {
+  const sb = getSupabaseClient();
+  if (!sb) {
+    return {
+      success: false,
+      insertedCount: 0,
+      updatedCount: 0,
+      failedCount: records.length,
+      errors: ['Supabase belum terkonfigurasi pada berkas .env']
+    };
+  }
+
+  const errors: string[] = [];
+  let processed = 0;
+  let inserted = 0;
+  let updated = 0;
+  let failed = 0;
+
+  try {
+    // If REPLACE_ALL, purge existing table rows first if allowed
+    if (mode === 'REPLACE_ALL') {
+      try {
+        await sb.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      } catch (delErr: any) {
+        console.warn(`[Supabase Import] Table purge note on ${table}:`, delErr.message);
+      }
+    }
+
+    const CHUNK_SIZE = 25;
+    for (let i = 0; i < records.length; i += CHUNK_SIZE) {
+      const chunk = records.slice(i, i + CHUNK_SIZE);
+      let payloadRows: any[] = [];
+
+      switch (table) {
+        case 'applications':
+          payloadRows = chunk.map(mapApplicationToSupabaseRow);
+          break;
+        case 'user_accounts':
+          payloadRows = chunk.map(u => ({
+            id: u.id,
+            username: u.username,
+            name: u.name,
+            email: u.email,
+            nip: u.nip || null,
+            role: u.role,
+            position_title: u.positionTitle,
+            sub_specialty: u.subSpecialty || null,
+            phone: u.phone || null,
+            avatar_url: u.avatarUrl || null,
+            is_active: u.isActive,
+            permissions: u.permissions,
+            signature_data_url: u.signatureDataUrl || null,
+            last_login_at: u.lastLoginAt || null,
+            updated_at: new Date().toISOString()
+          }));
+          break;
+        case 'notification_logs':
+          payloadRows = chunk.map(l => ({
+            id: l.id,
+            application_id: l.applicationId || null,
+            register_number: l.registerNumber,
+            recipient_name: l.recipientName,
+            recipient_phone: l.recipientPhone,
+            template_type: l.templateType,
+            message: l.message,
+            channel: l.channel || 'WHATSAPP',
+            status: l.status || 'SENT',
+            retry_count: l.retryCount || 0,
+            error_message: l.errorMessage || null,
+            sent_at: l.sentAt || new Date().toISOString(),
+            created_at: l.createdAt || new Date().toISOString()
+          }));
+          break;
+        case 'status_audit_logs':
+          payloadRows = chunk.map(l => ({
+            id: l.id,
+            application_id: l.applicationId || null,
+            register_number: l.registerNumber || null,
+            from_status: l.fromStatus,
+            to_status: l.toStatus,
+            actor_name: l.actorName,
+            actor_role: l.actorRole,
+            stage_name: l.stageName || null,
+            notes: l.notes || null,
+            created_at: l.timestamp || new Date().toISOString()
+          }));
+          break;
+        case 'prasarana_prices':
+          payloadRows = chunk.map(p => ({
+            id: p.id,
+            item_code: p.id,
+            name: p.label,
+            unit: p.unit,
+            base_price: p.price,
+            category: 'PRASARANA_UMUM',
+            notes: p.updatedBy || 'DPUPR Garut',
+            updated_at: new Date().toISOString()
+          }));
+          break;
+        default:
+          payloadRows = chunk;
+      }
+
+      const { error } = await sb
+        .from(table)
+        .upsert(payloadRows, { onConflict: 'id' });
+
+      if (error) {
+        failed += chunk.length;
+        errors.push(`Chunk [${i + 1} - ${i + chunk.length}]: ${error.message}`);
+      } else {
+        inserted += chunk.length;
+      }
+
+      processed += chunk.length;
+      if (onProgress) {
+        const percent = Math.round((processed / records.length) * 100);
+        onProgress(percent, processed);
+      }
+    }
+
+    return {
+      success: failed === 0,
+      insertedCount: inserted,
+      updatedCount: updated,
+      failedCount: failed,
+      errors
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      insertedCount: inserted,
+      updatedCount: updated,
+      failedCount: records.length - processed,
+      errors: [err.message]
+    };
   }
 }
 

@@ -770,6 +770,8 @@ export default function App() {
               onResetSettings={handleResetWaSettings}
               onOpenWhatsApp={handleOpenWhatsAppWeb}
               onOpenDatabaseManager={() => setIsDatabaseManagerOpen(true)}
+              onApplicationsImported={(apps) => batchUpdateApplications(apps)}
+              onRefreshApplications={refreshApplications}
             />
           )}
         </motion.div>

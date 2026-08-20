@@ -41,6 +41,7 @@ import {
 } from '../lib/supabase';
 import { Application } from '../types';
 import { getStoredUserAccounts } from '../lib/accountEngine';
+import { DatabaseImportExportModule } from './DatabaseImportExportModule';
 
 interface DatabaseManagerModalProps {
   isOpen: boolean;
@@ -57,7 +58,7 @@ export const DatabaseManagerModal: React.FC<DatabaseManagerModalProps> = ({
   refreshApplications,
   isDeltaSyncing = false
 }) => {
-  const [activeTab, setActiveTab] = useState<'MIGRATION' | 'EGRESS_SAVER' | 'STATUS' | 'SCHEMA_SQL' | 'CRON_PING' | 'BACKUP'>('EGRESS_SAVER');
+  const [activeTab, setActiveTab] = useState<'IMPORT_EXPORT' | 'EGRESS_SAVER' | 'MIGRATION' | 'STATUS' | 'SCHEMA_SQL' | 'CRON_PING' | 'BACKUP'>('IMPORT_EXPORT');
   const [healthStatus, setHealthStatus] = useState<SupabaseHealthCheckResult | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
@@ -390,6 +391,18 @@ jobs:
         {/* Tab Navigation */}
         <div className="flex items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 sm:px-6 overflow-x-auto text-xs font-mono font-bold">
           <button
+            onClick={() => setActiveTab('IMPORT_EXPORT')}
+            className={`py-3 px-4 border-b-2 uppercase tracking-wider transition flex items-center gap-2 shrink-0 ${
+              activeTab === 'IMPORT_EXPORT'
+                ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-900'
+                : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'
+            }`}
+          >
+            <Upload className="w-4 h-4 text-emerald-500" />
+            <span>Impor & Template Database</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('EGRESS_SAVER')}
             className={`py-3 px-4 border-b-2 uppercase tracking-wider transition flex items-center gap-2 shrink-0 ${
               activeTab === 'EGRESS_SAVER'
@@ -464,6 +477,19 @@ jobs:
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+
+          {/* TAB: DATABASE IMPORT & EXPORT WITH TEMPLATES */}
+          {activeTab === 'IMPORT_EXPORT' && (
+            <div className="space-y-6 animate-in fade-in duration-150">
+              <DatabaseImportExportModule
+                applications={applications}
+                onApplicationsImported={(apps) => {
+                  if (refreshApplications) refreshApplications(false);
+                }}
+                onRefreshApplications={refreshApplications}
+              />
+            </div>
+          )}
 
           {/* TAB 0: EGRESS OPTIMIZER (HIGH-EFFICIENCY BANDWIDTH) */}
           {activeTab === 'EGRESS_SAVER' && (

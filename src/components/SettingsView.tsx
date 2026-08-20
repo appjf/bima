@@ -48,6 +48,8 @@ import { SignatureCanvasPad } from './SignatureCanvasPad';
 import { getSavedSignatures, saveSignatures, SignatureStore, DigitalSignatureData } from '../lib/signatureEngine';
 import { ASNPersonnelSettings } from './ASNPersonnelSettings';
 import { useAutoSaveForm } from '../hooks/useAutoSaveForm';
+import { DatabaseConnectivityModule } from './DatabaseConnectivityModule';
+import { DatabaseImportExportModule } from './DatabaseImportExportModule';
 import { AutoSaveIndicator } from './AutoSaveIndicator';
 import { PrasaranaSettings } from './PrasaranaSettings';
 
@@ -58,6 +60,8 @@ interface SettingsViewProps {
   onResetSettings: () => void;
   onOpenWhatsApp: (phone: string, text: string) => void;
   onOpenDatabaseManager?: () => void;
+  onApplicationsImported?: (apps: Application[]) => void;
+  onRefreshApplications?: (forceFull?: boolean) => Promise<void>;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -66,7 +70,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onSaveSettings,
   onResetSettings,
   onOpenWhatsApp,
-  onOpenDatabaseManager
+  onOpenDatabaseManager,
+  onApplicationsImported,
+  onRefreshApplications
 }) => {
   // Local active settings state
   const [currentSettings, setCurrentSettings] = useState<WhatsAppSettings>(settings);
@@ -1294,66 +1300,79 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* TAB 8: DATABASE SUPABASE HUB */}
+      {/* TAB 8: DATABASE SUPABASE HUB & CONNECTIVITY */}
       {activeSubTab === 'DATABASE' && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-6 font-mono">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="p-1.5 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 border border-emerald-200 dark:border-emerald-800">
-                  <Database className="w-5 h-5" />
-                </span>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                    Pusat Database Supabase PostgreSQL
-                  </h3>
-                  <p className="text-xs text-slate-500 font-sans">
-                    Integrasi Cloud Database PostgreSQL dengan arsitektur Zero-Egress, skrip DDL SQL otomatis, dan migrasi sinkronisasi menyeluruh.
-                  </p>
+        <div className="space-y-6">
+          {/* Real-time Connectivity Module */}
+          <DatabaseConnectivityModule onOpenDatabaseManager={onOpenDatabaseManager} />
+
+          {/* Universal Database Import & Export Module with Templates */}
+          <DatabaseImportExportModule
+            applications={applications}
+            onApplicationsImported={onApplicationsImported}
+            onRefreshApplications={onRefreshApplications}
+          />
+
+          {/* Quick Hub Guides & Architecture Highlights */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-6 font-mono">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 border border-indigo-200 dark:border-indigo-800">
+                    <Database className="w-5 h-5" />
+                  </span>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                      Arsitektur Sinkronisasi & Migrasi PostgreSQL
+                    </h3>
+                    <p className="text-xs text-slate-500 font-sans">
+                      Integrasi Cloud Database PostgreSQL dengan Zero-Egress delta sync, skrip DDL SQL otomatis, dan migrasi sinkronisasi menyeluruh.
+                    </p>
+                  </div>
                 </div>
               </div>
+
+              {onOpenDatabaseManager && (
+                <button
+                  onClick={onOpenDatabaseManager}
+                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-wider transition shadow-sm flex items-center justify-center gap-2 shrink-0"
+                >
+                  <Database className="w-4 h-4" />
+                  <span>Buka Dialog Migrasi & Schema SQL</span>
+                </button>
+              )}
             </div>
 
-            {onOpenDatabaseManager && (
-              <button
-                onClick={onOpenDatabaseManager}
-                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-wider transition shadow-sm flex items-center justify-center gap-2 shrink-0"
-              >
-                <Database className="w-4 h-4" />
-                <span>Buka Manajer Database & Schema SQL</span>
-              </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
-              <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span>1. Schema SQL & RLS</span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span>1. Schema SQL & RLS</span>
+                </div>
+                <p className="text-[11px] text-slate-500 font-sans">
+                  Salin skrip DDL SQL 5 tabel (<code>applications</code>, <code>user_accounts</code>, <code>notification_logs</code>, dll) lalu jalankan di Supabase SQL Editor.
+                </p>
               </div>
-              <p className="text-[11px] text-slate-500 font-sans">
-                Salin skrip DDL SQL 5 tabel (<code>applications</code>, <code>user_accounts</code>, <code>notification_logs</code>, dll) lalu jalankan di Supabase SQL Editor.
-              </p>
-            </div>
 
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
-              <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
-                <span>2. Migrasi Menyeluruh</span>
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                  <span>2. Migrasi Menyeluruh</span>
+                </div>
+                <p className="text-[11px] text-slate-500 font-sans">
+                  Sinkronisasikan seluruh data berkas SIMBG, riwayat verifikasi teknis, presensi sidang, dan akun pengguna ke Supabase.
+                </p>
               </div>
-              <p className="text-[11px] text-slate-500 font-sans">
-                Sinkronisasikan seluruh data berkas SIMBG, riwayat verifikasi teknis, presensi sidang, dan akun pengguna ke Supabase.
-              </p>
-            </div>
 
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
-              <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                <span>3. Zero-Egress Protection</span>
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                  <span>3. Zero-Egress Protection</span>
+                </div>
+                <p className="text-[11px] text-slate-500 font-sans">
+                  Aplikasi dirancang dengan delta-sync dan metadata hashing agar hemat kuota network (egress) dan tahan terhadap koneksi lambat.
+                </p>
               </div>
-              <p className="text-[11px] text-slate-500 font-sans">
-                Aplikasi dirancang dengan delta-sync dan metadata hashing agar hemat kuota kuota network (egress) dan tahan terhadap koneksi lambat.
-              </p>
             </div>
           </div>
         </div>
