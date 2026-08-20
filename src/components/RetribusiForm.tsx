@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calculator, Save, Printer, RefreshCw, Plus, Trash2, FileText, Info } from 'lucide-react';
+import { Calculator, Save, Printer, RefreshCw, Plus, Trash2, FileText, Info, Settings } from 'lucide-react';
 import { 
   INDEKS_FUNGSI, 
   INDEKS_BG_TERBANGUN, 
@@ -7,7 +7,15 @@ import {
   KOEFISIEN_LANTAI,
   PRASARANA_TYPES 
 } from '../lib/retribusiData';
-import { Application } from '../types';
+import { Application, PrasaranaPriceConfig } from '../types';
+import { 
+  subscribeToPrasaranaPrices, 
+  initializePrasaranaPrices,
+  subscribeToGlobalSettings,
+  ParameterWeight
+} from '../lib/firebaseSettings';
+import { PrasaranaSettings } from './PrasaranaSettings';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface PrasaranaItem {
   id: string;
@@ -15,6 +23,8 @@ interface PrasaranaItem {
   volume: number;
   index: number;
   price: number;
+  manualName?: string;
+  manualUnit?: string;
 }
 
 interface RetribusiFormProps {
@@ -25,9 +35,10 @@ interface RetribusiFormProps {
 export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSave }) => {
   // Constants
   const INDEKS_LOKALITAS = 0.5;
-  const SHST = 6000000; // Default SHST for Garut (approx)
 
   // State
+  const [shst, setShst] = useState<number>(5400000); // Default SHST for Garut
+  const [parameterWeights, setParameterWeights] = useState<ParameterWeight[]>([]);
   const [luasLantai, setLuasLantai] = useState<number>(application?.building?.buildingArea || 0);
   const [indeksFungsi, setIndeksFungsi] = useState<number>(0.17); // Default Hunian > 100
   const [indeksBgTerbangun, setIndeksBgTerbangun] = useState<number>(1); // Default Baru
@@ -42,22 +53,69 @@ export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSav
   });
   
   const [prasaranaList, setPrasaranaList] = useState<PrasaranaItem[]>([]);
+  const [prasaranaConfigs, setPrasaranaConfigs] = useState<PrasaranaPriceConfig[]>([]);
+  const [showSettings, setShowSettings] = useState(false);
+
+  useEffect(() => {
+    // Initialize if empty, then subscribe
+    const initAndSubscribe = async () => {
+      try {
+        await initializePrasaranaPrices();
+        const unsubPrices = subscribeToPrasaranaPrices((updatedPrices) => {
+          setPrasaranaConfigs(updatedPrices);
+        });
+        const unsubGlobal = subscribeToGlobalSettings((settings) => {
+          setShst(settings.shst);
+          if (settings.parameterWeights) {
+            setParameterWeights(settings.parameterWeights);
+          }
+        });
+        return () => {
+          unsubPrices();
+          unsubGlobal();
+        };
+      } catch (err) {
+        console.error('Error initializing prices:', err);
+      }
+    };
+
+    const cleanup = initAndSubscribe();
+    return () => {
+      cleanup.then(unsub => unsub?.());
+    };
+  }, []);
+
+  // Use dynamic configs if available, otherwise fallback to static types
+  const currentPrasaranaTypes = useMemo(() => {
+    if (prasaranaConfigs.length > 0) {
+      return prasaranaConfigs;
+    }
+    return PRASARANA_TYPES;
+  }, [prasaranaConfigs]);
 
   // Calculations
   const indeksParameterTotal = useMemo(() => {
+    // Use dynamic weights if available, otherwise fallback to static data
+    if (parameterWeights.length > 0) {
+      return parameterWeights.reduce((acc, param) => {
+        const val = paramValues[param.name] || 0;
+        return acc + (param.weight * val);
+      }, 0);
+    }
+
     return PARAMETERS_KLASIFIKASI.reduce((acc, param) => {
       const val = paramValues[param.name] || 0;
       return acc + (param.weight * val);
     }, 0);
-  }, [paramValues]);
+  }, [paramValues, parameterWeights]);
 
   const indeksTerintegrasi = useMemo(() => {
     return indeksFungsi * indeksParameterTotal;
   }, [indeksFungsi, indeksParameterTotal]);
 
   const retribusiBangunan = useMemo(() => {
-    return luasLantai * (INDEKS_LOKALITAS * SHST) * indeksTerintegrasi * indeksBgTerbangun;
-  }, [luasLantai, indeksTerintegrasi, indeksBgTerbangun]);
+    return luasLantai * (INDEKS_LOKALITAS * shst) * indeksTerintegrasi * indeksBgTerbangun;
+  }, [luasLantai, shst, indeksTerintegrasi, indeksBgTerbangun]);
 
   const retribusiPrasarana = useMemo(() => {
     return prasaranaList.reduce((acc, item) => {
@@ -68,13 +126,14 @@ export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSav
   const totalRetribusi = retribusiBangunan + retribusiPrasarana;
 
   // Handlers
-  const addPrasarana = () => {
+  const addPrasarana = (isManual = false) => {
+    const defaultType = currentPrasaranaTypes[0];
     const newItem: PrasaranaItem = {
       id: Math.random().toString(36).substr(2, 9),
-      type: PRASARANA_TYPES[0].label,
+      type: isManual ? 'MANUAL' : (defaultType?.label || ''),
       volume: 0,
       index: 1,
-      price: PRASARANA_TYPES[0].price
+      price: isManual ? 0 : (defaultType?.price || 0)
     };
     setPrasaranaList([...prasaranaList, newItem]);
   };
@@ -86,8 +145,8 @@ export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSav
   const updatePrasarana = (id: string, updates: Partial<PrasaranaItem>) => {
     setPrasaranaList(prasaranaList.map(item => {
       if (item.id === id) {
-        if (updates.type) {
-          const typeInfo = PRASARANA_TYPES.find(t => t.label === updates.type);
+        if (updates.type && updates.type !== 'MANUAL') {
+          const typeInfo = currentPrasaranaTypes.find(t => t.label === updates.type);
           return { ...item, ...updates, price: typeInfo?.price || item.price };
         }
         return { ...item, ...updates };
@@ -202,21 +261,24 @@ export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSav
               <div className="bg-white p-4 border-2 border-slate-900">
                 <h4 className="text-[10px] font-black text-slate-900 uppercase mb-3 border-b-2 border-slate-900 pb-1">Perhitungan Indeks Terintegrasi</h4>
                 <div className="space-y-2">
-                  {PARAMETERS_KLASIFIKASI.map(param => (
-                    <div key={param.name} className="flex items-center justify-between gap-4">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase w-32">{param.name}</span>
-                      <select 
-                        value={paramValues[param.name]}
-                        onChange={(e) => setParamValues({...paramValues, [param.name]: parseFloat(e.target.value)})}
-                        className="flex-1 bg-slate-50 border border-slate-200 px-2 py-1 text-[11px] font-bold focus:border-indigo-600 outline-none"
-                      >
-                        {param.options.map(opt => (
-                          <option key={opt.label} value={opt.value}>{opt.label} ({opt.value})</option>
-                        ))}
-                      </select>
-                      <span className="text-[10px] font-mono font-bold text-slate-400">x {param.weight}</span>
-                    </div>
-                  ))}
+                  {PARAMETERS_KLASIFIKASI.map(param => {
+                    const dynamicWeight = parameterWeights.find(w => w.name === param.name)?.weight ?? param.weight;
+                    return (
+                      <div key={param.name} className="flex items-center justify-between gap-4">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase w-32">{param.name}</span>
+                        <select 
+                          value={paramValues[param.name]}
+                          onChange={(e) => setParamValues({...paramValues, [param.name]: parseFloat(e.target.value)})}
+                          className="flex-1 bg-slate-50 border border-slate-200 px-2 py-1 text-[11px] font-bold focus:border-indigo-600 outline-none"
+                        >
+                          {param.options.map(opt => (
+                            <option key={opt.label} value={opt.value}>{opt.label} ({opt.value})</option>
+                          ))}
+                        </select>
+                        <span className="text-[10px] font-mono font-bold text-slate-400">x {dynamicWeight.toFixed(2)}</span>
+                      </div>
+                    );
+                  })}
                   <div className="pt-2 border-t-2 border-slate-900 flex justify-between items-center">
                     <span className="text-[10px] font-black text-slate-900 uppercase">Indeks Parameter Total</span>
                     <span className="text-sm font-black text-indigo-600 font-mono">{indeksParameterTotal.toFixed(3)}</span>
@@ -231,7 +293,7 @@ export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSav
               <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Formula Perhitungan Retribusi Bangunan</p>
               <p className="font-mono text-xs text-slate-300 italic">L_Lt × (I_lo × SHST) × I_t × I_bg</p>
               <p className="mt-2 font-mono text-[11px]">
-                {luasLantai} × ({INDEKS_LOKALITAS} × {SHST.toLocaleString()}) × {indeksTerintegrasi.toFixed(4)} × {indeksBgTerbangun}
+                {luasLantai} × ({INDEKS_LOKALITAS} × {shst.toLocaleString()}) × {indeksTerintegrasi.toFixed(4)} × {indeksBgTerbangun}
               </p>
             </div>
             <div className="text-right flex flex-col justify-center">
@@ -247,12 +309,26 @@ export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSav
             <h3 className="bg-slate-900 text-white px-4 py-1.5 text-sm font-bold uppercase tracking-widest flex items-center gap-2">
               <Plus className="w-4 h-4" /> B. RINCIAN PRASARANA BANGUNAN GEDUNG
             </h3>
-            <button 
-              onClick={addPrasarana}
-              className="flex items-center gap-2 px-3 py-1 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-wider hover:bg-indigo-700 transition-colors"
-            >
-              <Plus className="w-3 h-3" /> Tambah Prasarana
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setShowSettings(true)}
+                className="flex items-center gap-2 px-3 py-1 bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-wider hover:bg-slate-200 transition-colors border border-slate-200"
+              >
+                <Settings className="w-3 h-3" /> Pengaturan Harga
+              </button>
+              <button 
+                onClick={() => addPrasarana(true)}
+                className="flex items-center gap-2 px-3 py-1 bg-amber-600 text-white text-[10px] font-black uppercase tracking-wider hover:bg-amber-700 transition-colors shadow-sm"
+              >
+                <Plus className="w-3 h-3" /> Input Manual
+              </button>
+              <button 
+                onClick={() => addPrasarana(false)}
+                className="flex items-center gap-2 px-3 py-1 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-wider hover:bg-indigo-700 transition-colors shadow-sm"
+              >
+                <Plus className="w-3 h-3" /> Tambah Prasarana
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto border-2 border-slate-900">
@@ -271,15 +347,46 @@ export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSav
                 {prasaranaList.map((item, idx) => (
                   <tr key={item.id} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
                     <td className="p-3 border-r-2 border-slate-900">
-                      <select 
-                        value={item.type}
-                        onChange={(e) => updatePrasarana(item.id, { type: e.target.value })}
-                        className="w-full bg-transparent outline-none cursor-pointer"
-                      >
-                        {PRASARANA_TYPES.map(t => (
-                          <option key={t.label} value={t.label}>{t.label}</option>
-                        ))}
-                      </select>
+                      {item.type === 'MANUAL' ? (
+                        <div className="flex flex-col gap-1">
+                          <input 
+                            type="text"
+                            placeholder="Nama Prasarana..."
+                            value={item.manualName || ''}
+                            onChange={(e) => updatePrasarana(item.id, { manualName: e.target.value })}
+                            className="w-full bg-slate-50 border-b border-slate-300 outline-none text-[11px] font-bold py-1 px-2"
+                          />
+                          <div className="flex items-center gap-2 px-2">
+                            <select 
+                              onChange={(e) => updatePrasarana(item.id, { type: e.target.value })}
+                              className="text-[9px] text-indigo-600 font-bold bg-transparent outline-none"
+                            >
+                              <option value="MANUAL">Custom</option>
+                              {currentPrasaranaTypes.map(t => (
+                                <option key={t.label} value={t.label}>{t.label}</option>
+                              ))}
+                            </select>
+                            <input 
+                              type="text"
+                              placeholder="Satuan (M2/Unit...)"
+                              value={item.manualUnit || ''}
+                              onChange={(e) => updatePrasarana(item.id, { manualUnit: e.target.value })}
+                              className="w-20 bg-slate-50 border-b border-slate-200 outline-none text-[9px] font-bold"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <select 
+                          value={item.type}
+                          onChange={(e) => updatePrasarana(item.id, { type: e.target.value })}
+                          className="w-full bg-transparent outline-none cursor-pointer"
+                        >
+                          {currentPrasaranaTypes.map(t => (
+                            <option key={t.label} value={t.label}>{t.label}</option>
+                          ))}
+                          <option value="MANUAL">+ Input Manual...</option>
+                        </select>
+                      )}
                     </td>
                     <td className="p-3 border-r-2 border-slate-900">
                       <div className="flex items-center gap-2">
@@ -289,7 +396,11 @@ export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSav
                           onChange={(e) => updatePrasarana(item.id, { volume: parseFloat(e.target.value) || 0 })}
                           className="w-full bg-transparent outline-none font-mono"
                         />
-                        <span className="text-slate-400 font-mono">{PRASARANA_TYPES.find(t => t.label === item.type)?.unit}</span>
+                        <span className="text-slate-400 font-mono">
+                          {item.type === 'MANUAL' 
+                            ? (item.manualUnit || 'Unit') 
+                            : currentPrasaranaTypes.find(t => t.label === item.type)?.unit}
+                        </span>
                       </div>
                     </td>
                     <td className="p-3 border-r-2 border-slate-900">
@@ -300,7 +411,21 @@ export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSav
                         className="w-full bg-transparent outline-none font-mono"
                       />
                     </td>
-                    <td className="p-3 border-r-2 border-slate-900 font-mono">{formatIDR(item.price)}</td>
+                    <td className="p-3 border-r-2 border-slate-900 font-mono">
+                      {item.type === 'MANUAL' ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-slate-400">Rp</span>
+                          <input 
+                            type="number" 
+                            value={item.price}
+                            onChange={(e) => updatePrasarana(item.id, { price: parseFloat(e.target.value) || 0 })}
+                            className="w-full bg-slate-50 border-b border-indigo-200 outline-none font-mono text-indigo-600 font-bold px-1"
+                          />
+                        </div>
+                      ) : (
+                        formatIDR(item.price)
+                      )}
+                    </td>
                     <td className="p-3 font-mono text-indigo-600">{formatIDR(item.volume * item.index * indeksBgTerbangun * item.price)}</td>
                     <td className="p-3">
                       <button onClick={() => removePrasarana(item.id)} className="text-slate-300 hover:text-rose-500 transition-colors">
@@ -356,6 +481,7 @@ export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSav
               totalRetribusi, 
               luasLantai, 
               indeksTerintegrasi,
+              prasaranaList,
               timestamp: new Date().toISOString()
             })}
             className="flex-1 flex items-center justify-center gap-3 bg-indigo-600 text-white py-4 px-6 text-sm font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg hover:shadow-xl active:scale-[0.98]"
@@ -363,6 +489,22 @@ export const RetribusiForm: React.FC<RetribusiFormProps> = ({ application, onSav
             <Save className="w-5 h-5" /> Simpan Hasil Perhitungan
           </button>
         </div>
+
+        {/* Settings Modal */}
+        <AnimatePresence>
+          {showSettings && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white dark:bg-slate-950 w-full max-w-5xl h-[80vh] rounded-3xl shadow-2xl overflow-hidden border border-white/20"
+              >
+                <PrasaranaSettings onClose={() => setShowSettings(false)} />
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

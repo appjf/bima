@@ -32,7 +32,7 @@ service cloud.firestore {
     match /auditLogs/{logId} {
       allow read, write: if true;
     }
-    match /settings/{settingId} {
+    match /settings/{document=**} {
       allow read, write: if true;
     }
   }

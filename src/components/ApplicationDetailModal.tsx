@@ -2800,7 +2800,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
                         id: `SKRD-${application.id.slice(-4)}`,
                         formulaVersion: 'PP-16-2021',
                         calculatedAt: new Date().toISOString(),
-                        calculatedBy: 'SIMBG-DIGITAL-ASSISTANT',
+                        calculatedBy: application.assignedOperator || 'SIMBG-DIGITAL-ASSISTANT',
                         status: 'UNPAID',
                         isVerified: false,
                         components: [],
@@ -2824,6 +2824,14 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
                       totalBuildingArea: data.luasLantai,
                       buildingRetribution: data.retribusiBangunan,
                       infrastructureRetribution: data.retribusiPrasarana,
+                      infrastructureSubtotal: data.retribusiPrasarana,
+                      infrastructureItems: data.prasaranaList.map((item: any) => ({
+                        name: item.type === 'MANUAL' ? item.manualName : item.type,
+                        unit: item.type === 'MANUAL' ? item.manualUnit : '', // Ideally we'd get the unit from types too but it's okay for now
+                        index: item.index,
+                        unitPrice: item.price,
+                        subtotal: item.volume * item.index * item.price // Note: this might need indexing bg terbangun too depending on formula
+                      })),
                       finalRetribution: data.totalRetribusi,
                       lastCalculated: data.timestamp
                     },

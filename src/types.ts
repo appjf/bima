@@ -409,6 +409,15 @@ export interface ASNPersonnel {
   updatedAt: string;
 }
 
+export interface PrasaranaPriceConfig {
+  id: string; // The label of the infrastructure
+  label: string;
+  unit: string;
+  price: number;
+  updatedAt: string;
+  updatedBy: string;
+}
+
 export interface Application {
   id: string;
   registerNumber: string; // e.g. "PBG-320501-18082026-001"

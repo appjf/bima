@@ -1,77 +1,24 @@
 {
   "entities": {
-    "Application": {
-      "title": "Application",
-      "description": "Represents a building permit or SLF application in the SIMBG system.",
+    "PrasaranaPriceConfig": {
+      "title": "Prasarana Price Configuration",
+      "description": "Configuration for infrastructure unit prices (HSpbg)",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "registerNumber": { "type": "string" },
-        "applicant": {
-          "type": "object",
-          "properties": {
-            "name": { "type": "string" },
-            "phone": { "type": "string" }
-          }
-        },
-        "status": { "type": "string" },
-        "schedule": {
-          "type": "object",
-          "properties": {
-            "applicantAttended": { "type": "boolean" },
-            "attendanceToken": { "type": "string" }
-          }
-        }
-      }
-    },
-    "NotificationLog": {
-      "title": "NotificationLog",
-      "description": "Logs of sent notifications.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "recipient": { "type": "string" },
-        "message": { "type": "string" },
-        "timestamp": { "type": "string" }
-      }
-    },
-    "AuditLog": {
-      "title": "AuditLog",
-      "description": "Logs of administrative actions.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "action": { "type": "string" },
-        "targetRegister": { "type": "string" },
-        "timestamp": { "type": "string" }
-      }
-    },
-    "WhatsAppSettings": {
-      "title": "WhatsAppSettings",
-      "description": "Configuration for WhatsApp notifications.",
-      "type": "object",
-      "properties": {
-        "apiKey": { "type": "string" },
-        "senderNumber": { "type": "string" }
-      }
+        "id": { "type": "string", "description": "The label of the infrastructure" },
+        "label": { "type": "string", "description": "The label of the infrastructure" },
+        "unit": { "type": "string", "description": "Unit of measurement" },
+        "price": { "type": "number", "description": "Unit price (HSpbg)" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["id", "label", "unit", "price"]
     }
   },
   "firestore": {
-    "/applications/{applicationId}": {
-      "schema": "Application",
-      "description": "Core building permit applications."
-    },
-    "/notifications/{notificationId}": {
-      "schema": "NotificationLog",
-      "description": "History of sent notifications."
-    },
-    "/auditLogs/{logId}": {
-      "schema": "AuditLog",
-      "description": "Audit trail for system actions."
-    },
-    "/settings/whatsapp": {
-      "schema": "WhatsAppSettings",
-      "description": "System-wide WhatsApp configuration."
+    "/settings/prasarana_prices": {
+      "schema": "PrasaranaPriceConfig",
+      "description": "Collection of infrastructure price configurations"
     }
   }
 }

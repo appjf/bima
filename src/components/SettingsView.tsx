@@ -34,7 +34,8 @@ import {
   ShieldCheck,
   GripVertical,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Coins
 } from 'lucide-react';
 import { Application, WhatsAppSettings, WhatsAppTemplate } from '../types';
 import { 
@@ -47,6 +48,7 @@ import { getSavedSignatures, saveSignatures, SignatureStore, DigitalSignatureDat
 import { ASNPersonnelSettings } from './ASNPersonnelSettings';
 import { useAutoSaveForm } from '../hooks/useAutoSaveForm';
 import { AutoSaveIndicator } from './AutoSaveIndicator';
+import { PrasaranaSettings } from './PrasaranaSettings';
 
 interface SettingsViewProps {
   applications: Application[];
@@ -70,7 +72,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   );
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [activeSubTab, setActiveSubTab] = useState<'TEMPLATES' | 'SIMULATOR' | 'ASN' | 'SIGNATURE' | 'GENERAL' | 'BACKUP'>('TEMPLATES');
+  const [activeSubTab, setActiveSubTab] = useState<'TEMPLATES' | 'SIMULATOR' | 'ASN' | 'SIGNATURE' | 'PRICES' | 'GENERAL' | 'BACKUP'>('TEMPLATES');
   
   // Digital Signatures Store
   const [signaturesStore, setSignaturesStore] = useState<SignatureStore>(() => getSavedSignatures());
@@ -481,6 +483,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         >
           <PenTool className="w-4 h-4 text-amber-600" />
           <span>Tanda Tangan Digital (TTE) & QR Code</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('PRICES')}
+          className={`py-3 px-4 border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+            activeSubTab === 'PRICES'
+              ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-slate-50 dark:bg-slate-800/40 -mb-[1px]'
+              : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+          }`}
+        >
+          <Coins className="w-4 h-4 text-indigo-600" />
+          <span>Pengaturan Harga & SHST</span>
         </button>
 
         <button
@@ -1063,7 +1077,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* TAB 3: GENERAL AGENCY & HELPDESK PARAMETERS */}
+      {/* TAB 5: PRICES SETTINGS */}
+      {activeSubTab === 'PRICES' && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <PrasaranaSettings />
+        </div>
+      )}
+
+      {/* TAB 6: GENERAL AGENCY & HELPDESK PARAMETERS */}
       {activeSubTab === 'GENERAL' && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 space-y-6 max-w-4xl">
           <div>
