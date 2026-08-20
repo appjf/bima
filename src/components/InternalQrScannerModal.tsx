@@ -201,6 +201,7 @@ export const InternalQrScannerModal: React.FC<InternalQrScannerModalProps> = ({
     if (matchedApp) {
       const result = {
         type: 'APPLICATION' as const,
+        name: matchedApp.registerNumber,
         title: matchedApp.registerNumber,
         subtitle: `${matchedApp.applicant.name} • ${matchedApp.building.name}`,
         details: `Presensi Peserta Sidang Pemohon SIMBG: ${matchedApp.building.district} (${matchedApp.building.functionType}) - HADIR SIDANG`,
@@ -215,6 +216,7 @@ export const InternalQrScannerModal: React.FC<InternalQrScannerModalProps> = ({
     // Fallback: Generic Payload
     const genericResult = {
       type: 'UNKNOWN' as const,
+      name: 'QR Code Terdeteksi',
       title: 'QR Code Terdeteksi',
       subtitle: raw.slice(0, 60) + (raw.length > 60 ? '...' : ''),
       details: 'Payload QR berhasil dibaca oleh sistem. Data tidak langsung terikat pada database ASN/Permohonan.',

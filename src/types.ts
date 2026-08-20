@@ -109,6 +109,7 @@ export interface FieldVisitPhoto {
   id: string;
   tag: string; // e.g. 'Tampak Depan', 'Struktur Kolom', 'Panel MEP', 'APAR / Damkar', 'GSB & Drainase'
   dataUrl: string;
+  url?: string;
   caption: string;
   timestamp: string;
 }
@@ -152,7 +153,7 @@ export interface BeritaAcaraLapangan {
   visitDate: string;
   visitTime?: string;
   inspectors: { name: string; role: string; nip?: string; present?: boolean }[];
-  attendeesOwner?: { name: string; role: string; phone?: string };
+  attendeesOwner?: { name: string; role: string; phone?: string; nik?: string };
   locationNotes: string;
   itemsChecked: FieldVisitItem[];
   photos?: FieldVisitPhoto[];
@@ -261,6 +262,9 @@ export interface BeritaAcaraKonsultasi {
   result: 'DISETUJUI' | 'PERBAIKAN' | 'KONSULTASI_ULANG';
   expertNotes: string;
   revisionItems: string[];
+  arsitekturRevisions?: string[];
+  strukturRevisions?: string[];
+  mepRevisions?: string[];
   revisionDeadline?: string;
   attendees: { name: string; role: string; present: boolean }[];
   isFinalized: boolean;
@@ -289,15 +293,16 @@ export interface BuildingInfo {
   name: string; // Nama Bangunan Gedung
   functionType: BuildingFunction; // Fungsi Bangunan
   subFunction?: string; // Sub Fungsi Bangunan
-  buildingTypeDescription?: string; // Jenis Bangunan Gedung (e.g. Sederhana / Tidak Sederhana / Khusus / Deskripsi Rinci)
+  buildingTypeDescription?: string; // Jenis Bangunan Gedung
   complexity: BuildingComplexity;
   address: string; // Lokasi Bangunan Gedung
-  district: string; // Kecamatan (e.g. Tarogong Kidul, Garut Kota, Samarang, Kadungora)
+  district: string; // Kecamatan
   village: string; // Desa/Kelurahan
-  city?: string; // Kab. (e.g. Kab. Garut)
+  city?: string; // Kab.
   landArea: number; // m²
   buildingArea: number; // Luas Bangunan Gedung (m²)
   floors: number;
+  numberOfFloors?: number; // Alias for floors
   height: number; // meter
   kdb: number; // Koefisien Dasar Bangunan (%)
   klb: number; // Koefisien Lantai Bangunan

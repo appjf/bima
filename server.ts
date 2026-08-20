@@ -7,9 +7,6 @@ import { createServer as createViteServer } from 'vite';
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const app = express();
 const PORT = 3000;
 
@@ -142,7 +139,6 @@ app.post('/api/gemini/copilot', async (req, res) => {
   try {
     const { prompt, contextData, mode } = req.body;
     const ai = getGeminiClient();
-
     if (!ai) {
       // Return deterministic fallback if API key is not available in environment
       return res.json({
@@ -186,12 +182,107 @@ PENTING & STRICT GUARDRAIL:
       source: 'GEMINI_3_7_FLASH',
       reply: response.text || 'Tidak ada teks yang dihasilkan.'
     });
+
   } catch (error: any) {
     console.error('Gemini Copilot Error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Terjadi kendala pada server AI Copilot.'
     });
+  }
+});
+
+app.post('/api/gemini/verval', async (req, res) => {
+  try {
+    const { buildingType, buildingName, baText, lkText, webContext, baFiles, lkFiles } = req.body;
+    const ai = getGeminiClient();
+    
+    if (!ai) {
+      return res.status(500).json({ error: 'AI_KEY_NOT_CONFIGURED', message: 'API Key Gemini belum dikonfigurasi di server.' });
+    }
+
+    const parts: any[] = [
+      { text: `KONTEKS BANGUNAN:\nTipe: ${buildingType}\nNama Bangunan: ${buildingName || '(Tolong ekstrak otomatis dari dokumen)'}` },
+      { text: "\n\n=== DOKUMEN 1: BERITA ACARA LAPANGAN (DAFTAR TEMUAN) ===" },
+      { text: baText || "(Silakan periksa lampiran Berita Acara)" }
+    ];
+
+    if (baFiles && baFiles.length > 0) {
+      baFiles.forEach((f: any) => {
+        parts.push({ inlineData: { data: f.data, mimeType: f.mimeType } });
+      });
+    }
+
+    parts.push({ text: "\n\n=== DOKUMEN 2: LAPORAN KAJIAN KONSULTAN ===" });
+    parts.push({ text: lkText || "(Silakan periksa lampiran Laporan Kajian)" });
+
+    if (lkFiles && lkFiles.length > 0) {
+      lkFiles.forEach((f: any) => {
+        parts.push({ inlineData: { data: f.data, mimeType: f.mimeType } });
+      });
+    }
+
+    if (webContext) {
+      parts.push({ text: "\n\n=== REFERENSI PERATURAN WEB (HASIL SCRAPING) ===\n" + webContext });
+    }
+
+    parts.push({ text: "\n\nLakukan analisis KOMPREHENSIF per disiplin. HANYA gunakan fakta dari dokumen di atas." });
+
+    const systemInstruction = `### ROLE & PERSONA:
+Anda adalah "Tenaga Ahli Penilai Bangunan Gedung Senior" (TPA) yang SANGAT KAKU, KRITIS, dan STRICT. Anda sedang memvalidasi dokumen untuk gedung bertipe: **${buildingType}**.
+
+### ATURAN MUTLAK ANTI-HALUSINASI (PELANGGARAN BERARTI GAGAL):
+1. **HANYA EKSTRAKSI FAKTA INPUT:** Anda DILARANG KERAS menggunakan pengetahuan eksternal untuk mengarang kondisi bangunan. Anda hanya boleh memproses teks dan dokumen yang dilampirkan oleh pengguna.
+2. **DILARANG MENGARANG TEMUAN (NO MOCKUP DATA):** Jika di dalam "BERITA ACARA" hanya ada 2 temuan, maka tabel Anda HANYA BOLEH berisi 2 baris. Jangan pernah menambahkan contoh temuan sendiri. Jika input "BERITA ACARA" kosong atau tidak bisa dibaca, TULISKAN: "❌ DOKUMEN KOSONG/TIDAK TERBACA. TIDAK ADA DATA YANG BISA DIVALIDASI" lalu HENTIKAN respons.
+3. **VALIDASI RESPON KOSONG:** Jika "Laporan Kajian" tidak menjawab temuan tertentu dari Berita Acara, Anda WAJIB menulis "❌ TIDAK ADA RESPON DARI KONSULTAN" di kolom Respon tabel. JANGAN mengarang jawaban konsultan.
+4. **KUTIP SUMBER NYATA:** Jika mengacu pada referensi web yang dilampirkan, gunakan teks aslinya. Jika mengutip SNI/PP, pastikan peraturan tersebut benar-benar ada di Indonesia.
+
+### TUGAS UTAMA:
+Lakukan **Audit Komprehensif** dengan membahas **SATU PER SATU** poin temuan yang BENAR-BENAR TERTULIS di Berita Acara input secara detail dan mendalam. 
+
+### STRUKTUR OUTPUT (MANDATORY):
+##Harus gunakan ini dan tergenerate:
+0. **Meta Data (WAJIB di baris paling pertama):**
+   Format: \`[NAMA_BANGUNAN: Nama Ekstraksi]\`
+   (Ekstrak nama gedung dari dokumen. Jika user sudah memberikan nama, gunakan nama tersebut. Jika tidak ditemukan sama sekali, tulis "Tidak Diketahui").
+
+1. **Ringkasan Eksekutif (Executive Summary):**
+   - Berikan penilaian umum terhadap kelengkapan dokumen.
+   - Soroti isu *Critical Safety* jika ada.
+
+2. **Matriks Verifikasi Komprehensif (Per Disiplin):**
+   *Tabel harus berisi:*
+   | No | Temuan (Fakta Berita Acara) | Respon Konsultan (Fakta Laporan + No.Hal) | Validitas Teknis | Tingkat Risiko | Analisis & Dasar Hukum | Status Verval & Catatan |
+   |----|-----------------------------|-------------------------------------------|------------------|----------------|------------------------|-------------------------|
+   | .. | [Hanya yang tertulis]       | [Tuliskan respon asli atau '❌ TIDAK ADA RESPON'] | [✅ Valid / ⚠️ Invalid / ❌ Tidak Ada] | [🔴 Tinggi / 🟠 Sedang / 🟢 Rendah] | [Jelaskan komprehensif & Kutip SNI/Pasal] | [⚠️ Perlu Diperbaiki: ALASAN dan Rekomendasi yang harus dilakukan oleh Konsultan / ✅ Sudah Cukup] |
+
+3.**Matriks Verifikasi Tata Penulisan Laporan**
+  *Tabel harus berisi:*
+  | No | Temuan | Catatan |
+  |----|--------|---------|
+  | .. | Temuan kesalahan tata cara penulisan Laporan | [⚠️ Perlu Diperbaiki: ALASAN dan Rekomendasi yang harus dilakukan oleh Konsultan / ✅ Sudah Cukup] |
+
+4. **Rekomendasi Tindak Lanjut (Detailed):**
+   - Berikan instruksi perbaikan teknis yang spesifik.
+
+5. **Kesimpulan Akhir:**
+   - [DIREKOMENDASIKAN TERBIT SLF] atau [DITOLAK / PERLU PERBAIKAN].`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.7-flash', // Fallback to standard if needed
+      contents: parts,
+      config: {
+        systemInstruction,
+        temperature: 0.1,
+        topK: 1,
+        topP: 0.1
+      }
+    });
+
+    res.json({ result: response.text });
+  } catch (error: any) {
+    console.error('Gemini Verval Error:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

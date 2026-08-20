@@ -702,7 +702,7 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
         onAttendanceVerified={(res) => {
           // Auto mark attendance for matched application
           const matchedApp = applications.find(a => 
-            res.rawPayload.includes(a.registerNumber) || a.registerNumber === res.title || a.id === res.title
+            res.rawPayload.includes(a.registerNumber) || a.registerNumber === res.name || a.id === res.name
           );
           if (matchedApp && matchedApp.schedule && !matchedApp.schedule.applicantAttended) {
             onToggleAttendance(matchedApp.id);

@@ -34,6 +34,7 @@ import {
   Download
 } from 'lucide-react';
 import { DocumentEngineHub } from './DocumentEngineHub';
+import { VervalSlfTab } from './VervalSlfTab';
 import { 
   Application, ApplicationStatus,  
   DocumentStatus, 
@@ -97,7 +98,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
 }) => {
   const isSlf = isSlfApplication(application);
   const currentStage = getApplicationWorkflowStage(application);
-  const [activeTab, setActiveTab] = useState<'PIPELINE' | 'INFO' | 'DOCS' | 'VISITE' | 'SCHEDULE' | 'BA' | 'RETRIBUTION' | 'LOGS'>('PIPELINE');
+  const [activeTab, setActiveTab] = useState<'PIPELINE' | 'INFO' | 'DOCS' | 'VISITE' | 'SCHEDULE' | 'BA' | 'RETRIBUTION' | 'LOGS' | 'VERVAL_SLF'>('PIPELINE');
   const [activeVerifTab, setActiveVerifTab] = useState<number | 'CURRENT'>('CURRENT');
   const [copied, setCopied] = useState(false);
   const [showDocumentHub, setShowDocumentHub] = useState(false);
@@ -1184,6 +1185,19 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
             <Award className="w-4 h-4" />
             <span>BA Konsultasi & Pleno</span>
           </button>
+          {isSlf && (
+            <button
+              onClick={() => setActiveTab('VERVAL_SLF')}
+              className={`py-3 px-3.5 border-b-2 flex items-center gap-1.5 whitespace-nowrap transition ${
+                activeTab === 'VERVAL_SLF'
+                  ? 'border-amber-600 text-amber-600 dark:text-amber-400 bg-white dark:bg-slate-900 -mb-[1px]'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+            >
+              <CheckCircle className="w-4 h-4 text-amber-600" />
+              <span>Verval Perbaikan AI</span>
+            </button>
+          )}
 
           <button
             onClick={() => setActiveTab('RETRIBUTION')}
@@ -2700,6 +2714,11 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
               </div>
 
             </div>
+          )}
+
+          {/* TAB: VERVAL SLF AI */}
+          {activeTab === 'VERVAL_SLF' && (
+            <VervalSlfTab application={application} onUpdate={onUpdateApplication} />
           )}
 
           {/* TAB: RETRIBUTION */}
