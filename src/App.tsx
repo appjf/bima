@@ -77,8 +77,16 @@ import { generateNoticeLetterDraft } from './lib/workflowEngine';
 import { Sparkles, CheckCircle2, AlertTriangle, ShieldCheck, Info, Calculator, MessageSquare } from 'lucide-react';
 
 export default function App() {
-  // Realtime Firebase State
-  const { applications, updateApplication, batchUpdateApplications, deleteApplication, loading: appsLoading } = useApplications();
+  // Realtime Supabase & Dual Persistence State with Egress Optimizer
+  const { 
+    applications, 
+    updateApplication, 
+    batchUpdateApplications, 
+    deleteApplication, 
+    loading: appsLoading,
+    isDeltaSyncing,
+    refreshApplications
+  } = useApplications();
 
   // Persistence State
   const [notifications, setNotifications] = useState<NotificationLog[]>(() => getStoredNotifications());
@@ -843,6 +851,8 @@ export default function App() {
         isOpen={isDatabaseManagerOpen}
         onClose={() => setIsDatabaseManagerOpen(false)}
         applications={applications}
+        refreshApplications={refreshApplications}
+        isDeltaSyncing={isDeltaSyncing}
       />
 
       {/* Telemetry Footer (Geometric Balance Signature Component) */}

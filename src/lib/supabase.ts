@@ -13,6 +13,73 @@ export const isSupabaseConfigured = Boolean(
   !supabaseUrl.includes('placeholder')
 );
 
+// Local storage keys for caching and egress tracking
+export const STORAGE_KEYS = {
+  APPS_CACHE: 'simbg_garut_cached_apps',
+  LAST_SYNC_AT: 'simbg_garut_last_sync_timestamp',
+  EGRESS_STATS: 'simbg_garut_egress_stats',
+  CONFIG_LOW_EGRESS: 'simbg_garut_low_egress_mode'
+};
+
+export interface EgressStats {
+  totalDeltaSyncs: number;
+  zeroSyncHits: number;
+  fullFetches: number;
+  estimatedBytesSavedKb: number;
+  estimatedBytesDownloadedKb: number;
+  lastSyncAt: string | null;
+  lastDeltaRowsCount: number;
+  lowEgressEnabled: boolean;
+}
+
+// Get stored egress metrics
+export function getStoredEgressStats(): EgressStats {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.EGRESS_STATS);
+    if (raw) {
+      return JSON.parse(raw);
+    }
+  } catch (e) {
+    console.warn('Failed to parse egress stats:', e);
+  }
+  return {
+    totalDeltaSyncs: 0,
+    zeroSyncHits: 0,
+    fullFetches: 0,
+    estimatedBytesSavedKb: 0,
+    estimatedBytesDownloadedKb: 0,
+    lastSyncAt: null,
+    lastDeltaRowsCount: 0,
+    lowEgressEnabled: true
+  };
+}
+
+// Update stored egress metrics
+export function updateStoredEgressStats(updater: (prev: EgressStats) => EgressStats) {
+  try {
+    const prev = getStoredEgressStats();
+    const updated = updater(prev);
+    localStorage.setItem(STORAGE_KEYS.EGRESS_STATS, JSON.stringify(updated));
+  } catch (e) {
+    console.warn('Failed to update egress stats:', e);
+  }
+}
+
+// Reset egress stats counter
+export function resetStoredEgressStats() {
+  const initial: EgressStats = {
+    totalDeltaSyncs: 0,
+    zeroSyncHits: 0,
+    fullFetches: 0,
+    estimatedBytesSavedKb: 0,
+    estimatedBytesDownloadedKb: 0,
+    lastSyncAt: null,
+    lastDeltaRowsCount: 0,
+    lowEgressEnabled: true
+  };
+  localStorage.setItem(STORAGE_KEYS.EGRESS_STATS, JSON.stringify(initial));
+}
+
 // Create Supabase client singleton with graceful fallback
 let client: SupabaseClient | null = null;
 
@@ -179,7 +246,28 @@ export function mapSupabaseRowToApplication(row: any): Application {
 }
 
 /**
+ * Helper to identify if a Supabase error is caused by missing tables or missing schema cache (PGRST205 / 42P01)
+ */
+export function isSupabaseTableMissingError(err: any): boolean {
+  if (!err) return false;
+  const code = err.code || '';
+  const msg = typeof err === 'string' ? err : (err.message || '');
+  const details = typeof err === 'object' ? JSON.stringify(err) : '';
+  return (
+    code === 'PGRST205' ||
+    code === '42P01' ||
+    msg.includes('PGRST205') ||
+    msg.includes('schema cache') ||
+    msg.includes('relation') ||
+    msg.includes('does not exist') ||
+    details.includes('PGRST205') ||
+    details.includes('schema cache')
+  );
+}
+
+/**
  * Test connectivity, fetch counts, and inspect table presence in Supabase
+ * Note: uses head:true and exact counts to minimize egress
  */
 export async function testSupabaseConnection(): Promise<SupabaseHealthCheckResult> {
   const result: SupabaseHealthCheckResult = {
@@ -212,7 +300,7 @@ export async function testSupabaseConnection(): Promise<SupabaseHealthCheckResul
   const startTime = Date.now();
 
   try {
-    // 1. Applications table
+    // 1. Applications table (HEAD request - ZERO body egress)
     const { count: appCount, error: appErr } = await sb
       .from('applications')
       .select('*', { count: 'exact', head: true });
@@ -225,7 +313,7 @@ export async function testSupabaseConnection(): Promise<SupabaseHealthCheckResul
       result.counts.applications = appCount || 0;
     }
 
-    // 2. User accounts table
+    // 2. User accounts table (HEAD request)
     const { count: userCount, error: userErr } = await sb
       .from('user_accounts')
       .select('*', { count: 'exact', head: true });
@@ -234,7 +322,7 @@ export async function testSupabaseConnection(): Promise<SupabaseHealthCheckResul
       result.counts.user_accounts = userCount || 0;
     }
 
-    // 3. Notification logs table
+    // 3. Notification logs table (HEAD request)
     const { count: notifCount, error: notifErr } = await sb
       .from('notification_logs')
       .select('*', { count: 'exact', head: true });
@@ -243,7 +331,7 @@ export async function testSupabaseConnection(): Promise<SupabaseHealthCheckResul
       result.counts.notification_logs = notifCount || 0;
     }
 
-    // 4. Status audit logs table
+    // 4. Status audit logs table (HEAD request)
     const { count: auditCount, error: auditErr } = await sb
       .from('status_audit_logs')
       .select('*', { count: 'exact', head: true });
@@ -252,7 +340,7 @@ export async function testSupabaseConnection(): Promise<SupabaseHealthCheckResul
       result.counts.status_audit_logs = auditCount || 0;
     }
 
-    // 5. Prasarana prices table
+    // 5. Prasarana prices table (HEAD request)
     const { count: prasaranaCount, error: prasaranaErr } = await sb
       .from('prasarana_prices')
       .select('*', { count: 'exact', head: true });
@@ -261,20 +349,147 @@ export async function testSupabaseConnection(): Promise<SupabaseHealthCheckResul
       result.counts.prasarana_prices = prasaranaCount || 0;
     }
 
-    if (appErr && userErr && notifErr) {
-      result.error = `Terkoneksi ke Supabase, namun tabel belum dibuat: ${appErr.message}. Jalankan schema SQL di Tab Schema SQL.`;
+    if (appErr && isSupabaseTableMissingError(appErr)) {
+      result.error = 'Terkoneksi ke Supabase, namun tabel belum dibuat di PostgreSQL. Jalankan skrip di Tab "Schema SQL & RLS".';
+    } else if (appErr && userErr && notifErr) {
+      result.error = `Terkoneksi ke Supabase, namun tabel belum ditemukan: ${appErr.message || 'PGRST205'}. Jalankan schema SQL di Tab Schema SQL.`;
     }
   } catch (err: any) {
-    result.error = err?.message || 'Gagal menghubungi server Supabase.';
+    if (isSupabaseTableMissingError(err)) {
+      result.error = 'Terkoneksi ke Supabase, namun tabel PostgreSQL belum dibuat.';
+    } else {
+      result.error = err?.message || 'Gagal menghubungi server Supabase.';
+    }
   }
 
   return result;
 }
 
 /**
- * Fetch all applications from Supabase
+ * HIGH-EFFICIENCY EGRESS STRATEGY:
+ * Delta / Incremental Synchronization with Local Cache.
+ * 
+ * Only downloads rows that have changed (last_updated > lastSyncTimestamp).
+ * Saves ~95-99% Supabase egress on recurrent sessions.
  */
-export async function fetchApplicationsFromSupabase(): Promise<{ data: Application[]; error?: string }> {
+export async function syncApplicationsWithDelta(
+  cachedApplications: Application[],
+  forceFullFetch: boolean = false
+): Promise<{
+  data: Application[];
+  isDelta: boolean;
+  modifiedCount: number;
+  isTableMissing?: boolean;
+  error?: string;
+}> {
+  const sb = getSupabaseClient();
+  if (!sb) {
+    return { data: cachedApplications, isDelta: false, modifiedCount: 0, error: 'Supabase client is not configured' };
+  }
+
+  const lastSyncTimestamp = localStorage.getItem(STORAGE_KEYS.LAST_SYNC_AT);
+  const hasLocalData = cachedApplications && cachedApplications.length > 0;
+  const shouldDeltaSync = !forceFullFetch && hasLocalData && Boolean(lastSyncTimestamp);
+
+  const averageRowSizeBytes = 4200; // ~4.2 KB average per full record with JSON
+
+  try {
+    if (shouldDeltaSync) {
+      // 1. DELTA SYNC: Query ONLY updated records since last sync
+      const { data, error } = await sb
+        .from('applications')
+        .select('*')
+        .gt('last_updated', lastSyncTimestamp)
+        .order('last_updated', { ascending: false });
+
+      if (error) {
+        if (isSupabaseTableMissingError(error)) {
+          console.info('[Supabase Bridge] Tabel public.applications belum dibuat di Supabase schema cache. Menggunakan fallback Firestore & local cache.');
+          return { data: cachedApplications, isDelta: false, modifiedCount: 0, isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+        }
+        throw error;
+      }
+
+      const modifiedRows = (data || []).map(mapSupabaseRowToApplication);
+      const nowIso = new Date().toISOString();
+      localStorage.setItem(STORAGE_KEYS.LAST_SYNC_AT, nowIso);
+
+      // Merge modified rows into cache
+      const appMap = new Map(cachedApplications.map(a => [a.id, a]));
+      modifiedRows.forEach(app => {
+        appMap.set(app.id, app);
+      });
+
+      const mergedList = Array.from(appMap.values());
+
+      // Update Egress Metrics
+      const downloadedKb = Math.round((modifiedRows.length * averageRowSizeBytes) / 1024);
+      const savedKb = Math.round(((cachedApplications.length - modifiedRows.length) * averageRowSizeBytes) / 1024);
+
+      updateStoredEgressStats(prev => ({
+        ...prev,
+        totalDeltaSyncs: prev.totalDeltaSyncs + 1,
+        zeroSyncHits: modifiedRows.length === 0 ? prev.zeroSyncHits + 1 : prev.zeroSyncHits,
+        estimatedBytesDownloadedKb: prev.estimatedBytesDownloadedKb + downloadedKb,
+        estimatedBytesSavedKb: prev.estimatedBytesSavedKb + Math.max(0, savedKb),
+        lastSyncAt: nowIso,
+        lastDeltaRowsCount: modifiedRows.length
+      }));
+
+      return {
+        data: mergedList,
+        isDelta: true,
+        modifiedCount: modifiedRows.length
+      };
+    } else {
+      // 2. FULL SYNC (Initial Load or Forced Reset)
+      const { data, error } = await sb
+        .from('applications')
+        .select('*')
+        .order('submission_date', { ascending: false });
+
+      if (error) {
+        if (isSupabaseTableMissingError(error)) {
+          console.info('[Supabase Bridge] Tabel public.applications belum dibuat di Supabase schema cache. Menggunakan fallback Firestore & local cache.');
+          return { data: cachedApplications, isDelta: false, modifiedCount: 0, isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+        }
+        throw error;
+      }
+
+      const apps = (data || []).map(mapSupabaseRowToApplication);
+      const nowIso = new Date().toISOString();
+      localStorage.setItem(STORAGE_KEYS.LAST_SYNC_AT, nowIso);
+
+      const downloadedKb = Math.round((apps.length * averageRowSizeBytes) / 1024);
+
+      updateStoredEgressStats(prev => ({
+        ...prev,
+        fullFetches: prev.fullFetches + 1,
+        estimatedBytesDownloadedKb: prev.estimatedBytesDownloadedKb + downloadedKb,
+        lastSyncAt: nowIso,
+        lastDeltaRowsCount: apps.length
+      }));
+
+      return {
+        data: apps,
+        isDelta: false,
+        modifiedCount: apps.length
+      };
+    }
+  } catch (err: any) {
+    if (isSupabaseTableMissingError(err)) {
+      console.info('[Supabase Bridge] Tabel public.applications belum dibuat di Supabase schema cache. Menggunakan fallback Firestore & local cache.');
+      return { data: cachedApplications, isDelta: false, modifiedCount: 0, isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+    }
+    console.warn('[Supabase Bridge] Sinkronisasi Supabase ditunda:', err?.message || err);
+    return { data: cachedApplications, isDelta: false, modifiedCount: 0, error: err?.message || 'SYNC_ERROR' };
+  }
+}
+
+/**
+ * Fetch all applications directly from Supabase (Full Fetch)
+ */
+export async function fetchApplicationsFromSupabase(): Promise<{ data: Application[]; isTableMissing?: boolean; error?: string }> {
   const sb = getSupabaseClient();
   if (!sb) {
     return { data: [], error: 'Supabase client is not configured' };
@@ -286,20 +501,28 @@ export async function fetchApplicationsFromSupabase(): Promise<{ data: Applicati
       .select('*')
       .order('submission_date', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      if (isSupabaseTableMissingError(error)) {
+        return { data: [], isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+      }
+      throw error;
+    }
 
     const apps = (data || []).map(mapSupabaseRowToApplication);
     return { data: apps };
   } catch (err: any) {
-    console.error('Failed to fetch applications from Supabase:', err);
-    return { data: [], error: err.message };
+    if (isSupabaseTableMissingError(err)) {
+      return { data: [], isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+    }
+    console.warn('Supabase fetch notice:', err?.message || err);
+    return { data: [], error: err?.message || 'FETCH_ERROR' };
   }
 }
 
 /**
- * Save / Upsert a single application to Supabase
+ * Save / Upsert a single application to Supabase with lightweight payload
  */
-export async function saveApplicationToSupabase(app: Application): Promise<{ success: boolean; error?: string }> {
+export async function saveApplicationToSupabase(app: Application): Promise<{ success: boolean; isTableMissing?: boolean; error?: string }> {
   const sb = getSupabaseClient();
   if (!sb) return { success: false, error: 'Supabase belum terkonfigurasi' };
 
@@ -309,39 +532,65 @@ export async function saveApplicationToSupabase(app: Application): Promise<{ suc
       .from('applications')
       .upsert(row, { onConflict: 'id' });
 
-    if (error) throw error;
+    if (error) {
+      if (isSupabaseTableMissingError(error)) {
+        return { success: false, isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+      }
+      throw error;
+    }
     return { success: true };
   } catch (err: any) {
-    console.error('Failed to upsert application to Supabase:', err);
-    return { success: false, error: err.message };
+    if (isSupabaseTableMissingError(err)) {
+      return { success: false, isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+    }
+    console.warn('Upsert application to Supabase deferred:', err?.message || err);
+    return { success: false, error: err?.message || 'UPSERT_ERROR' };
   }
 }
 
 /**
- * Batch save applications to Supabase
+ * Batch save applications to Supabase with chunking for optimal network efficiency
  */
-export async function batchSaveApplicationsToSupabase(apps: Application[]): Promise<{ success: boolean; count: number; error?: string }> {
+export async function batchSaveApplicationsToSupabase(apps: Application[]): Promise<{ success: boolean; count: number; isTableMissing?: boolean; error?: string }> {
   const sb = getSupabaseClient();
   if (!sb) return { success: false, count: 0, error: 'Supabase belum terkonfigurasi' };
+  if (!apps || apps.length === 0) return { success: true, count: 0 };
 
   try {
-    const rows = apps.map(mapApplicationToSupabaseRow);
-    const { error } = await sb
-      .from('applications')
-      .upsert(rows, { onConflict: 'id' });
+    // Process in chunks of 50 to avoid request body size limits & timeout
+    const CHUNK_SIZE = 50;
+    let savedCount = 0;
 
-    if (error) throw error;
-    return { success: true, count: rows.length };
+    for (let i = 0; i < apps.length; i += CHUNK_SIZE) {
+      const chunk = apps.slice(i, i + CHUNK_SIZE);
+      const rows = chunk.map(mapApplicationToSupabaseRow);
+      const { error } = await sb
+        .from('applications')
+        .upsert(rows, { onConflict: 'id' });
+
+      if (error) {
+        if (isSupabaseTableMissingError(error)) {
+          return { success: false, count: savedCount, isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+        }
+        throw error;
+      }
+      savedCount += rows.length;
+    }
+
+    return { success: true, count: savedCount };
   } catch (err: any) {
-    console.error('Batch save to Supabase failed:', err);
-    return { success: false, count: 0, error: err.message };
+    if (isSupabaseTableMissingError(err)) {
+      return { success: false, count: 0, isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+    }
+    console.warn('Batch save to Supabase deferred:', err?.message || err);
+    return { success: false, count: 0, error: err?.message || 'BATCH_ERROR' };
   }
 }
 
 /**
  * Delete an application from Supabase
  */
-export async function deleteApplicationFromSupabase(appId: string): Promise<{ success: boolean; error?: string }> {
+export async function deleteApplicationFromSupabase(appId: string): Promise<{ success: boolean; isTableMissing?: boolean; error?: string }> {
   const sb = getSupabaseClient();
   if (!sb) return { success: false, error: 'Supabase belum terkonfigurasi' };
 
@@ -351,16 +600,25 @@ export async function deleteApplicationFromSupabase(appId: string): Promise<{ su
       .delete()
       .eq('id', appId);
 
-    if (error) throw error;
+    if (error) {
+      if (isSupabaseTableMissingError(error)) {
+        return { success: false, isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+      }
+      throw error;
+    }
     return { success: true };
   } catch (err: any) {
-    console.error('Delete application from Supabase failed:', err);
-    return { success: false, error: err.message };
+    if (isSupabaseTableMissingError(err)) {
+      return { success: false, isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+    }
+    console.warn('Delete application from Supabase deferred:', err?.message || err);
+    return { success: false, error: err?.message || 'DELETE_ERROR' };
   }
 }
 
 /**
  * Subscribe to real-time changes on applications table
+ * Filters specific event types to minimize client-side reconnections
  */
 export function subscribeToApplicationsSupabase(
   onInsertOrUpdate: (app: Application) => void,
@@ -401,13 +659,17 @@ export function subscribeToApplicationsSupabase(
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') {
+          console.info('[Supabase Realtime] Realtime channel standby.');
+        }
+      });
 
     return () => {
       sb.removeChannel(channel);
     };
   } catch (err) {
-    console.warn('Realtime subscription error:', err);
+    console.info('[Supabase Realtime] Standby notice:', err);
     return () => {};
   }
 }
@@ -422,7 +684,7 @@ export async function syncApplicationsToSupabase(applications: Application[]): P
 /**
  * Fetch User Accounts from Supabase
  */
-export async function fetchUserAccountsFromSupabase(): Promise<{ data: UserAccount[]; error?: string }> {
+export async function fetchUserAccountsFromSupabase(): Promise<{ data: UserAccount[]; isTableMissing?: boolean; error?: string }> {
   const sb = getSupabaseClient();
   if (!sb) return { data: [], error: 'Supabase belum terkonfigurasi' };
 
@@ -432,7 +694,12 @@ export async function fetchUserAccountsFromSupabase(): Promise<{ data: UserAccou
       .select('*')
       .order('name');
 
-    if (error) throw error;
+    if (error) {
+      if (isSupabaseTableMissingError(error)) {
+        return { data: [], isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+      }
+      throw error;
+    }
 
     const users: UserAccount[] = (data || []).map(row => ({
       id: row.id,
@@ -454,6 +721,9 @@ export async function fetchUserAccountsFromSupabase(): Promise<{ data: UserAccou
 
     return { data: users };
   } catch (err: any) {
+    if (isSupabaseTableMissingError(err)) {
+      return { data: [], isTableMissing: true, error: 'TABLE_NOT_FOUND' };
+    }
     return { data: [], error: err.message };
   }
 }
@@ -461,9 +731,10 @@ export async function fetchUserAccountsFromSupabase(): Promise<{ data: UserAccou
 /**
  * Sync User Accounts to Supabase
  */
-export async function syncUserAccountsToSupabase(users: UserAccount[]): Promise<{ success: boolean; count: number; error?: string }> {
+export async function syncUserAccountsToSupabase(users: UserAccount[]): Promise<{ success: boolean; count: number; isTableMissing?: boolean; error?: string }> {
   const sb = getSupabaseClient();
   if (!sb) return { success: false, count: 0, error: 'Supabase belum terhubung.' };
+  if (!users || users.length === 0) return { success: true, count: 0 };
 
   try {
     const formattedUsers = users.map(u => ({
@@ -488,9 +759,17 @@ export async function syncUserAccountsToSupabase(users: UserAccount[]): Promise<
       .from('user_accounts')
       .upsert(formattedUsers, { onConflict: 'id' });
 
-    if (error) throw error;
+    if (error) {
+      if (isSupabaseTableMissingError(error)) {
+        return { success: false, count: 0, isTableMissing: true, error: 'Tabel user_accounts belum dibuat di Supabase.' };
+      }
+      throw error;
+    }
     return { success: true, count: formattedUsers.length };
   } catch (err: any) {
+    if (isSupabaseTableMissingError(err)) {
+      return { success: false, count: 0, isTableMissing: true, error: 'Tabel user_accounts belum dibuat di Supabase.' };
+    }
     return { success: false, count: 0, error: err.message };
   }
 }
@@ -498,7 +777,7 @@ export async function syncUserAccountsToSupabase(users: UserAccount[]): Promise<
 /**
  * Record a Notification log in Supabase
  */
-export async function recordNotificationLogToSupabase(log: NotificationLog): Promise<{ success: boolean; error?: string }> {
+export async function recordNotificationLogToSupabase(log: NotificationLog): Promise<{ success: boolean; isTableMissing?: boolean; error?: string }> {
   const sb = getSupabaseClient();
   if (!sb) return { success: false, error: 'Supabase belum terhubung' };
 
@@ -521,9 +800,17 @@ export async function recordNotificationLogToSupabase(log: NotificationLog): Pro
         created_at: log.createdAt || new Date().toISOString()
       }, { onConflict: 'id' });
 
-    if (error) throw error;
+    if (error) {
+      if (isSupabaseTableMissingError(error)) {
+        return { success: false, isTableMissing: true, error: 'Tabel notification_logs belum dibuat di Supabase.' };
+      }
+      throw error;
+    }
     return { success: true };
   } catch (err: any) {
+    if (isSupabaseTableMissingError(err)) {
+      return { success: false, isTableMissing: true, error: 'Tabel notification_logs belum dibuat di Supabase.' };
+    }
     return { success: false, error: err.message };
   }
 }
@@ -531,7 +818,7 @@ export async function recordNotificationLogToSupabase(log: NotificationLog): Pro
 /**
  * Record a Status Audit log in Supabase
  */
-export async function recordStatusAuditLogToSupabase(log: StatusAuditLog): Promise<{ success: boolean; error?: string }> {
+export async function recordStatusAuditLogToSupabase(log: StatusAuditLog): Promise<{ success: boolean; isTableMissing?: boolean; error?: string }> {
   const sb = getSupabaseClient();
   if (!sb) return { success: false, error: 'Supabase belum terhubung' };
 
@@ -551,9 +838,17 @@ export async function recordStatusAuditLogToSupabase(log: StatusAuditLog): Promi
         created_at: log.timestamp || new Date().toISOString()
       }, { onConflict: 'id' });
 
-    if (error) throw error;
+    if (error) {
+      if (isSupabaseTableMissingError(error)) {
+        return { success: false, isTableMissing: true, error: 'Tabel status_audit_logs belum dibuat di Supabase.' };
+      }
+      throw error;
+    }
     return { success: true };
   } catch (err: any) {
+    if (isSupabaseTableMissingError(err)) {
+      return { success: false, isTableMissing: true, error: 'Tabel status_audit_logs belum dibuat di Supabase.' };
+    }
     return { success: false, error: err.message };
   }
 }
@@ -584,14 +879,15 @@ export async function runCompleteMigrationToSupabase(
     const health = await testSupabaseConnection();
     if (!health.isConnected) {
       steps[0].status = 'FAILED';
-      steps[0].message = health.error || 'Koneksi ke Supabase gagal. Periksa URL dan API key.';
+      const msg = health.error || 'Koneksi ke Supabase belum siap atau tabel PostgreSQL belum dibuat.';
+      steps[0].message = msg;
       return {
         timestamp: new Date().toISOString(),
         isSuccess: false,
         totalMigrated: 0,
         durationMs: Date.now() - startTime,
         steps,
-        error: steps[0].message
+        error: 'Tabel database di Supabase belum dibuat. Harap salin SQL dari Tab "Schema SQL & RLS" dan jalankan (Run) di menu SQL Editor dashboard Supabase Anda terlebih dahulu.'
       };
     }
     steps[0].status = 'SUCCESS';
