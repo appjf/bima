@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Application } from '../types';
 import { calculateRetribution } from '../lib/retributionEngine';
 import { getSavedSignatures, generateSignatureVerificationUrl } from '../lib/signatureEngine';
+import { getSkrdStandardNumber } from '../utils/skrdFormatter';
 
 interface SKRDPrintProps {
   application: Application;
@@ -58,7 +59,7 @@ export const SKRDPrint: React.FC<SKRDPrintProps> = ({ application, customShst = 
     year: 'numeric'
   });
 
-  const skrdNumber = application.id.slice(-9).toUpperCase();
+  const skrdNumber = getSkrdStandardNumber(application);
   const tahun = new Date().getFullYear();
 
   // Signature Data & QR Generation

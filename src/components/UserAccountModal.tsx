@@ -105,6 +105,8 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
         return <span className="bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-800 text-[10px] px-2 py-0.5 font-mono font-bold">SUPER_ADMIN</span>;
       case 'OPERATOR_SIMBG':
         return <span className="bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800 text-[10px] px-2 py-0.5 font-mono font-bold">OPERATOR_SIMBG</span>;
+      case 'BENDAHARA_PENERIMAAN':
+        return <span className="bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 border border-teal-300 dark:border-teal-800 text-[10px] px-2 py-0.5 font-mono font-bold">BENDAHARA PENERIMAAN</span>;
       case 'TPA_TPT':
         return <span className="bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-[10px] px-2 py-0.5 font-mono font-bold">TPA / TPT AHLI</span>;
       case 'PIMPINAN':
@@ -426,6 +428,7 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
                     className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
                   >
                     <option value="OPERATOR_SIMBG">Operator SIMBG (Verifikasi & Jadwal)</option>
+                    <option value="BENDAHARA_PENERIMAAN">Bendahara Penerimaan (Penerbitan STS & Kasda)</option>
                     <option value="TPA_TPT">Tim Profesi Ahli (TPA) / TPT</option>
                     <option value="PIMPINAN">Pimpinan DPUPR / Kadis / Kabid</option>
                     <option value="AUDITOR">Auditor / Inspektorat Daerah</option>

@@ -29,6 +29,20 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     canConfigureSystem: false,
     canExportAuditLogs: false,
   },
+  BENDAHARA_PENERIMAAN: {
+    canVerifyDocuments: false,
+    canConductVisite: false,
+    canScheduleSidang: false,
+    canInputBAKonsultasi: false,
+    canApproveBAPleno: false,
+    canCalculateRetribution: true,
+    canIssueSKRD: true,
+    canSendWhatsApp: true,
+    canArchiveApplications: true,
+    canManageUsers: false,
+    canConfigureSystem: false,
+    canExportAuditLogs: true,
+  },
   TPA_TPT: {
     canVerifyDocuments: true,
     canConductVisite: true,
@@ -169,6 +183,22 @@ export const INITIAL_USER_ACCOUNTS: UserAccount[] = [
     permissions: ROLE_PERMISSIONS.AUDITOR,
     createdAt: '2026-01-01T00:00:00Z',
     lastLoginAt: '2026-08-19T11:20:00Z'
+  },
+  {
+    id: 'usr-bendahara-1',
+    username: 'bendahara.fitri',
+    name: 'Hj. Fitriani, S.E., M.Ak.',
+    email: 'bendahara.penerimaan@garutkab.go.id',
+    nip: '19860322 201001 2 005',
+    role: 'BENDAHARA_PENERIMAAN',
+    positionTitle: 'Bendahara Penerimaan DPUPR Kabupaten Garut',
+    subSpecialty: 'Verifikasi Setoran Kas Daerah & Penerbitan STS SKRD',
+    phone: '081223344888',
+    avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&auto=format&fit=crop&q=80',
+    isActive: true,
+    permissions: ROLE_PERMISSIONS.BENDAHARA_PENERIMAAN,
+    createdAt: '2026-01-01T00:00:00Z',
+    lastLoginAt: '2026-08-20T08:30:00Z'
   }
 ];
 
@@ -259,6 +289,9 @@ const ALLOWED_TABS: Record<UserRole, MainNavTab[]> = {
   OPERATOR_SIMBG: [
     'DASHBOARD', 'PIPELINE', 'APPLICATIONS', 'VISITE_LAPANGAN', 'VERIFICATION', 
     'SCHEDULING', 'RETRIBUTION', 'NOTIFICATIONS'
+  ],
+  BENDAHARA_PENERIMAAN: [
+    'DASHBOARD', 'PIPELINE', 'APPLICATIONS', 'RETRIBUTION', 'MONITORING_PAD', 'NOTIFICATIONS'
   ],
   TPA_TPT: [
     'DASHBOARD', 'PIPELINE', 'APPLICATIONS', 'VISITE_LAPANGAN', 'VERIFICATION', 'SCHEDULING'

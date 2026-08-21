@@ -66,6 +66,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const roleNames: Record<UserRole, string> = {
     SUPER_ADMIN: 'Super Admin',
     OPERATOR_SIMBG: 'Operator SIMBG',
+    BENDAHARA_PENERIMAAN: 'Bendahara Penerimaan',
     TPA_TPT: 'Tim Profesi Ahli (TPA)',
     PIMPINAN: 'Pimpinan DPUPR',
     AUDITOR: 'Inspektorat / Auditor'

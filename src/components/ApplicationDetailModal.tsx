@@ -48,6 +48,7 @@ import {
 } from '../types';
 import { runDocumentVerification, MASTER_DOCUMENT_RULES } from '../lib/ruleEngine';
 import { calculateRetribution } from '../lib/retributionEngine';
+import { getSkrdStandardNumber } from '../utils/skrdFormatter';
 import { triggerPdfPrint } from '../lib/pdfPrintEngine';
 import { getNextFridayDate, generateSmartSchedule, MASTER_EXPERTS } from '../lib/schedulingEngine';
 import { useAutoSaveForm } from '../hooks/useAutoSaveForm';
@@ -229,7 +230,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
     application.baLapangan?.baLapanganNumber || `BA-VISITE/${regClean}/DPUPR-GRT/${currentYear}`
   );
   const [skrdNumber, setSkrdNumber] = useState(
-    application.retribution?.id || `SKRD/3205/DPUPR/${currentYear}/${regClean}`
+    application.retribution?.id || getSkrdStandardNumber(application)
   );
   const [baAttendanceQrUrl, setBaAttendanceQrUrl] = useState<string>('');
 
@@ -255,7 +256,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
     setBaPlenoNumber(`BA-PLENO/${rc}/TPA-GRT/${yr}`);
     setRekomtekNumber(`REKOMTEK/${rc}/DPUPR-PBG/${yr}`);
     setBaLapanganNumber(`BA-VISITE/${rc}/DPUPR-GRT/${yr}`);
-    setSkrdNumber(`SKRD/3205/DPUPR/${yr}/${rc}`);
+    setSkrdNumber(getSkrdStandardNumber(application));
   };
 
   // Stage 6 BA Pleno state
@@ -994,7 +995,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
         application, 
         {
           nominal_retribusi: `Rp ${calc.finalRetribution.toLocaleString('id-ID')},-`,
-          nomor_skrd: `SKRD/3205/DPUPR/${new Date().getFullYear()}/${application.id.slice(-4)}`
+          nomor_skrd: getSkrdStandardNumber(application)
         },
         waSettings
       );
@@ -2806,14 +2807,24 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
                 application={application}
                 onUpdateApplication={onUpdateApplication}
                 onSave={(data) => {
+                  const now = new Date().toISOString();
+                  const calculatedAt = application.retribution?.calculatedAt || now;
+                  const skrdId = getSkrdStandardNumber({
+                    ...application,
+                    retribution: {
+                      ...application.retribution,
+                      calculatedAt
+                    }
+                  });
+
                   // Handle saving results back to application
                   const updatedApp: Application = {
                     ...application,
                     retribution: {
                       ...(application.retribution || {
-                        id: `SKRD-${application.id.slice(-4)}`,
+                        id: skrdId,
                         formulaVersion: 'PP-16-2021',
-                        calculatedAt: new Date().toISOString(),
+                        calculatedAt,
                         calculatedBy: application.assignedOperator || 'SIMBG-DIGITAL-ASSISTANT',
                         status: 'UNPAID',
                         isVerified: false,
@@ -2835,6 +2846,8 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
                         infrastructureRetribution: data.retribusiPrasarana,
                         finalRetribution: data.totalRetribusi
                       }),
+                      id: skrdId,
+                      calculatedAt,
                       totalBuildingArea: data.luasLantai,
                       buildingRetribution: data.retribusiBangunan,
                       infrastructureRetribution: data.retribusiPrasarana,

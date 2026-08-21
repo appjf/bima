@@ -33,6 +33,12 @@ const ROLE_CONFIG: Record<ASNRoleCategory, { label: string; targetCount: number;
     badgeColor: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800',
     description: 'Operator Teknis verifikasi berkas & presensi'
   },
+  BENDAHARA: {
+    label: 'Bendahara Penerimaan',
+    targetCount: 1,
+    badgeColor: 'bg-teal-100 text-teal-800 border-teal-200 dark:bg-teal-900/40 dark:text-teal-300 dark:border-teal-800',
+    description: 'Verifikasi Setoran Kas Daerah Bank bjb & STS SKRD'
+  },
   TPA: {
     label: 'Tim Profesi Ahli (TPA)',
     targetCount: 5,

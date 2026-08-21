@@ -149,7 +149,7 @@ CREATE TABLE IF NOT EXISTS public.user_accounts (
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     nip TEXT,
-    role TEXT NOT NULL CHECK (role IN ('SUPER_ADMIN', 'OPERATOR_SIMBG', 'TPA_TPT', 'PIMPINAN', 'AUDITOR')),
+    role TEXT NOT NULL CHECK (role IN ('SUPER_ADMIN', 'OPERATOR_SIMBG', 'BENDAHARA_PENERIMAAN', 'TPA_TPT', 'PIMPINAN', 'AUDITOR')),
     position_title TEXT NOT NULL,
     sub_specialty TEXT,
     phone TEXT,

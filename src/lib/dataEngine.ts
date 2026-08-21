@@ -1,5 +1,6 @@
 import { Application } from '../types';
 import { calculateRetribution, DEFAULT_SHST_GARUT } from './retributionEngine';
+import { getSkrdStandardNumber } from '../utils/skrdFormatter';
 import { 
   OfficialDocumentType, 
   OfficialDocumentDataset, 
@@ -329,7 +330,7 @@ export class DataEngineManager {
                             (retCalc.indexJumlahLantai || 1.0);
 
     const registerCode = app.registerNumber || app.id;
-    const skrdNum = `SKRD/3205/DPUPR/${currentDate.getFullYear()}/${registerCode.slice(-5).toUpperCase()}`;
+    const skrdNum = getSkrdStandardNumber(app);
     const baNum = app.baLapangan?.baLapanganNumber || `BA-VISITE/3205/DPUPR/${currentDate.getFullYear()}/${registerCode.slice(-4).toUpperCase()}`;
 
     const verificationRecord = this.createDigitalVerificationRecord(registerCode, docType);

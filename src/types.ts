@@ -5,6 +5,7 @@
 export type UserRole = 
   | 'SUPER_ADMIN'
   | 'OPERATOR_SIMBG'
+  | 'BENDAHARA_PENERIMAAN'
   | 'TPA_TPT'
   | 'PIMPINAN'
   | 'AUDITOR';
@@ -439,6 +440,7 @@ export interface StatusAuditLog {
 
 export type ASNRoleCategory = 
   | 'OPERATOR' 
+  | 'BENDAHARA'
   | 'TPA' 
   | 'TPT' 
   | 'PENGAWAS' 

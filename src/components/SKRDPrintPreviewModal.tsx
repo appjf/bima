@@ -5,6 +5,7 @@ import { SKRDPrint } from './SKRDPrint';
 import { logPrintAction } from '../lib/auditLogEngine';
 import { getSavedSignatures } from '../lib/signatureEngine';
 import { triggerPdfPrint } from '../lib/pdfPrintEngine';
+import { getSkrdStandardNumber } from '../utils/skrdFormatter';
 
 interface SKRDPrintPreviewModalProps {
   application: Application;
@@ -83,10 +84,19 @@ export const SKRDPrintPreviewModal: React.FC<SKRDPrintPreviewModalProps> = ({
 
   const handleApprove = () => {
     const operator = getSavedSignatures().operator;
+    const now = new Date().toISOString();
+    const calculatedAt = currentApp.retribution?.calculatedAt || now;
+    const skrdId = getSkrdStandardNumber({
+      ...currentApp,
+      retribution: {
+        ...currentApp.retribution,
+        calculatedAt
+      }
+    });
+
     const updatedRetribution = {
-      id: currentApp.retribution?.id || `SKRD-${currentApp.id.slice(-4)}`,
       formulaVersion: currentApp.retribution?.formulaVersion || 'PP-16-2021',
-      calculatedAt: currentApp.retribution?.calculatedAt || new Date().toISOString(),
+      calculatedAt,
       calculatedBy: currentApp.retribution?.calculatedBy || operator.name || 'Operator SIMBG',
       indexFungsi: currentApp.retribution?.indexFungsi ?? 1,
       indexKompleksitas: currentApp.retribution?.indexKompleksitas ?? 1,
@@ -102,6 +112,7 @@ export const SKRDPrintPreviewModal: React.FC<SKRDPrintPreviewModalProps> = ({
       variance: currentApp.retribution?.variance ?? 0,
       finalRetribution: currentApp.retribution?.finalRetribution ?? 0,
       ...currentApp.retribution,
+      id: skrdId,
       status: 'APPROVED' as const,
       isVerified: true
     };

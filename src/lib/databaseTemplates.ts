@@ -77,7 +77,7 @@ export const DATABASE_TABLE_METAS: Record<DatabaseTargetTable, TableMetaInfo> = 
       { name: 'name', label: 'Nama Lengkap & Gelar', type: 'string', required: true, description: 'Nama resmi ASN/TPA', example: 'Ir. Hendra Gunawan, S.T., M.T.' },
       { name: 'nip', label: 'NIP (Jika ASN)', type: 'string', required: false, description: 'Nomor Induk Pegawai 18 digit', example: '198405122009021003' },
       { name: 'email', label: 'Email Dinas', type: 'string', required: true, description: 'Alamat surel dinas', example: 'hendra.pupr@garutkab.go.id' },
-      { name: 'role', label: 'Peran Operasional', type: 'string', required: true, description: 'OPERATOR_SIMBG, TPA_TPT, PIMPINAN, AUDITOR, SUPER_ADMIN', example: 'OPERATOR_SIMBG' },
+      { name: 'role', label: 'Peran Operasional', type: 'string', required: true, description: 'OPERATOR_SIMBG, BENDAHARA_PENERIMAAN, TPA_TPT, PIMPINAN, AUDITOR, SUPER_ADMIN', example: 'BENDAHARA_PENERIMAAN' },
       { name: 'positionTitle', label: 'Jabatan Struktural', type: 'string', required: true, description: 'Jabatan kedinasan di DPUPR Garut', example: 'Operator Verifikasi Teknis SIMBG' },
       { name: 'subSpecialty', label: 'Sub-Spesialisasi', type: 'string', required: false, description: 'Arsitektur, Struktur, MEP, Tata Ruang', example: 'Arsitektur' },
       { name: 'phone', label: 'Nomor WhatsApp', type: 'string', required: false, description: 'Kontak WhatsApp dinas', example: '081322998877' },

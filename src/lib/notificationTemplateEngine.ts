@@ -1,4 +1,5 @@
 import { Application, ApplicationStatus, BuildingInfo } from '../types';
+import { getSkrdStandardNumber } from '../utils/skrdFormatter';
 
 export interface WhatsAppTemplateTag {
   tag: string;
@@ -48,7 +49,7 @@ export const AVAILABLE_TEMPLATE_TAGS: WhatsAppTemplateTag[] = [
   { tag: '{jam_sidang}', label: 'Waktu / Jam', description: 'Jam alokasi waktu sesi', example: '09:00 - 10:00 WIB' },
   { tag: '{ruang_sidang}', label: 'Ruangan Sidang', description: 'Ruangan konsultasi DPUPR Garut', example: 'Ruang Rapat TPA Gedung DPUPR Lt. 2' },
   { tag: '{nominal_retribusi}', label: 'Nominal Retribusi', description: 'Total retribusi SKRD (Rp)', example: 'Rp 2.450.000,-' },
-  { tag: '{nomor_skrd}', label: 'Nomor SKRD', description: 'Nomor Surat Ketetapan Retribusi Daerah', example: 'SKRD/3205/DPUPR/2026/045' },
+  { tag: '{nomor_skrd}', label: 'Nomor SKRD', description: 'Nomor Surat Ketetapan Retribusi Daerah (Format: YYYYMMxxx)', example: '202608001' },
   { tag: '{nomor_ba}', label: 'Nomor Berita Acara', description: 'Nomor BA Konsultasi / BA Pleno / BA Lapangan', example: 'BA-TPA/2026/08/042' },
   { tag: '{operator_nama}', label: 'Nama Operator', description: 'Nama operator SIMBG yang bertugas', example: 'Operator SIMBG DPUPR Garut' },
   { tag: '{kontak_helpdesk}', label: 'Kontak Helpdesk', description: 'Nomor WhatsApp resmi layanan DPUPR', example: '0811-2233-4455' },
@@ -304,7 +305,7 @@ export function compileWhatsAppMessage(
     ? `Rp ${app.retribution.finalRetribution.toLocaleString('id-ID')},-` 
     : (customVars?.nominal_retribusi || 'Rp 0,-');
 
-  const skrdNumber = customVars?.nomor_skrd || `SKRD/3205/DPUPR/${new Date().getFullYear()}/${app.id.slice(-4)}`;
+  const skrdNumber = customVars?.nomor_skrd || getSkrdStandardNumber(app);
   const baNumber = app.baPleno?.baPlenoNumber || app.baKonsultasi?.baNumber || app.baLapangan?.baLapanganNumber || customVars?.nomor_ba || `BA-DPUPR/${app.id.slice(-4)}`;
 
   const replacements: Record<string, string> = {

@@ -145,6 +145,20 @@ const INITIAL_ASN_PERSONNEL: ASNPersonnel[] = [
     updatedAt: new Date().toISOString()
   },
 
+  // BENDAHARA (1 Orang)
+  {
+    id: 'asn-bendahara-1',
+    nip: '19860322 201001 2 005',
+    name: 'Hj. Fitriani, S.E., M.Ak.',
+    roleCategory: 'BENDAHARA',
+    positionTitle: 'Bendahara Penerimaan DPUPR Kabupaten Garut',
+    subSpecialty: 'Verifikasi Setoran Kas Daerah Bank bjb & Penerbitan STS',
+    phone: '081223344888',
+    email: 'bendahara.penerimaan@garutkab.go.id',
+    isActive: true,
+    updatedAt: new Date().toISOString()
+  },
+
   // KABID (1 Orang)
   {
     id: 'asn-kabid-1',
