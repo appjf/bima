@@ -76,6 +76,7 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
 
   // Edit Schedule & Sync State
   const [editingApp, setEditingApp] = useState<Application | null>(null);
+  const [viewingAttendanceLogsApp, setViewingAttendanceLogsApp] = useState<Application | null>(null);
   const [editDate, setEditDate] = useState<string>('');
   const [editTimeSlot, setEditTimeSlot] = useState<string>('');
   const [editRoom, setEditRoom] = useState<string>('');
@@ -577,6 +578,16 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
                         <UserCheck className="w-3.5 h-3.5" />
                         <span>{sch.applicantAttended ? 'HADIR (VERIFIED)' : 'BELUM HADIR'}</span>
                       </button>
+
+                      {sch.attendanceLogs && sch.attendanceLogs.length > 0 && (
+                        <button
+                          onClick={() => setViewingAttendanceLogsApp(app)}
+                          className="mt-1.5 px-2 py-1 text-[9px] font-mono font-bold uppercase bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 flex items-center gap-1 transition rounded-xs"
+                        >
+                          <Users className="w-3 h-3" />
+                          <span>{sch.attendanceLogs.length} Orang Absen</span>
+                        </button>
+                      )}
                     </td>
 
                     {/* Result */}
@@ -1063,6 +1074,114 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase transition shadow-xs"
               >
                 Simpan & Sinkronkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: Log Absensi Kehadiran Real-time */}
+      {viewingAttendanceLogsApp && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 max-w-4xl w-full p-6 space-y-4 shadow-2xl relative font-sans max-h-[85vh] overflow-y-auto">
+            <button
+              onClick={() => setViewingAttendanceLogsApp(null)}
+              className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white font-mono text-xs"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <h3 className="font-bold text-base text-slate-900 dark:text-white uppercase font-mono">
+                  Log Absensi Kehadiran Digital (Real-time)
+                </h3>
+              </div>
+              <p className="text-xs text-slate-500">
+                Daftar lengkap seluruh peserta (Pemohon, TPA, TPT, dan Tamu) yang melakukan presensi mandiri via QR Code untuk register <span className="font-mono font-bold text-indigo-600">{viewingAttendanceLogsApp.registerNumber}</span>.
+              </p>
+            </div>
+
+            {/* Attendance Logs Table */}
+            <div className="border border-slate-200 dark:border-slate-800 overflow-x-auto">
+              <table className="w-full text-left text-xs font-sans">
+                <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 font-mono text-slate-500 uppercase text-[10px] tracking-wider">
+                  <tr>
+                    <th className="px-3 py-2 w-10 text-center">No</th>
+                    <th className="px-3 py-2">Nama & NIK/NIP</th>
+                    <th className="px-3 py-2">Kategori Peran</th>
+                    <th className="px-3 py-2">Instansi & Jabatan/HP</th>
+                    <th className="px-3 py-2">Waktu Absen</th>
+                    <th className="px-3 py-2 text-center w-36">Tanda Tangan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {(viewingAttendanceLogsApp.schedule?.attendanceLogs || []).map((log, idx) => (
+                    <tr key={log.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition">
+                      <td className="px-3 py-3 text-center font-mono font-bold text-slate-400">{idx + 1}</td>
+                      <td className="px-3 py-3">
+                        <div className="font-bold text-slate-900 dark:text-white uppercase text-[11px]">{log.name}</div>
+                        {log.nikOrNip && (
+                          <div className="font-mono text-[9px] text-slate-400 mt-0.5">ID: {log.nikOrNip}</div>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 border inline-block ${
+                          log.role === 'PEMOHON' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60' :
+                          log.role === 'TPA_EXPERT' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/60' :
+                          log.role === 'TPT_MEMBER' ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900/60' :
+                          log.role === 'SEKRETARIAT' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/60' :
+                          'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                        }`}>
+                          {log.role.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="font-medium text-slate-800 dark:text-slate-200">{log.institution || 'Pribadi'}</div>
+                        {log.phone && (
+                          <div className="font-mono text-[9px] text-slate-400 mt-0.5">WA: {log.phone}</div>
+                        )}
+                        {log.subSpecialty && (
+                          <div className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono mt-0.5">{log.subSpecialty}</div>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 font-mono text-[10px] text-slate-600 dark:text-slate-400">
+                        {log.signedAt}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        {log.signatureDataUrl ? (
+                          <img 
+                            src={log.signatureDataUrl} 
+                            alt={`Paraf ${log.name}`} 
+                            referrerPolicy="no-referrer"
+                            className="max-h-12 max-w-[120px] bg-white border border-slate-200 p-0.5 object-contain mx-auto rounded-sm" 
+                          />
+                        ) : (
+                          <span className="text-[10px] text-slate-400 italic">Tanpa Paraf</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+
+                  {(!viewingAttendanceLogsApp.schedule?.attendanceLogs || viewingAttendanceLogsApp.schedule.attendanceLogs.length === 0) && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-slate-400 font-mono italic text-[11px]">
+                        Belum ada peserta yang melakukan absen mandiri via QR.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="pt-2 text-right border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2 font-mono">
+              <button
+                onClick={() => setViewingAttendanceLogsApp(null)}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-950 text-xs font-bold uppercase transition"
+              >
+                Selesai / Tutup
               </button>
             </div>
           </div>

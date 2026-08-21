@@ -392,6 +392,18 @@ export interface RetributionCalculation {
   components?: any[];
 }
 
+export interface AttendanceRecord {
+  id: string;
+  name: string;
+  role: 'PEMOHON' | 'TPA_EXPERT' | 'TPT_MEMBER' | 'SEKRETARIAT' | 'TAMU';
+  nikOrNip?: string;
+  phone?: string;
+  institution?: string; // PT / Instansi / Bidang / Universitas
+  subSpecialty?: string; // Bidang Keahlian
+  signatureDataUrl?: string; // Drawn signature Base64
+  signedAt: string;
+}
+
 export interface ConsultationSchedule {
   id: string;
   scheduleDate: string; // YYYY-MM-DD (typically Friday)
@@ -409,6 +421,7 @@ export interface ConsultationSchedule {
   consultationNotes?: string;
   consultationResult?: 'DISETUJUI' | 'PERBAIKAN' | 'KONSULTASI_ULANG';
   revisionDeadline?: string;
+  attendanceLogs?: AttendanceRecord[];
 }
 
 export interface StatusAuditLog {

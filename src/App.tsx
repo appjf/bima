@@ -526,8 +526,9 @@ export default function App() {
     return (
       <PublicAttendanceView 
         application={attendanceApp} 
-        onConfirmAttendance={(id) => handleToggleAttendance(id)} 
+        onConfirmAttendance={(updatedApp) => handleUpdateApplication(updatedApp)} 
         verificationToken={verificationToken}
+        onClose={() => setAttendanceApp(null)}
       />
     );
   }
