@@ -130,8 +130,10 @@ export const triggerPdfPrint = (elementId?: string, documentTitle: string = 'Daf
                 .no-border td, .no-border th {
                   border: none !important;
                 }
-                .break-inside-avoid {
+                .break-inside-avoid, .page-break-inside-avoid, .table-retribusi, table, tr, tbody, thead {
                   break-inside: avoid !important;
+                  page-break-inside: avoid !important;
+                  -webkit-column-break-inside: avoid !important;
                 }
                 @media print {
                   .no-print-bar {

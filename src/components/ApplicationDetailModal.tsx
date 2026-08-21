@@ -1143,9 +1143,11 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
 
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition font-mono text-xs ml-1"
+              className="px-2.5 py-1.5 min-h-[36px] bg-rose-950/80 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-800/80 transition font-mono text-xs font-bold uppercase flex items-center gap-1 ml-1"
+              title="Tutup Modal (Esc)"
             >
-              [X]
+              <span>[X]</span>
+              <span className="hidden sm:inline">Tutup</span>
             </button>
           </div>
         </div>
@@ -2802,6 +2804,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
             <div className="h-full overflow-y-auto bg-slate-50 dark:bg-slate-950 p-4">
               <RetribusiForm 
                 application={application}
+                onUpdateApplication={onUpdateApplication}
                 onSave={(data) => {
                   // Handle saving results back to application
                   const updatedApp: Application = {
@@ -3241,6 +3244,7 @@ export const ApplicationDetailModal: React.FC<ApplicationDetailModalProps> = ({
         onExportPdf={async () => {
           await exportToPdf('skrd-print-preview-content', `SKRD_${application.registerNumber}.pdf`);
         }}
+        onUpdateApplication={onUpdateApplication}
       />
     )}
   </>

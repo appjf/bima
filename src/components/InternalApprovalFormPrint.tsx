@@ -189,7 +189,7 @@ export const InternalApprovalFormPrint: React.FC<InternalApprovalFormPrintProps>
           V. CATATAN KESIMPULAN REKOMENDASI TEKNIS OPERATOR DPUPR
         </div>
         <p className="text-[11px] text-slate-800 leading-relaxed font-sans font-medium">
-          {application.status === 'COMPLETE' || application.status === 'READY_FOR_CONSULTATION' || application.status === 'APPROVED'
+          {application.status === 'COMPLETE' || application.status === 'READY_FOR_CONSULTATION' || application.status === 'RETRIBUTION_READY' || application.status === 'COMPLETED'
             ? `Berdasarkan hasil penelitian administrasi, verifikasi dokumen teknis, dan perhitungan retribusi daerah Kabupaten Garut, permohonan ${permitLabel} Nomor Register ${application.registerNumber} dinyatakan TELAH MEMENUHI PERSYARATAN REGULASI PP NO. 16/2021 dan direkomendasikan untuk diproses ke tahap penerbitan SKRD / Sidang Pleno TPA.`
             : `Berdasarkan evaluasi dokumen teknis awal, permohonan ${permitLabel} Nomor Register ${application.registerNumber} masih memerlukan kelengkapan/perbaikan dokumen teknis sesuai dengan catatan verifikasi pada Seksi III di atas.`
           }

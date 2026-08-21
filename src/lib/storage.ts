@@ -17,7 +17,12 @@ const STORAGE_KEYS = {
 export function getStoredApplications(): Application[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.APPLICATIONS);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((a: Application) => !a.id.startsWith('APP-GARUT-00'));
+      }
+    }
   } catch (e) {
     console.error('Failed to load stored applications:', e);
   }

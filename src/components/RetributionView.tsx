@@ -244,6 +244,7 @@ export const RetributionView: React.FC<RetributionViewProps> = ({
           customShst={customShst}
           onClose={() => setIsSKRDPreviewOpen(false)}
           onExportPdf={handleExportPDF}
+          onUpdateApplication={onUpdateApplication}
         />
       )}
 

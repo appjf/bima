@@ -31,8 +31,10 @@ export function useApplications() {
       const cached = localStorage.getItem(STORAGE_KEYS.APPS_CACHE);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+        if (Array.isArray(parsed)) {
+          const nonMock = parsed.filter((a: Application) => !a.id.startsWith('APP-GARUT-00'));
+          localStorage.setItem(STORAGE_KEYS.APPS_CACHE, JSON.stringify(nonMock));
+          return nonMock;
         }
       }
     } catch (e) {
@@ -108,7 +110,7 @@ export function useApplications() {
             const raw = localStorage.getItem(STORAGE_KEYS.APPS_CACHE);
             if (raw) {
               const parsed = JSON.parse(raw);
-              if (Array.isArray(parsed) && parsed.length > 0) currentCache = parsed;
+              if (Array.isArray(parsed)) currentCache = parsed.filter((a: Application) => !a.id.startsWith('APP-GARUT-00'));
             }
           } catch {}
 

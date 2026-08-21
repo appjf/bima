@@ -72,12 +72,27 @@ export const SKRDPrint: React.FC<SKRDPrintProps> = ({ application, customShst = 
   return (
     <div id="printable-skrd-doc" className="bg-white text-black font-serif w-[210mm] mx-auto text-[10px] leading-tight print:w-full">
       
+      {/* Embedded print styles for page-break avoidance */}
+      <style>{`
+        @media print {
+          table, tr, td, th, tbody, thead, .table-retribusi, .break-inside-avoid, .page-break-inside-avoid {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            -webkit-column-break-inside: avoid !important;
+          }
+        }
+        .table-retribusi, .table-retribusi tr, .table-retribusi td, .table-retribusi th, .table-retribusi tbody {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+      `}</style>
+      
       {/* SECTION 1: SKRD */}
-      <div className="border-[1.5px] border-black p-0 mb-2">
+      <div className="border-[1.5px] border-black p-0 mb-2 break-inside-avoid page-break-inside-avoid">
         {/* Header Table */}
-        <table className="w-full border-collapse">
+        <table className="w-full border-collapse break-inside-avoid page-break-inside-avoid">
           <tbody>
-            <tr>
+            <tr className="break-inside-avoid page-break-inside-avoid">
               <td className="w-[15%] text-center border-r-[1.5px] border-black py-2">
                 <img src="/public/logo_garut.png" alt="Logo Garut" className="h-16 mx-auto object-contain" />
               </td>
@@ -116,7 +131,7 @@ export const SKRDPrint: React.FC<SKRDPrintProps> = ({ application, customShst = 
         </table>
 
         {/* Identity Section */}
-        <div className="border-t-[1.5px] border-black p-2 space-y-1">
+        <div className="border-t-[1.5px] border-black p-2 space-y-1 break-inside-avoid page-break-inside-avoid">
           <div className="grid grid-cols-[160px_10px_1fr]">
             <span>NAMA</span><span>:</span><span className="font-bold uppercase">{application.applicant.name}</span>
           </div>
@@ -132,17 +147,17 @@ export const SKRDPrint: React.FC<SKRDPrintProps> = ({ application, customShst = 
         </div>
 
         {/* Main Table */}
-        <table className="w-full border-collapse border-t-[1.5px] border-black">
+        <table className="w-full border-collapse border-t-[1.5px] border-black table-retribusi break-inside-avoid page-break-inside-avoid">
           <thead>
-            <tr className="bg-white">
+            <tr className="bg-white break-inside-avoid page-break-inside-avoid">
               <th className="border-[1px] border-black w-[5%] py-1 text-center">NO</th>
               <th className="border-[1px] border-black w-[15%] py-1 text-center">KODE REKENING</th>
               <th className="border-[1px] border-black w-[60%] py-1 text-center uppercase">URAIAN</th>
               <th className="border-[1px] border-black w-[15%] py-1 text-center" colSpan={2}>JUMLAH (Rp)</th>
             </tr>
           </thead>
-          <tbody>
-            <tr className="align-top">
+          <tbody className="break-inside-avoid page-break-inside-avoid">
+            <tr className="align-top break-inside-avoid page-break-inside-avoid">
               <td className="border-x border-black text-center py-1">1</td>
               <td className="border-x border-black py-1 px-1">
                 <div className="flex justify-between font-mono text-[11px] tracking-widest border border-black px-1 py-0.5">
@@ -166,14 +181,14 @@ export const SKRDPrint: React.FC<SKRDPrintProps> = ({ application, customShst = 
               <td className="border-r border-black py-1 px-1 text-right">{formatCurrency(calc.finalRetribution)}</td>
             </tr>
             {/* Fillers to keep height consistent */}
-            <tr className="h-4">
+            <tr className="h-4 break-inside-avoid page-break-inside-avoid">
               <td className="border-x border-black"></td>
               <td className="border-x border-black"></td>
               <td className="border-x border-black"></td>
               <td className="border-l border-black">Rp</td>
               <td className="border-r border-black text-right">-</td>
             </tr>
-            <tr className="h-4">
+            <tr className="h-4 break-inside-avoid page-break-inside-avoid">
               <td className="border-x border-black"></td>
               <td className="border-x border-black"></td>
               <td className="border-x border-black"></td>
@@ -181,13 +196,13 @@ export const SKRDPrint: React.FC<SKRDPrintProps> = ({ application, customShst = 
               <td className="border-r border-black text-right">-</td>
             </tr>
             {/* Totals Section */}
-            <tr className="font-bold">
+            <tr className="font-bold break-inside-avoid page-break-inside-avoid">
               <td className="border border-black" colSpan={2}></td>
               <td className="border border-black px-2 py-1">Jumlah Ketetapan Pokok Retribusi</td>
               <td className="border-l border-black py-1 px-1 text-left">Rp</td>
               <td className="border-r border-black border-y py-1 px-1 text-right">{formatCurrency(calc.finalRetribution)}</td>
             </tr>
-            <tr>
+            <tr className="break-inside-avoid page-break-inside-avoid">
               <td className="border-x border-black" colSpan={2}></td>
               <td className="border-x border-black px-2 py-0.5">
                 <div className="grid grid-cols-[20px_1fr]">
@@ -201,7 +216,7 @@ export const SKRDPrint: React.FC<SKRDPrintProps> = ({ application, customShst = 
               <td className="border-l border-black py-1 px-1 text-left">Rp</td>
               <td className="border-r border-black py-1 px-1 text-right">-</td>
             </tr>
-            <tr className="font-bold bg-white">
+            <tr className="font-bold bg-white break-inside-avoid page-break-inside-avoid">
               <td className="border border-black" colSpan={2}></td>
               <td className="border border-black px-2 py-1 uppercase italic">Jumlah keseluruhan setelah dibulatkan</td>
               <td className="border-l border-black py-1 px-1 text-left border-y border-black">Rp</td>
@@ -321,17 +336,17 @@ export const SKRDPrint: React.FC<SKRDPrintProps> = ({ application, customShst = 
 
           <div className="mt-2 text-[9px]">Dengan rincian penerimaan sebagai berikut :</div>
 
-          <table className="w-full border-collapse border border-black mt-1">
+          <table className="w-full border-collapse border border-black mt-1 table-retribusi break-inside-avoid page-break-inside-avoid">
             <thead>
-              <tr className="bg-white">
+              <tr className="bg-white break-inside-avoid page-break-inside-avoid">
                 <th className="border border-black py-1 w-[5%]">No</th>
                 <th className="border border-black py-1 w-[20%]">Kode Rekening</th>
                 <th className="border border-black py-1 w-[55%]">Uraian Rincian</th>
                 <th className="border border-black py-1 w-[20%]">Jumlah (Rp)</th>
               </tr>
             </thead>
-            <tbody>
-              <tr className="align-top">
+            <tbody className="break-inside-avoid page-break-inside-avoid">
+              <tr className="align-top break-inside-avoid page-break-inside-avoid">
                 <td className="border border-black text-center py-2">1</td>
                 <td className="border border-black py-2 px-2 text-center font-mono">4.1.2.26.01</td>
                 <td className="border border-black py-2 px-2 uppercase leading-normal">
@@ -344,7 +359,7 @@ export const SKRDPrint: React.FC<SKRDPrintProps> = ({ application, customShst = 
                    {formatCurrencyWithPrefix(calc.finalRetribution)}
                 </td>
               </tr>
-              <tr className="font-bold">
+              <tr className="font-bold break-inside-avoid page-break-inside-avoid">
                 <td className="border border-black text-right px-2 py-1" colSpan={3}>JUMLAH</td>
                 <td className="border border-black py-1 px-2 text-right">
                   {formatCurrencyWithPrefix(calc.finalRetribution)}

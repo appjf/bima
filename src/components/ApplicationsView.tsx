@@ -53,6 +53,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'ALL'>(initialStatusFilter);
   const [districtFilter, setDistrictFilter] = useState<string>('ALL');
   const [functionFilter, setFunctionFilter] = useState<string>('ALL');
+  const [monthFilter, setMonthFilter] = useState<string>('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Extract unique districts
@@ -63,10 +64,47 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
     return Boolean(app.isArchived || app.status === 'CONSULTATION_DONE' || app.status === 'COMPLETED');
   };
 
-  // Counts for tabs
-  const activeCount = applications.filter(a => !isAppArchived(a)).length;
-  const archivedCount = applications.filter(a => isAppArchived(a)).length;
-  const totalCount = applications.length;
+  // Extract unique submission months (format: YYYY-MM)
+  const availableMonths = Array.from(
+    new Set(
+      applications
+        .map(a => {
+          if (!a.submissionDate) return null;
+          const d = new Date(a.submissionDate);
+          if (isNaN(d.getTime())) return null;
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          return `${year}-${month}`;
+        })
+        .filter((m): m is string => Boolean(m))
+    )
+  ).sort().reverse();
+
+  const formatMonthYearIndo = (yearMonthStr: string): string => {
+    const [year, month] = yearMonthStr.split('-');
+    const monthNamesIndo = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    const mIndex = parseInt(month, 10) - 1;
+    return `${monthNamesIndo[mIndex] || month} ${year}`;
+  };
+
+  // Monthly filtered apps for consistent counts
+  const monthFilteredAppsForCount = applications.filter(app => {
+    if (monthFilter === 'ALL') return true;
+    if (!app.submissionDate) return false;
+    const d = new Date(app.submissionDate);
+    if (isNaN(d.getTime())) return false;
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}` === monthFilter;
+  });
+
+  // Counts for tabs based on selected month
+  const activeCount = monthFilteredAppsForCount.filter(a => !isAppArchived(a)).length;
+  const archivedCount = monthFilteredAppsForCount.filter(a => isAppArchived(a)).length;
+  const totalCount = monthFilteredAppsForCount.length;
 
   // Filtering Logic
   const filteredApps = applications.filter(app => {
@@ -88,7 +126,19 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
     const matchesDistrict = districtFilter === 'ALL' || app.building.district === districtFilter;
     const matchesFunction = functionFilter === 'ALL' || app.building.functionType === functionFilter;
 
-    return matchesSearch && matchesStatus && matchesDistrict && matchesFunction;
+    let matchesMonth = true;
+    if (monthFilter !== 'ALL' && app.submissionDate) {
+      const d = new Date(app.submissionDate);
+      if (!isNaN(d.getTime())) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        matchesMonth = `${year}-${month}` === monthFilter;
+      } else {
+        matchesMonth = false;
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesDistrict && matchesFunction && matchesMonth;
   });
 
   const handleCreateSubmit = (newApp: Application) => {
@@ -228,7 +278,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
         </div>
 
         {/* Filters Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-1">
           
           {/* Search Input */}
           <div className="relative">
@@ -289,6 +339,21 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
               <option value="SOSIAL_BUDAYA">SOSIAL & BUDAYA</option>
               <option value="KEAGAMAAN">KEAGAMAAN</option>
               <option value="KHUSUS">KHUSUS</option>
+            </select>
+          </div>
+
+          {/* Monthly Filter */}
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5">
+            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <select
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              className="w-full bg-transparent text-xs text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer font-mono font-bold"
+            >
+              <option value="ALL">SEMUA BULAN</option>
+              {availableMonths.map(m => (
+                <option key={m} value={m}>{formatMonthYearIndo(m).toUpperCase()}</option>
+              ))}
             </select>
           </div>
 
@@ -378,14 +443,14 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                 <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                   <button
                     onClick={() => onQuickVerify(app)}
-                    className="flex-1 py-2 text-xs font-mono font-bold uppercase flex items-center justify-center gap-1.5 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 active:bg-indigo-600 active:text-white"
+                    className="flex-1 py-2 min-h-[44px] text-xs font-mono font-bold uppercase flex items-center justify-center gap-1.5 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 active:bg-indigo-600 active:text-white"
                   >
                     <FileCheck className="w-4 h-4" />
                     <span>Verifikasi</span>
                   </button>
                   <button
                     onClick={() => onSelectApplication(app)}
-                    className="flex-1 py-2 text-xs font-mono font-bold uppercase text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 active:bg-slate-200"
+                    className="flex-1 py-2 min-h-[44px] text-xs font-mono font-bold uppercase text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 active:bg-slate-200"
                   >
                     Detail
                   </button>
@@ -393,7 +458,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                   {onToggleArchive && (
                     <button
                       onClick={() => onToggleArchive(app, !isArchived)}
-                      className={`p-2 border transition ${
+                      className={`p-2 min-h-[44px] min-w-[44px] flex items-center justify-center border transition ${
                         isArchived 
                           ? 'text-amber-600 bg-amber-50 dark:bg-amber-950/40 border-amber-300' 
                           : 'text-slate-600 bg-slate-100 dark:bg-slate-800 border-slate-300'
@@ -406,7 +471,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
 
                   <button
                     onClick={() => onDeleteApplication(app.id)}
-                    className="p-2 text-rose-500 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900"
+                    className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-rose-500 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900"
                     title="Hapus"
                   >
                     <Trash2 className="w-4 h-4" />

@@ -152,9 +152,10 @@ Silakan ajukan pertanyaan atau pilih salah satu prompt cepat di bawah.`,
 
         <button 
           onClick={onClose}
-          className="text-slate-400 hover:text-white text-xs font-mono"
+          className="text-slate-400 hover:text-white p-2 min-h-[44px] min-w-[44px] flex items-center justify-center font-mono text-xs font-bold uppercase hover:bg-slate-800 rounded transition"
+          aria-label="Tutup Asisten Copilot"
         >
-          [ESC / CLOSE]
+          [✕ TUTUP]
         </button>
       </div>
 
@@ -224,12 +225,13 @@ Silakan ajukan pertanyaan atau pilih salah satu prompt cepat di bawah.`,
             value={inputPrompt}
             onChange={(e) => setInputPrompt(e.target.value)}
             disabled={isLoading}
-            className="flex-1 p-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-600 font-sans"
+            className="flex-1 p-2.5 min-h-[44px] text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-indigo-600 font-sans rounded-md"
           />
           <button
             type="submit"
             disabled={isLoading || !inputPrompt.trim()}
-            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-mono font-bold text-xs uppercase disabled:opacity-50 transition"
+            className="px-4 py-2.5 min-h-[44px] min-w-[44px] bg-indigo-600 hover:bg-indigo-700 text-white font-mono font-bold text-xs uppercase disabled:opacity-50 transition flex items-center justify-center rounded-md"
+            aria-label="Kirim Pesan"
           >
             <Send className="w-4 h-4" />
           </button>

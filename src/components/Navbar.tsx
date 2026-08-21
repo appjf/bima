@@ -221,10 +221,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Mobile Navigation Toggle Button */}
             <button
               onClick={() => setIsMobileMenuOpen(prev => !prev)}
-              className="md:hidden w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 transition active:scale-95"
+              className="mobile-nav-toggle md:hidden min-h-[44px] min-w-[44px] flex items-center justify-center bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 transition active:scale-95 rounded-lg"
               aria-label="Toggle Navigation Menu"
             >
-              {isMobileMenuOpen ? <X className="w-4 h-4 text-rose-500" /> : <Menu className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
+              {isMobileMenuOpen ? <X className="w-5 h-5 text-rose-500" /> : <Menu className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />}
             </button>
 
           </div>
@@ -232,87 +232,145 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      {/* Collapsible Mobile Menu Drawer with Integrated Role & Modules */}
+      {/* Slide-out Mobile Navigation Drawer */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3.5 shadow-xl font-mono animate-in slide-in-from-top-2 duration-150">
-          
-          {/* Mobile User Profile Trigger */}
-          {onOpenUserModal && (
-            <div 
-              onClick={() => {
-                setIsMobileMenuOpen(false);
-                onOpenUserModal();
-              }}
-              className="mb-3.5 p-3 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-between cursor-pointer"
-            >
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          {/* Backdrop overlay */}
+          <div 
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
+            aria-hidden="true"
+          />
+
+          {/* Drawer Panel Container with Backdrop-Filter Blur & Shadow */}
+          <div className="relative w-4/5 max-w-xs sm:max-w-sm bg-white/95 dark:bg-slate-900/95 backdrop-blur-md h-full flex flex-col shadow-2xl shadow-slate-950/40 border-r border-slate-200/80 dark:border-slate-800/80 z-10 animate-in slide-in-from-left duration-200 font-mono">
+            
+            {/* Drawer Header */}
+            <div className="p-4 bg-slate-900/90 backdrop-blur-md text-white flex items-center justify-between border-b border-slate-800/80 shrink-0">
               <div className="flex items-center gap-2.5">
-                <img
-                  src={currentUser?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80'}
-                  alt={currentUser?.name || 'User'}
-                  className="w-8 h-8 object-cover border border-indigo-500"
+                <img 
+                  src="/logo_garut.png" 
+                  alt="Logo Pemkab Garut" 
+                  className="w-7 h-9 object-contain"
                 />
                 <div>
-                  <div className="text-xs font-bold text-slate-900 dark:text-white">
-                    {currentUser?.name || 'Petugas'}
-                  </div>
-                  <div className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">
-                    Peran: {currentUser?.role || currentRole}
-                  </div>
+                  <h2 className="text-sm font-bold tracking-tight text-white font-mono leading-none">
+                    BIMA-BG<span className="text-indigo-400">.GARUT</span>
+                  </h2>
+                  <span className="text-[9px] text-slate-400 font-mono">DPUPR Kab. Garut</span>
                 </div>
               </div>
-              <span className="text-[10px] bg-indigo-600 text-white px-2 py-1 uppercase font-bold">
-                Kelola Akun
-              </span>
+
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="mobile-nav-toggle p-2 min-h-[44px] min-w-[44px] bg-rose-600/90 hover:bg-rose-600 active:scale-95 text-white rounded-lg flex items-center justify-center transition shadow-sm"
+                aria-label="Tutup Menu Navigasi"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          )}
 
-          {onOpenDatabaseManager && (
-            <button
-              onClick={() => {
-                setIsMobileMenuOpen(false);
-                onOpenDatabaseManager();
-              }}
-              className="w-full mb-3 py-2 px-3 bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 text-xs font-mono font-bold flex items-center justify-center gap-2"
-            >
-              <Database className="w-4 h-4 text-emerald-600" />
-              <span>Database Supabase Hub & Schema SQL</span>
-            </button>
-          )}
-
-          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">
-            PILIH MODUL SIMBG
-          </div>
-          <div className="grid grid-cols-1 gap-1 max-h-[60vh] overflow-y-auto pr-1">
-            {navTabs.filter(t => isTabAllowedForRole(t.id, currentRole)).map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
+            {/* Drawer Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              
+              {/* User Profile Card */}
+              {onOpenUserModal && (
+                <div 
                   onClick={() => {
-                    setActiveTab(tab.id);
                     setIsMobileMenuOpen(false);
+                    onOpenUserModal();
                   }}
-                  className={`w-full flex items-center justify-between p-2.5 text-xs font-bold transition text-left min-h-[44px] ${
-                    isActive
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
+                  className="p-3 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 rounded-lg flex items-center justify-between cursor-pointer active:scale-98 transition min-h-[52px]"
                 >
                   <div className="flex items-center gap-2.5">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-indigo-600 dark:text-indigo-400'}`} />
-                    <span>{tab.label}</span>
+                    <img
+                      src={currentUser?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80'}
+                      alt={currentUser?.name || 'User'}
+                      className="w-9 h-9 object-cover border border-indigo-500 rounded-none shrink-0"
+                    />
+                    <div>
+                      <div className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
+                        {currentUser?.name || 'Petugas SIMBG'}
+                      </div>
+                      <div className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase">
+                        {currentUser?.role || currentRole}
+                      </div>
+                    </div>
                   </div>
-                  {tab.badge !== undefined && tab.badge > 0 && (
-                    <span className={`text-[10px] px-1.5 py-0.2 font-mono font-bold ${
-                      isActive ? 'bg-white text-indigo-600' : 'bg-rose-500 text-white'
-                    }`}>
-                      {tab.badge}
-                    </span>
-                  )}
+                  <span className="text-[10px] bg-indigo-600 text-white px-2 py-1 uppercase font-bold rounded shrink-0">
+                    Akun
+                  </span>
+                </div>
+              )}
+
+              {/* Supabase Hub Button */}
+              {onOpenDatabaseManager && (
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    onOpenDatabaseManager();
+                  }}
+                  className="w-full py-2.5 px-3 min-h-[44px] bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 text-xs font-mono font-bold flex items-center justify-center gap-2 rounded-lg transition"
+                >
+                  <Database className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Database Supabase Hub</span>
                 </button>
-              );
-            })}
+              )}
+
+              <div>
+                <div className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mb-2 px-1">
+                  NAVIGASI MODUL UTAMA
+                </div>
+                <div className="space-y-1">
+                  {navTabs.filter(t => isTabAllowedForRole(t.id, currentRole)).map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => {
+                          setActiveTab(tab.id);
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-3 text-xs font-bold transition text-left min-h-[44px] rounded-lg ${
+                          isActive
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'bg-slate-50 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-indigo-600 dark:text-indigo-400'}`} />
+                          <span className="truncate">{tab.label}</span>
+                        </div>
+                        {tab.badge !== undefined && tab.badge > 0 && (
+                          <span className={`text-[10px] px-2 py-0.5 font-mono font-bold rounded-full ${
+                            isActive ? 'bg-white text-indigo-600' : 'bg-rose-500 text-white'
+                          }`}>
+                            {tab.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Drawer Footer */}
+            <div className="p-3 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0 text-xs">
+              <div className="text-[10px] font-mono text-slate-400">
+                Mode: <span className="text-indigo-600 font-bold">{isDarkMode ? 'Gelap' : 'Terang'}</span>
+              </div>
+              <button
+                onClick={() => setIsDarkMode(prev => !prev)}
+                className="px-3 py-1.5 min-h-[38px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[11px] rounded flex items-center gap-1.5"
+              >
+                {isDarkMode ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5" />}
+                <span>Ganti Tema</span>
+              </button>
+            </div>
+
           </div>
         </div>
       )}

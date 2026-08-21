@@ -545,161 +545,174 @@ export const ASNPersonnelSettings: React.FC = () => {
 
       {/* MODAL: ADD / EDIT ASN PERSONNEL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs font-sans">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-lg shadow-2xl overflow-hidden">
-            
-            {/* Modal Header */}
-            <div className="bg-indigo-950 text-white p-4 flex items-center justify-between font-mono">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-amber-400" />
-                <h3 className="font-bold text-xs uppercase tracking-wider">
-                  {editingPerson ? 'EDIT IDENTITAS PEGAWAI ASN' : 'TAMBAH PEGAWAI ASN BARU'}
-                </h3>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-sm no-print font-sans">
+          {/* Lock background scroll */}
+          <style>{`
+            body {
+              overflow: hidden !important;
+            }
+          `}</style>
 
-            {/* Modal Body Form */}
-            <div className="p-5 space-y-4 text-xs">
+          <div className="flex items-center justify-center min-h-screen p-0 sm:p-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-lg shadow-2xl overflow-hidden flex flex-col min-h-screen sm:min-h-0 sm:rounded-xl">
               
-              <div>
-                <label className="block font-mono font-bold text-[10px] text-slate-500 uppercase mb-1">
-                  Nama Lengkap & Gelar Resmi: *
-                </label>
-                <input
-                  type="text"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  placeholder="E.g. H. Irwan Kurnia, S.ST"
-                  className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white"
-                />
+              {/* Modal Header */}
+              <div className="bg-indigo-950 text-white p-4 flex items-center justify-between font-mono shrink-0 sticky top-0 z-20">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-amber-400" />
+                  <h3 className="font-bold text-xs uppercase tracking-wider">
+                    {editingPerson ? 'EDIT IDENTITAS PEGAWAI ASN' : 'TAMBAH PEGAWAI ASN BARU'}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="p-2 min-h-[44px] min-w-[44px] bg-rose-600 hover:bg-rose-700 text-white rounded-lg flex items-center justify-center transition font-bold"
+                  aria-label="Tutup"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Modal Body Form */}
+              <div className="p-4 sm:p-5 space-y-4 text-xs overflow-y-auto flex-1">
+                
                 <div>
                   <label className="block font-mono font-bold text-[10px] text-slate-500 uppercase mb-1">
-                    NIP Resmi ASN: *
+                    Nama Lengkap & Gelar Resmi: *
                   </label>
                   <input
                     type="text"
-                    value={formNip}
-                    onChange={(e) => setFormNip(e.target.value)}
-                    placeholder="E.g. 19880512 201101 1 003"
-                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="E.g. H. Irwan Kurnia, S.ST"
+                    className="w-full p-2.5 min-h-[44px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white rounded-lg"
                   />
                 </div>
 
-                <div>
-                  <label className="block font-mono font-bold text-[10px] text-slate-500 uppercase mb-1">
-                    Kategori Peran Kedinasan: *
-                  </label>
-                  <select
-                    value={formRole}
-                    onChange={(e) => setFormRole(e.target.value as ASNRoleCategory)}
-                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white"
-                  >
-                    <option value="OPERATOR">OPERATOR (4 Org)</option>
-                    <option value="TPA">TPA - Tim Profesi Ahli (5 Org)</option>
-                    <option value="TPT">TPT - Tim Teknis (1 Org)</option>
-                    <option value="PENGAWAS">PENGAWAS SIMBG (1 Org)</option>
-                    <option value="KABID">KEPALA BIDANG (1 Org)</option>
-                    <option value="KADIN">KEPALA DINAS (1 Org)</option>
-                  </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-mono font-bold text-[10px] text-slate-500 uppercase mb-1">
+                      NIP Resmi ASN: *
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={formNip}
+                      onChange={(e) => setFormNip(e.target.value)}
+                      placeholder="E.g. 19880512 201101 1 003"
+                      className="w-full p-2.5 min-h-[44px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white rounded-lg"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-mono font-bold text-[10px] text-slate-500 uppercase mb-1">
+                      Kategori Peran Kedinasan: *
+                    </label>
+                    <select
+                      value={formRole}
+                      onChange={(e) => setFormRole(e.target.value as ASNRoleCategory)}
+                      className="w-full p-2.5 min-h-[44px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white rounded-lg"
+                    >
+                      <option value="OPERATOR">OPERATOR (4 Org)</option>
+                      <option value="TPA">TPA - Tim Profesi Ahli (5 Org)</option>
+                      <option value="TPT">TPT - Tim Teknis (1 Org)</option>
+                      <option value="PENGAWAS">PENGAWAS SIMBG (1 Org)</option>
+                      <option value="KABID">KEPALA BIDANG (1 Org)</option>
+                      <option value="KADIN">KEPALA DINAS (1 Org)</option>
+                    </select>
+                  </div>
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-mono font-bold text-[10px] text-slate-500 uppercase mb-1">
+                      Jabatan Kedinasan:
+                    </label>
+                    <input
+                      type="text"
+                      value={formPositionTitle}
+                      onChange={(e) => setFormPositionTitle(e.target.value)}
+                      placeholder="E.g. Operator Teknis Verifikasi"
+                      className="w-full p-2.5 min-h-[44px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-mono font-bold text-[10px] text-slate-500 uppercase mb-1">
+                      Sub-Spesialisasi / Keahlian:
+                    </label>
+                    <input
+                      type="text"
+                      value={formSubSpecialty}
+                      onChange={(e) => setFormSubSpecialty(e.target.value)}
+                      placeholder="E.g. Arsitektur / Struktur / MEP"
+                      className="w-full p-2.5 min-h-[44px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-mono font-bold text-[10px] text-slate-500 uppercase mb-1">
+                      No. WhatsApp / HP:
+                    </label>
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      value={formPhone}
+                      onChange={(e) => setFormPhone(e.target.value)}
+                      placeholder="081234567890"
+                      className="w-full p-2.5 min-h-[44px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white rounded-lg"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-mono font-bold text-[10px] text-slate-500 uppercase mb-1">
+                      EmailKedinasan:
+                    </label>
+                    <input
+                      type="email"
+                      inputMode="email"
+                      value={formEmail}
+                      onChange={(e) => setFormEmail(e.target.value)}
+                      placeholder="nama@garutkab.go.id"
+                      className="w-full p-2.5 min-h-[44px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 pt-2">
+                  <input
+                    type="checkbox"
+                    id="isActiveCheck"
+                    checked={formIsActive}
+                    onChange={(e) => setFormIsActive(e.target.checked)}
+                    className="w-5 h-5 min-w-[20px] text-indigo-600 rounded"
+                  />
+                  <label htmlFor="isActiveCheck" className="font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
+                    Status Personil Aktif dalam Penugasan SIMBG
+                  </label>
+                </div>
+
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-mono font-bold text-[10px] text-slate-500 uppercase mb-1">
-                    Jabatan Kedinasan:
-                  </label>
-                  <input
-                    type="text"
-                    value={formPositionTitle}
-                    onChange={(e) => setFormPositionTitle(e.target.value)}
-                    placeholder="E.g. Operator Teknis Verifikasi"
-                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-mono font-bold text-[10px] text-slate-500 uppercase mb-1">
-                    Sub-Spesialisasi / Keahlian:
-                  </label>
-                  <input
-                    type="text"
-                    value={formSubSpecialty}
-                    onChange={(e) => setFormSubSpecialty(e.target.value)}
-                    placeholder="E.g. Arsitektur / Struktur / MEP"
-                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-mono font-bold text-[10px] text-slate-500 uppercase mb-1">
-                    No. WhatsApp / HP:
-                  </label>
-                  <input
-                    type="text"
-                    value={formPhone}
-                    onChange={(e) => setFormPhone(e.target.value)}
-                    placeholder="081234567890"
-                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-mono font-bold text-[10px] text-slate-500 uppercase mb-1">
-                    EmailKedinasan:
-                  </label>
-                  <input
-                    type="email"
-                    value={formEmail}
-                    onChange={(e) => setFormEmail(e.target.value)}
-                    placeholder="nama@garutkab.go.id"
-                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <input
-                  type="checkbox"
-                  id="isActiveCheck"
-                  checked={formIsActive}
-                  onChange={(e) => setFormIsActive(e.target.checked)}
-                  className="w-4 h-4 text-indigo-600"
-                />
-                <label htmlFor="isActiveCheck" className="font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
-                  Status Personil Aktif dalam Penugasan SIMBG
-                </label>
+              {/* Modal Footer */}
+              <div className="bg-slate-50 dark:bg-slate-800/80 p-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-end gap-2 font-mono shrink-0">
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2.5 min-h-[44px] bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-800 dark:text-slate-200 text-xs font-bold uppercase transition rounded-lg"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleSavePerson}
+                  className="px-4 py-2.5 min-h-[44px] bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase transition shadow-2xs rounded-lg"
+                >
+                  Simpan Data ASN
+                </button>
               </div>
 
             </div>
-
-            {/* Modal Footer */}
-            <div className="bg-slate-50 dark:bg-slate-800/80 p-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-end gap-2 font-mono">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-800 dark:text-slate-200 text-xs font-bold uppercase transition"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleSavePerson}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase transition shadow-2xs"
-              >
-                Simpan Data ASN
-              </button>
-            </div>
-
           </div>
         </div>
       )}

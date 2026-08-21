@@ -59,7 +59,7 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
 }) => {
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
   const [showQrModal, setShowQrModal] = useState<Application | null>(null);
-  const [filterDate, setFilterDate] = useState<string>('ALL');
+  const [monthFilter, setMonthFilter] = useState<string>('ALL');
 
   // QR Attendance State
   const [generatedQrUrl, setGeneratedQrUrl] = useState<string>('');
@@ -161,7 +161,46 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
     onUpdateApplication(updatedApp);
   };
 
-  const scheduledApps = applications.filter(a => a.schedule);
+  // 1. Get all scheduled apps
+  const allScheduledApps = applications.filter(a => a.schedule);
+
+  // 2. Extract unique schedule months dynamically from all scheduled apps (YYYY-MM)
+  const availableScheduleMonths = Array.from(
+    new Set(
+      allScheduledApps
+        .map(a => {
+          if (!a.schedule?.scheduleDate) return null;
+          const d = new Date(a.schedule.scheduleDate);
+          if (isNaN(d.getTime())) return null;
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          return `${year}-${month}`;
+        })
+        .filter((m): m is string => Boolean(m))
+    )
+  ).sort().reverse();
+
+  const formatMonthYearIndo = (yearMonthStr: string): string => {
+    const [year, month] = yearMonthStr.split('-');
+    const monthNamesIndo = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    const mIndex = parseInt(month, 10) - 1;
+    return `${monthNamesIndo[mIndex] || month} ${year}`;
+  };
+
+  // 3. Filter scheduled apps based on monthly filter
+  const scheduledApps = allScheduledApps.filter(app => {
+    if (monthFilter === 'ALL') return true;
+    if (!app.schedule?.scheduleDate) return false;
+    const d = new Date(app.schedule.scheduleDate);
+    if (isNaN(d.getTime())) return false;
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}` === monthFilter;
+  });
+
   const unscheduledReadyApps = applications.filter(a => (a.status === 'READY_FOR_CONSULTATION' || a.status === 'COMPLETE') && !a.schedule);
 
   const nextFriday = getNextFridayDate();
@@ -345,7 +384,22 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Monthly Filter Dropdown */}
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5">
+              <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <select
+                value={monthFilter}
+                onChange={(e) => setMonthFilter(e.target.value)}
+                className="bg-transparent text-xs text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer font-mono font-bold"
+              >
+                <option value="ALL">SEMUA BULAN</option>
+                {availableScheduleMonths.map(m => (
+                  <option key={m} value={m}>{formatMonthYearIndo(m).toUpperCase()}</option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded">
               <button 
                 onClick={() => setViewMode('table')}
