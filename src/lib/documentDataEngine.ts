@@ -6,6 +6,7 @@ export type OfficialDocumentType =
   | 'SKRD'
   | 'BA_VISITE'
   | 'BA_KONSULTASI'
+  | 'BA_PLENO'
   | 'SURAT_PEMBERITAHUAN'
   | 'FORM_INSPEKSI_CHECKLIST'
   | 'REKAPITULASI_RETRIBUSI_XLSX'
@@ -348,6 +349,8 @@ export function getDocumentTitle(docType: OfficialDocumentType): string {
       return 'Berita Acara Visite Lapangan Inspection (SLF/PBG)';
     case 'BA_KONSULTASI':
       return 'Berita Acara Sidang Konsultasi Teknis TPA/TPT';
+    case 'BA_PLENO':
+      return 'Berita Acara Rapat Pleno & Rekomendasi Teknis TPA';
     case 'SURAT_PEMBERITAHUAN':
       return 'Surat Pemberitahuan Jadwal Sidang Konsultasi';
     case 'FORM_INSPEKSI_CHECKLIST':
