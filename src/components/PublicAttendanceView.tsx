@@ -305,16 +305,7 @@ export const PublicAttendanceView: React.FC<PublicAttendanceViewProps> = ({
             )}
           </div>
 
-          <div className="pt-2 flex flex-col sm:flex-row gap-2">
-            {onClose && (
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-mono font-bold uppercase transition border border-slate-200 dark:border-slate-700"
-              >
-                Kembali ke Beranda
-              </button>
-            )}
+          <div className="pt-2">
             <button
               type="button"
               onClick={() => {
@@ -630,18 +621,7 @@ export const PublicAttendanceView: React.FC<PublicAttendanceViewProps> = ({
             </button>
           </div>
 
-          {onClose && (
-            <div className="text-center pt-1">
-              <button
-                type="button"
-                onClick={onClose}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-white text-[10px] font-mono uppercase tracking-tight flex items-center justify-center gap-1 mx-auto"
-              >
-                <ArrowLeft className="w-3 h-3" />
-                <span>Batal / Kembali ke Beranda</span>
-              </button>
-            </div>
-          )}
+
 
         </div>
 
