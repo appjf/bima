@@ -24,7 +24,8 @@ import {
   QrCode,
   Database,
   User,
-  ChevronDown
+  ChevronDown,
+  FileSpreadsheet
 } from 'lucide-react';
 import { UserRole, UserAccount, MainNavTab } from '../types';
 import { isTabAllowedForRole } from '../lib/accountEngine';
@@ -42,6 +43,7 @@ interface NavbarProps {
   onOpenCopilot: () => void;
   onOpenQrScanner?: () => void;
   dataQualityIssueCount: number;
+  onExportExcel?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -56,7 +58,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   setIsDarkMode,
   onOpenCopilot,
   onOpenQrScanner,
-  dataQualityIssueCount
+  dataQualityIssueCount,
+  onExportExcel
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -143,6 +146,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <Database className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span className="hidden sm:inline">Supabase DB</span>
                 <span className="sm:hidden text-[11px]">DB</span>
+              </button>
+            )}
+
+            {/* Export Excel Report Trigger */}
+            {onExportExcel && (
+              <button
+                onClick={onExportExcel}
+                className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 text-xs font-mono font-bold transition shadow-2xs shrink-0"
+                title="Ekspor Seluruh Data Operasional & Keuangan ke Excel (XLSX)"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span className="hidden sm:inline">Unduh Excel</span>
+                <span className="sm:hidden text-[11px]">XLSX</span>
               </button>
             )}
 

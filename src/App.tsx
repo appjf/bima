@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { 
   Navbar
@@ -74,6 +74,7 @@ import { DatabaseManagerModal } from './components/DatabaseManagerModal';
 import { runDocumentVerification } from './lib/ruleEngine';
 import { generateSmartSchedule } from './lib/schedulingEngine';
 import { generateNoticeLetterDraft } from './lib/workflowEngine';
+import { exportAllDataToExcel } from './lib/exportEngine';
 import { Sparkles, CheckCircle2, AlertTriangle, ShieldCheck, Info, Calculator, MessageSquare, ShieldAlert } from 'lucide-react';
 
 export default function App() {
@@ -105,11 +106,73 @@ export default function App() {
   // Modal & Detail State
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
+
+  // Keep selectedApp in sync with real-time updates from background/live applications array
+  useEffect(() => {
+    if (selectedApp) {
+      const updated = applications.find(a => a.id === selectedApp.id);
+      if (updated) {
+        if (JSON.stringify(updated) !== JSON.stringify(selectedApp)) {
+          setSelectedApp(updated);
+        }
+      }
+    }
+  }, [applications, selectedApp]);
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
   const [isUserAccountModalOpen, setIsUserAccountModalOpen] = useState(false);
   const [isDatabaseManagerOpen, setIsDatabaseManagerOpen] = useState(false);
   const [copilotInitialPrompt, setCopilotInitialPrompt] = useState<string | undefined>(undefined);
   const [statusFilterForApps, setStatusFilterForApps] = useState<ApplicationStatus | 'ALL'>('ALL');
+
+  // Database Synchronization Real-time Toast Notifier
+  const knownAppIdsRef = useRef<Set<string>>(new Set());
+  const initialLoadDoneRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    if (appsLoading) return;
+
+    if (!initialLoadDoneRef.current) {
+      if (applications && applications.length > 0) {
+        applications.forEach(app => {
+          knownAppIdsRef.current.add(app.id);
+        });
+        initialLoadDoneRef.current = true;
+      } else if (applications) {
+        // Even if empty, mark initial load as completed so future items trigger toast
+        initialLoadDoneRef.current = true;
+      }
+      return;
+    }
+
+    applications.forEach(app => {
+      if (!knownAppIdsRef.current.has(app.id)) {
+        knownAppIdsRef.current.add(app.id);
+
+        // Emit real-time premium notification toast
+        showToast(
+          `MASUK: Permohonan Baru Terdeteksi dari Sinkronisasi Database! Register: ${app.registerNumber} (${app.applicant.name}) - Perlu Verifikasi segera.`,
+          'info'
+        );
+
+        // Populate to official WhatsApp log lists
+        const newNotif: NotificationLog = {
+          id: `NOTIF-SYNC-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+          applicationId: app.id,
+          registerNumber: app.registerNumber,
+          recipientName: app.applicant.name,
+          recipientPhone: app.applicant.phone || '08123456789',
+          templateType: 'PERMOHONAN_MASUK',
+          message: `[SINKRONISASI DATABASES] Permohonan baru dengan nomor register ${app.registerNumber} atas nama ${app.applicant.name} telah masuk ke sistem dan memerlukan verifikasi teknis dari operator.`,
+          channel: 'WHATSAPP',
+          status: 'PENDING',
+          createdAt: new Date().toISOString(),
+          retryCount: 0
+        };
+
+        setNotifications(prev => [newNotif, ...prev]);
+      }
+    });
+  }, [applications, appsLoading]);
 
   // Realtime QR Verification Notice State & Modal
   const [qrVerifyNotice, setQrVerifyNotice] = useState<{
@@ -182,6 +245,20 @@ export default function App() {
     setTimeout(() => {
       setToastMessage(null);
     }, 3500);
+  };
+
+  const handleExportExcel = () => {
+    try {
+      exportAllDataToExcel({
+        applications,
+        notifications,
+        operatorName: currentUser?.name || 'Petugas SIMBG'
+      });
+      showToast('EKSPOR BERHASIL: Seluruh data operasional PBG/SLF, Monev Retribusi, dan Log WA berhasil diunduh dalam format Excel (.xlsx) yang rapi!', 'success');
+    } catch (error) {
+      console.error('Failed to export data to excel:', error);
+      showToast('Gagal memproses ekspor data ke Excel. Silakan coba beberapa saat lagi.', 'warning');
+    }
   };
 
   // Sync dark mode to DOM
@@ -596,6 +673,7 @@ export default function App() {
         }}
         onOpenQrScanner={() => setIsQrScannerOpen(true)}
         dataQualityIssueCount={dataQualityIssueCount}
+        onExportExcel={handleExportExcel}
       />
 
       {/* Main Workspace Container */}
